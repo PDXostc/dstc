@@ -6,4 +6,4 @@ void lambda_test(int a, char b) {
     return;
 }
 
-CLIENT_FUNCTION(lambda_test, int, char)
+DSTC_FUNCTION(lambda_test, int, char)

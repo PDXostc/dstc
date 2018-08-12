@@ -60,7 +60,7 @@
 
 // Expand the function to a serializer and deserializer
 // Ignore endianness and other things that we will worry about later.
-#define CLIENT_FUNCTION(name, ...) \
+#define DSTC_FUNCTION(name, ...) \
   void dstc_serialize_##name(uint8_t* buffer DECLARE_ARGUMENTS(__VA_ARGS__)) {      \
       uint16_t name_len = (uint16_t) strlen(#name);                                        \
                                                                                           \
