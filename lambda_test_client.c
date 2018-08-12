@@ -26,6 +26,7 @@ int main(int argc, char* argv[])
     // First argument is the file descriptor to write to.
     // Piped to dstc_src.
     dstc_lambda_test(1, 10, 15);
+    dstc_lambda_test(1, 111, 120);
 }
 
 
