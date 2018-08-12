@@ -73,7 +73,11 @@ int main(int argc, char* argv[])
         void (*server_func)(int32_t);
 
         // Read name
-        read(0, (void *) &name_len, sizeof(name_len));
+        if (read(0, (void *) &name_len, sizeof(name_len)) != sizeof(name_len)) {
+            printf("Client died. Exit\n");
+            exit(0);
+        }
+               
         read(0, (void *) func_name, name_len);
 
         printf("Got call for [%s]\n", func_name);
@@ -84,7 +88,6 @@ int main(int argc, char* argv[])
             exit(255);
         }
         (*server_func)(0); // Read arguments from stdin and run function.
-        exit(0);
     }
 }
 
