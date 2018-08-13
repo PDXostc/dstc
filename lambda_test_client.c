@@ -9,13 +9,6 @@
 //
 //   lambda_test_client | dstc_srv lambda_test.so
 
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <dlfcn.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
 #include "dstc.h"
 
 // Gives us dstc_lambda_test()
