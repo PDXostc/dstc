@@ -1,22 +1,32 @@
 #
 # Doodling
 #
+
+TARGET=dstc_node
+
+OBJ=dstc_node.o
+
+INCLUDE=dstc.h
+
+.PHONY=examples
+
 CFLAGS= -fPIC -g
 CC =gcc
 
-all: dstc_node test_chat.so
+all: $(TARGET) examples
 
 # -rdynamic is needed so that a loade .so file can resolve and call
 # dstc_src:dstc_register_function(). See manpage for dlopen(2)
 # and gcc(1)
 #
-dstc_node: dstc_node.o
+$(TARGET): $(OBJ)
 	gcc $(CFLAGS) -rdynamic -o $@ $< -ldl
 
-test_chat.so: test_chat.o
-	gcc $(CFLAGS) -shared -Wl,-soname,test_chat.so.1 $< -o $@
+$(OBJ): dstc.h
 
-dstc_node.c test_chat.c: dstc.h
+examples:
+	(cd test_chat; make)
 
 clean:
-	rm -f test_chat.so test_chat.o *~ dstc_node dstc_node.o 
+	(cd test_chat; make clean)
+	rm -f $(OBJ) $(TARGET) *~

@@ -19,15 +19,15 @@ The provided sample code is a simple chat node implemented in ~30 lines of C cod
 
 ## Terminal 1
 
-    term_1$ ./dstc_node ./test_chat.so
+    term_1$ ./dstc_node ./test_chat/test_chat.so
 
 ## Terminal 2
 
-    term_2$ ./dstc_node ./test_chat.so
+    term_2$ ./dstc_node ./test_chat/test_chat.so
 
 ## Terminal 3
 
-    term_3$ ./dstc_node ./test_chat.so
+    term_3$ ./dstc_node ./test_chat/test_chat.so
 
 # COMPONENT DESCRIPTION
 
