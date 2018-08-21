@@ -6,13 +6,7 @@ This proof of concept allows stand-alone .so files with one or more
 functions to be compiled and loaded by a (remote) server that has no
 knowledge of the signature of the loaded function.
 
-A client can then execute the given functions on the server.
-
-Next networking (nanomsg) will be added so that we can run one or more
-servers in a cluster that load the functions on-demand from a repo (or
-directly from the client), allowing us to do load-balancing,
-map-reduce, and other scalability-oriented things.
-
+The provided sample code is a simple chat server implemented in ~30 lines of C code.
 
 # Building
 
@@ -20,23 +14,41 @@ map-reduce, and other scalability-oriented things.
 
 # Running
 
-    ./lambda_test_client | ./dstc_srv ./lambda_test.so 
+## Terminal 1
 
-## ```dstc_srv```
-This is a generic server that can load arbitrary .so files (such as lambda\_test.so).
-Once loaded the server will listen for incoming traffic on ```stdin```. The traffic
-is the name of the function to execute and serialized arguments for that function.
+    term_1$ ./dstc_srv ./test_chat.so
 
-Once received, the server uses the macro-generated code
-(```dstc_server_lambda_test()```) in the loade ```.so``` file to
-deserialize the parameters and execute the local function.
+## Terminal 2
 
-## ```lambda_test.so```
-Simple test that will add two numbers. This code is compiled to an so file that
-can be loaded by ```dstc_srv``` without the server being aware at all about the
-function signature. 
+    term_2$ ./dstc_srv ./test_chat.so
 
-## ```lambda_test_client``` 
-A very simple client that simply calls the macro-generated funciton ```dstc_lambda_test()``` 
-to send out the function name (```lambda_test```) and the serialized parameters to stdout.
+## Terminal 3
+
+    term_3$ ./dstc_srv ./test_chat.so
+
+## ```dstc_srv``` This is a generic server that can load arbitrary .so
+files (such as test\_chat.so).  Once loaded the server will setup a
+multicast socket and wait for data on it to arrive on it.
+
+The server also has a function that can be made from the loaded .so
+files to manager epoll() vectors. This lets an .so file setup its own
+file (or socket) descriptors and get callbacks from the server when epoll_wait()
+returns on them.
+
+## ```test_chat.so```
+Simple chat program that has a central function ```message()``` that
+receives a username and a message to print on screen.
+
+The ```DSTC_CLIENT(message, char, [128], char, [512])``` generates
+```dstc_message()``` as a client-side
+proxy that serializes arguments and sends an RPC call over the multicast socket.
+
+The ```DSTC_SERVER(message, char, [128], char, [512])``` generates
+```dstc_server_message()``` as a (hidden) server side multicast receiver that deserializes the
+incomign packet and invokes the local ```message()``` function.
+
+Thus, a call to ```dstc_message()``` will trigger a call to ```message()``` in all running
+```dstc\_srv ./test_chat.so``` instances in the network.
+
+
 
