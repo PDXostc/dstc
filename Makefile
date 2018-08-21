@@ -16,6 +16,7 @@ dstc_node: dstc_node.o
 test_chat.so: test_chat.o
 	gcc $(CFLAGS) -shared -Wl,-soname,test_chat.so.1 $< -o $@
 
+dstc_node.c test_chat.c: dstc.h
 
 clean:
 	rm -f test_chat.so test_chat.o *~ dstc_node dstc_node.o 
