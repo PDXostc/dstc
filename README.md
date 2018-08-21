@@ -26,7 +26,8 @@ The provided sample code is a simple chat server implemented in ~30 lines of C c
 
     term_3$ ./dstc_srv ./test_chat.so
 
-## ```dstc_srv``` This is a generic server that can load arbitrary .so
+## ```dstc_srv``` 
+This is a generic server that can load arbitrary .so
 files (such as test\_chat.so).  Once loaded the server will setup a
 multicast socket and wait for data on it to arrive on it.
 
@@ -45,10 +46,12 @@ proxy that serializes arguments and sends an RPC call over the multicast socket.
 
 The ```DSTC_SERVER(message, char, [128], char, [512])``` generates
 ```dstc_server_message()``` as a (hidden) server side multicast receiver that deserializes the
-incomign packet and invokes the local ```message()``` function.
+incoming RPC call and invokes the local ```message()``` function.
 
 Thus, a call to ```dstc_message()``` will trigger a call to ```message()``` in all running
-```dstc\_srv ./test_chat.so``` instances in the network.
+```dstc_srv ./test_chat.so``` instances in the network, including the calling instance.
 
+The rest of the code in ```test_chat.c``` sets up an epoll callback that is invoked when
+keyboard input is received.
 
 
