@@ -6,9 +6,7 @@
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 
 // Server that can load and execute lambda functions.
-// Pipe the output of the cient program to this program:
-//
-//   lambda_test_client | dstc_srv lambda_test.so
+// See README.md for details
 
 #include <stdio.h>
 #include <dlfcn.h>

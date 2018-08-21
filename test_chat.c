@@ -6,7 +6,7 @@ DSTC_CLIENT(message, char, [128], char, [512])
 
 //
 // Handle keyboard input on stdin.
-// called by dstc_srv since we registered file descriptor 0
+// called by dstc_node since we registered file descriptor 0
 // with the polling system in init() below.
 //
 static void handle_keyboard(int fd, struct epoll_event* event)
@@ -44,7 +44,7 @@ static void message(char username[128], char buf[512])
 }
 
 // The DSTC_ON_LOAD macro below will ensure that this function
-// is called when test_chat.so is loaded by dstc_srv.
+// is called when test_chat.so is loaded by dstc_node.
 //
 // The function will ask for a username and then setup a callback to
 // be invoked when we see input on stdin (file descriptor 0)
