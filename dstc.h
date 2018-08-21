@@ -114,6 +114,7 @@
 #define DSTC_SERVER(name, ...)                                          \
     static void dstc_server_##name(uint8_t* data)                       \
     {                                                                   \
+        extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));               \
         DECLARE_VARIABLES(__VA_ARGS__)                                  \
         DESERIALIZE_ARGUMENTS(__VA_ARGS__)                              \
         name(LIST_ARGUMENTS(__VA_ARGS__));                              \
