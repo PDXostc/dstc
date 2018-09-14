@@ -31,7 +31,7 @@ If a server function is registered in multiple processes / nodes
 across a network, all of them will be invoked in parallel with a
 (single) client calls the given function. 
 
-# LIMITAIONS
+# LIMITATIONS
 Since the purpose is to provide bare-bones RPC mechanisms with a minimum of
 dependencies, there are several limitaions, listed below
 
@@ -49,7 +49,7 @@ UDP/IP packets have a maximum of 64K. Meaning that your function call
 arguments, taking overhead data into consideration, should stay under
 63K. This can be extended as a part of the retry mechanism listed above.
 
-## No architectural reordering of arguments.
+## Arguments are transmitted in native format
 Arguments are currently copied across the network in their native
 format using ```memcpy()``` without respect to endianess or
 padding. This means that arguments will only be transferred correctly
