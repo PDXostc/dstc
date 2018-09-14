@@ -7,15 +7,23 @@
 
 // Thanks to https://codecraft.co/2014/11/25/variadic-macros-tricks for
 // deciphering variadic macro iterations.
+
+#ifndef __DSTC_H__
+#define __DSTC_H__
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <memory.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <sys/epoll.h>
+
+// TODO: ADD DOCUMENTATION
+typedef struct {
+    uint32_t length;
+    void* data;
+} dstc_dynamic_data_t;
+
+// Use dynamic arguments as:
+// DSTC_CLIENT(send_variable_len, DYNARG("Hello world", 11))
+#define DYNARG(data, length) ({ dstc_dynamic_data _dstc_dynarg = { .length = length, .data = data }; return _dstc_dynarg; }), 0
 
 #define _GET_NTH_ARG(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, \
                      _11, _12, _13, _14, _15, _16, N, ...) N
@@ -27,7 +35,7 @@
 #define _FE2(_call, type, size, ...) _call(1, type, size) 
 #define _FE4(_call, type, size, ...) _call(2, type, size) _FE2(_call, __VA_ARGS__)
 #define _FE6(_call, type, size, ...) _call(3, type, size) _FE4(_call, __VA_ARGS__)
-#define _FE8(_call, type, size, ...) _call(4, type, size) _FE7(_call, __VA_ARGS__)
+#define _FE8(_call, type, size, ...) _call(4, type, size) _FE6(_call, __VA_ARGS__)
 #define _FE10(_call, type, size, ...) _call(5, type, size) _FE9(_call, __VA_ARGS__)
 #define _FE12(_call, type, size, ...) _call(6, type, size) _FE11(_call, __VA_ARGS__)
 #define _FE14(_call, type, size, ...) _call(7, type, size) _FE14(_call, __VA_ARGS__)
@@ -62,18 +70,33 @@
                  _LE4,  _ERR, _LE2,  _ERR, _LE0)(_call, ##__VA_ARGS__)  
 
 #define SERIALIZE_ARGUMENT(arg_id, type, size)                          \
-    if (sizeof(type size ) == sizeof(type))                             \
-        memcpy((void*) data, (void*) &_a##arg_id, sizeof(type size));   \
-    else                                                                \
-        memcpy((void*) data, (void*) _a##arg_id, sizeof(type size));    \
-    data += sizeof(type size);                                          \
+    if (sizeof(type size) == 0) {                                       \
+        *((uint32_t*) data) = ((dstc_dynamic_data_t*) _a##arg_id)->length; \
+        data += sizeof(uint32_t);                                       \
+        memcpy((void*) data, ((dstc_dynamic_data_t*) _a##arg_id)->data, ((dstc_dynamic_data_t*) _a##arg_id)->length); \
+        data += ((dstc_dynamic_data_t*) _a##arg_id)->length;            \
+    } else {                                                            \
+        if (sizeof(type size ) == sizeof(type))                        \
+            memcpy((void*) data, (void*) &_a##arg_id, sizeof(type size)); \
+        else                                                           \
+            memcpy((void*) data, (void*) _a##arg_id, sizeof(type size)); \
+        data += sizeof(type size);                                      \
+    }                                                                   \
+
 
 #define DESERIALIZE_ARGUMENT(arg_id, type, size)                        \
-    if (sizeof(type size) == sizeof(type))                           \
-        memcpy((void*) &_a##arg_id, (void*) data, sizeof(type size));   \
-    else                                                                \
-        memcpy((void*) _a##arg_id, (void*) data, sizeof(type size));    \
-    data += sizeof(type size);                                          \
+    if (sizeof(type size) == 0) {                                       \
+        ((dstc_dynamic_data_t*) _a##arg_id)-> length = *((uint32_t*) data); \
+        data += sizeof(uint32_t);                                       \
+        memcpy(((dstc_dynamic_data_t*) _a##arg_id)->data, (void*) data, ((dstc_dynamic_data_t*) _a##arg_id)->length); \
+        data += ((dstc_dynamic_data_t*) _a##arg_id)->length;            \
+    } else {                                                            \
+        if (sizeof(type size) == sizeof(type))                          \
+            memcpy((void*) &_a##arg_id, (void*) data, sizeof(type size)); \
+        else                                                            \
+            memcpy((void*) _a##arg_id, (void*) data, sizeof(type size)); \
+        data += sizeof(type size);                                      \
+    }                                                                   \
 
 
 #define DECLARE_ARGUMENT(arg_id, type, size) type _a##arg_id size
@@ -94,21 +117,23 @@
 // Create client function that serializes and writes to descriptor
 // Create server function that receives serialized data on descriptor
 // and makes call.
-//
-// Namespaces in dlmopen are used to avoid duplicate dstc_get_functions()
-// clashes when multiple shared objects are loaded.
-// LIMITATION: ONLY ONE DSTC_FUNCTION() CALL PER SO FILE. FOR NOW.
-//
+// If the socket has not been setup when the client call is made,
+// it is will be done through dstc_net_client.c:dstc_setup_mcast_sub() 
+// 
 #define DSTC_CLIENT(name, ...)                                          \
     void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                  \
         uint32_t sz = SIZE_ARGUMENTS(__VA_ARGS__) sizeof(#name);        \
         uint8_t buffer[sz];                                             \
         uint8_t *data = buffer + sizeof(#name);                         \
-        extern void dstc_srv_send(uint8_t* buffer, uint32_t sz);        \
+        extern void _dstc_send(uint8_t* buffer, uint32_t sz);        \
+        extern int _dstc_mcast_sock;                                    \
+                                                                        \
+        if (_dstc_mcast_sock == -1)                                     \
+            _dstc_mcast_sock = dstc_setup_mcast_sub();                  \
                                                                         \
         strcpy(buffer, #name);                                          \
         SERIALIZE_ARGUMENTS(__VA_ARGS__)                                \
-        dstc_srv_send(buffer, sz);                                      \
+        _dstc_send(buffer, sz);                                      \
     }                                                                   \
 
 #define DSTC_SERVER(name, ...)                                          \
@@ -127,17 +152,36 @@
         dstc_register_function(#name, dstc_server_##name);              \
     }
 
+
+
+// Function that are called from the .so shared library to
+// the dstc_node process that loads it.
+//
+// dstc_epoll_ctl allows a client to register a file descriptor
+// with an epoll set and get a callback when I/O occurs
+// on the descriptor.
+// See epoll_ctl() manual page for details.
+//
+
+// DELETE THIS SECTION
 #define DSTC_ON_LOAD(name)                                              \
     static void __attribute__((constructor)) _dstc_on_load_##name()     \
     {                                                                   \
         extern void name(void);                                         \
         name();                                                         \
     }
-
 typedef void (*dstc_epoll_cb_t) (int fd, struct epoll_event* ev) ;
-
 extern void dstc_epoll_ctl(int op,
                            int fd,
                            struct epoll_event* ev,
                            dstc_epoll_cb_t callback);
 
+
+// Functions available in dstc_net_client.c
+// Used by stand-alone clients that do not execute as a 
+// shared library loaded by dstc_node.
+//
+extern int dstc_setup_mcast_sub(void);
+extern void dstc_read();
+extern int dstc_get_socket();
+#endif // __DSTC_H__

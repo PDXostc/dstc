@@ -1,10 +1,10 @@
 #
 # Doodling
 #
-INCLUDE=../dstc.h
-TARGET=test_chat.so
-OBJ=test_chat.o
-CFLAGS= -fPIC -g -I..
+INCLUDE=../../dstc.h
+TARGET=chat
+OBJ=chat.o ../../dstc.o
+CFLAGS= -g -I../.. 
 CC =gcc
 
 # -rdynamic is needed so that a loade .so file can resolve and call
@@ -13,7 +13,7 @@ CC =gcc
 #
 
 $(TARGET): $(OBJ)
-	gcc $(CFLAGS) -shared -Wl,-soname,test_chat.so.1 $< -o $@
+	gcc $(CFLAGS) $^ -o $@
 
 $(OBJ): $(INCLUDE)
 
