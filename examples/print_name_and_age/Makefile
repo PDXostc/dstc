@@ -9,12 +9,10 @@ CLIENT_OBJ=print_name_and_age_client.o ../../dstc.o
 TARGET_SERVER=print_name_and_age_server
 SERVER_OBJ=print_name_and_age_server.o ../../dstc.o
 
-# -fPIC really just needed for the .so file, but works for the client
-# as well.
 # The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
 # issues. Please note that no code will be executed that translates an integer
 # to a pointer.
-CFLAGS= -fPIC -g -I ../.. -Wno-int-to-pointer-cast 
+CFLAGS= -g -I ../.. -Wno-int-to-pointer-cast 
 CC =gcc
 .PHONY: all
 
@@ -39,4 +37,4 @@ $(TARGET_CLIENT): $(CLIENT_OBJ)
 $(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE)
 
 clean:
-	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(CLIENT_SERVER)  *~
+	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(SERVER_OBJ)  *~

@@ -4,13 +4,12 @@
 INCLUDE=../../dstc.h
 TARGET=chat
 OBJ=chat.o ../../dstc.o
-CFLAGS= -g -I../.. 
 CC =gcc
 
-# -rdynamic is needed so that a loade .so file can resolve and call
-# dstc_src:dstc_register_function(). See manpage for dlopen(2)
-# and gcc(1)
-#
+# The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
+# issues. Please note that no code will be executed that translates an integer
+# to a pointer.
+CFLAGS= -g -I ../.. -Wno-int-to-pointer-cast 
 
 $(TARGET): $(OBJ)
 	gcc $(CFLAGS) $^ -o $@
