@@ -12,40 +12,7 @@
 #include <stdlib.h>
 #include "dstc.h"
 
-// Generate deserializer for multicast packets sent by dstc_message()
-// above.
-// The deserializer decodes the incoming data and calls the
-// print_name_and_age() function in this file.
-//
-static void dstc_server_dynamic_message (uint8_t * data)
-{
-  extern void dynamic_message (DSTC _a1[1]);
-  DSTC _a1[1];
-  if (*(uint32_t *) "DSTC" == 0x43545344)
-    {
-      ((dstc_dynamic_data_t *) _a1)->length = *((uint32_t *) data);
-      data += sizeof (uint32_t);
-      ((dstc_dynamic_data_t *) _a1)->data = data;
-      data += ((dstc_dynamic_data_t *) _a1)->length;
-    }
-  else
-    {
-      if (sizeof (DSTC[1]) == sizeof (DSTC))
-	memcpy ((void *) &_a1, (void *) data, sizeof (DSTC[1]));
-      else
-	memcpy ((void *) _a1, (void *) data, sizeof (DSTC[1]));
-      data += sizeof (DSTC[1]);
-    }
-  dynamic_message (_a1);
-  return;
-}
-
-static void __attribute__ ((constructor)) _dstc_register_dynamic_message ()
-{
-  extern void dstc_register_function (char *, void (*)(uint8_t *));
-  dstc_register_function ("dynamic_message", dstc_server_dynamic_message);
-}
-
+DSTC_CLIENT(dynamic_message, DYNAMIC_ARG)
 
 //
 // Print out name and age.
