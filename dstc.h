@@ -21,9 +21,24 @@ typedef struct {
     void* data;
 } dstc_dynamic_data_t;
 
+// DSTC is used as an internal macro tag
+// in DSTC_SERVER and DSTC_CLIENT to identify
+// dynamic data arguments.
+typedef dstc_dynamic_data_t DSTC;
+
+#define DYNAMIC_ARG DSTC, [1]
+
 // Use dynamic arguments as:
-// DSTC_CLIENT(send_variable_len, DYNARG("Hello world", 11))
-#define DYNARG(data, length) ({ dstc_dynamic_data _dstc_dynarg = { .length = length, .data = data }; return _dstc_dynarg; }), 0
+// dstc_send_variable_len(DYNARG("Hello world", 11))
+inline static dstc_dynamic_data_t _dstc_dynamic_data(void* data, int length)
+{
+  DSTC dynarg = { .length = length, .data = data }; 
+  return dynarg;
+}
+
+
+#define DYNARG(data, length) _dstc_dynamic_data(data, length), sizeof(dstc_dynamic_data_t)
+//#define DYNARG(data, length) ({ DSTC dynarg = { .length = length, .data = data }; dynarg })
 
 #define _GET_NTH_ARG(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, \
                      _11, _12, _13, _14, _15, _16, N, ...) N
@@ -69,25 +84,27 @@ typedef struct {
                  _LE4,  _ERR, _LE2,  _ERR, _LE0)(_call, ##__VA_ARGS__)  
 
 #define SERIALIZE_ARGUMENT(arg_id, type, size)                          \
-    if (sizeof(type size) == 0) {                                       \
+    if (* (uint32_t*) #type == DSTC_DYNARG_TAG) {                       \
         *((uint32_t*) data) = ((dstc_dynamic_data_t*) _a##arg_id)->length; \
         data += sizeof(uint32_t);                                       \
         memcpy((void*) data, ((dstc_dynamic_data_t*) _a##arg_id)->data, ((dstc_dynamic_data_t*) _a##arg_id)->length); \
         data += ((dstc_dynamic_data_t*) _a##arg_id)->length;            \
     } else {                                                            \
-        if (sizeof(type size ) == sizeof(type))                        \
+        if (sizeof(type size ) == sizeof(type))                         \
             memcpy((void*) data, (void*) &_a##arg_id, sizeof(type size)); \
-        else                                                           \
+        else                                                            \
             memcpy((void*) data, (void*) _a##arg_id, sizeof(type size)); \
         data += sizeof(type size);                                      \
     }                                                                   \
 
+// Tag for dynamic data: "DSTC"
+#define DSTC_DYNARG_TAG 0x43545344  
 
 #define DESERIALIZE_ARGUMENT(arg_id, type, size)                        \
-    if (sizeof(type size) == 0) {                                       \
+    if (* (uint32_t*) #type == DSTC_DYNARG_TAG) {                          \
         ((dstc_dynamic_data_t*) _a##arg_id)-> length = *((uint32_t*) data); \
         data += sizeof(uint32_t);                                       \
-        memcpy(((dstc_dynamic_data_t*) _a##arg_id)->data, (void*) data, ((dstc_dynamic_data_t*) _a##arg_id)->length); \
+        ((dstc_dynamic_data_t*) _a##arg_id)->data = data;               \
         data += ((dstc_dynamic_data_t*) _a##arg_id)->length;            \
     } else {                                                            \
         if (sizeof(type size) == sizeof(type))                          \
@@ -96,7 +113,6 @@ typedef struct {
             memcpy((void*) _a##arg_id, (void*) data, sizeof(type size)); \
         data += sizeof(type size);                                      \
     }                                                                   \
-
 
 #define DECLARE_ARGUMENT(arg_id, type, size) type _a##arg_id size
 #define LIST_ARGUMENT(arg_id, type, size) _a##arg_id
@@ -121,7 +137,7 @@ typedef struct {
         uint32_t sz = SIZE_ARGUMENTS(__VA_ARGS__) sizeof(#name);        \
         uint8_t buffer[sz];                                             \
         uint8_t *data = buffer + sizeof(#name);                         \
-        extern void _dstc_send(uint8_t* buffer, uint32_t sz);        \
+        extern void _dstc_send(uint8_t* buffer, uint32_t sz);           \
         extern int _dstc_mcast_sock;                                    \
                                                                         \
         if (_dstc_mcast_sock == -1)                                     \
@@ -129,7 +145,7 @@ typedef struct {
                                                                         \
         strcpy(buffer, #name);                                          \
         SERIALIZE_ARGUMENTS(__VA_ARGS__)                                \
-        _dstc_send(buffer, sz);                                      \
+        _dstc_send(buffer, sz);                                         \
     }                                                                   \
 
 
@@ -150,8 +166,6 @@ typedef struct {
         extern void dstc_register_function(char*, void (*)(uint8_t*));  \
         dstc_register_function(#name, dstc_server_##name);              \
     }
-
-
 
 // Functions available in dstc_net_client.c
 // Used by stand-alone clients that do not execute as a 
