@@ -16,7 +16,8 @@
 // Generate serializer functionality and the callable client function
 // dstc_message().
 
-DSTC_CLIENT(dynamic_message, DYNAMIC_ARG)
+DSTC_CLIENT(dynamic_message, DECL_DYNAMIC_ARG)
+
 
 int main(int argc, char* argv[])
 {
@@ -25,7 +26,6 @@ int main(int argc, char* argv[])
         exit(255);
     }
 
-    DSTC tst = { .data = argv[1], .length = strlen(argv[1])};
-    dstc_dynamic_message(&tst);
+    dstc_dynamic_message(DYNAMIC_ARG(argv[1], strlen(argv[1])));
     exit(0);
 }
