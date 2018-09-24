@@ -16,16 +16,17 @@
 // Generate serializer functionality and the callable client function
 // dstc_message().
 
-DSTC_CLIENT(dynamic_message, DECL_DYNAMIC_ARG)
+DSTC_CLIENT(dynamic_message, DECL_DYNAMIC_ARG, int, [4])
 
 
 int main(int argc, char* argv[])
 {
+    int second_arg[4] = { 1,2,3,4 };
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <string>\n", argv[0]);
         exit(255);
     }
 
-    dstc_dynamic_message(DYNAMIC_ARG(argv[1], strlen(argv[1])));
+    dstc_dynamic_message(DYNAMIC_ARG(argv[1], strlen(argv[1])+1), second_arg);
     exit(0);
 }

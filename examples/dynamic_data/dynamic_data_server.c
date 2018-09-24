@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include "dstc.h"
 
-DSTC_SERVER(dynamic_message, DECL_DYNAMIC_ARG)
+DSTC_SERVER(dynamic_message, DECL_DYNAMIC_ARG, int, [4])
 
 //
 // Print out name and age.
@@ -20,11 +20,16 @@ DSTC_SERVER(dynamic_message, DECL_DYNAMIC_ARG)
 // Please note that the arguments must match between the function below
 // and the macro above.
 //
-void dynamic_message(dstc_dynamic_data_t dynarg)
+void dynamic_message(dstc_dynamic_data_t dynarg, int second_arg[4])
 {
-    printf("Data:   %*s\n", dynarg.length, (char*) dynarg.data);
-    printf("Length: %d\n", dynarg.length);
+    printf("Data:          %s\n", (char*) dynarg.data);
+    printf("Length:        %d\n", dynarg.length);
+    printf("Second Arg[0]: %d\n", second_arg[0]);
+    printf("Second Arg[1]: %d\n", second_arg[1]);
+    printf("Second Arg[2]: %d\n", second_arg[2]);
+    printf("Second Arg[3]: %d\n", second_arg[3]);
 }
+
 
 int main(int argc, char* argv[])
 {
@@ -34,5 +39,3 @@ int main(int argc, char* argv[])
         
     exit(0);
 }
-
-
