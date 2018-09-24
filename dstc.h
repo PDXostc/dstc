@@ -90,7 +90,7 @@ typedef dstc_dynamic_data_t DSTC;
         if (sizeof(type size ) == sizeof(type))                         \
             memcpy((void*) data, (void*) &_a##arg_id, sizeof(type size)); \
         else                                                            \
-            memcpy((void*) data, (void*) *(char*) &_a##arg_id, sizeof(type size)); \
+            memcpy((void*) data, (void*) *(char**) &_a##arg_id, sizeof(type size)); \
         data += sizeof(type size);                                      \
     }
 
@@ -111,7 +111,7 @@ typedef dstc_dynamic_data_t DSTC;
 #define DECLARE_ARGUMENT(arg_id, type, size) type _a##arg_id size
 #define LIST_ARGUMENT(arg_id, type, size) _a##arg_id
 #define DECLARE_VARIABLE(arg_id, type, size) type _a##arg_id size ;
-#define SIZE_ARGUMENT(arg_id, type, size)     ((* (uint32_t*) #type == DSTC_DYNARG_TAG)?(sizeof(uint32_t) + ((dstc_dynamic_data_t*) &_a##arg_id)->length): sizeof(type size)) +
+#define SIZE_ARGUMENT(arg_id, type, size) ((* (uint32_t*) #type == DSTC_DYNARG_TAG)?(sizeof(uint32_t) + ((dstc_dynamic_data_t*) &_a##arg_id)->length): sizeof(type size)) +
 
 #define SERIALIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SERIALIZE_ARGUMENT, ##__VA_ARGS__)
 #define DESERIALIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(DESERIALIZE_ARGUMENT, ##__VA_ARGS__)
