@@ -19,7 +19,7 @@ typedef struct {
     void* data;
 } dstc_dynamic_data_t;
 
-#define DYNAMIC_ARG DSTC, [1]
+#define DECL_DYNAMIC_ARG DSTC, 
 
 // Tag for dynamic data magic cookie: "DSTC" = 0x43545344
 // Used by DESERIALIZE_ARGUMENT and SERIALIZE_ARGUMENT
@@ -30,7 +30,7 @@ typedef dstc_dynamic_data_t DSTC;
 
 // Use dynamic arguments as:
 // dstc_send_variable_len(DYNARG("Hello world", 11))
-#define DYNARG(data, length) ({ DSTC d = { .length = length, .data = data }; d; })
+#define DYNAMIC_ARG(_data, _length) ({ DSTC d = { .length = _length, .data = _data }; d; })
 
 
 // Thanks to https://codecraft.co/2014/11/25/variadic-macros-tricks for
@@ -81,37 +81,37 @@ typedef dstc_dynamic_data_t DSTC;
 
 #define SERIALIZE_ARGUMENT(arg_id, type, size)                          \
     if (* (uint32_t*) #type == DSTC_DYNARG_TAG) {                       \
-        *((uint32_t*) data) = ((dstc_dynamic_data_t*) _a##arg_id)->length; \
+        *((uint32_t*) data) = ((dstc_dynamic_data_t*) &_a##arg_id)->length; \
         data += sizeof(uint32_t);                                       \
-        memcpy((void*) data, ((dstc_dynamic_data_t*) _a##arg_id)->data, \
-               ((dstc_dynamic_data_t*) _a##arg_id)->length);            \
-        data += ((dstc_dynamic_data_t*) _a##arg_id)->length;            \
+        memcpy((void*) data, ((dstc_dynamic_data_t*) &_a##arg_id)->data, \
+               ((dstc_dynamic_data_t*) & _a##arg_id)->length);          \
+        data += ((dstc_dynamic_data_t*) & _a##arg_id)->length;          \
     } else {                                                            \
         if (sizeof(type size ) == sizeof(type))                         \
             memcpy((void*) data, (void*) &_a##arg_id, sizeof(type size)); \
         else                                                            \
-            memcpy((void*) data, (void*) _a##arg_id, sizeof(type size)); \
+            memcpy((void*) data, (void*) *(char*) &_a##arg_id, sizeof(type size)); \
         data += sizeof(type size);                                      \
     }
 
 #define DESERIALIZE_ARGUMENT(arg_id, type, size)                        \
     if (* (uint32_t*) #type == DSTC_DYNARG_TAG) {                       \
-        ((dstc_dynamic_data_t*) _a##arg_id)-> length = *((uint32_t*) data); \
+        ((dstc_dynamic_data_t*) &_a##arg_id)-> length = *((uint32_t*) data); \
         data += sizeof(uint32_t);                                       \
-        ((dstc_dynamic_data_t*) _a##arg_id)->data = data;               \
-        data += ((dstc_dynamic_data_t*) _a##arg_id)->length;            \
+        ((dstc_dynamic_data_t*) &_a##arg_id)->data = data;               \
+        data += ((dstc_dynamic_data_t*) &_a##arg_id)->length;            \
     } else {                                                            \
         if (sizeof(type size) == sizeof(type))                          \
             memcpy((void*) &_a##arg_id, (void*) data, sizeof(type size)); \
         else                                                            \
-            memcpy((void*) _a##arg_id, (void*) data, sizeof(type size)); \
+            memcpy((void*) (uint32_t*) &_a##arg_id, (void*) data, sizeof(type size)); \
         data += sizeof(type size);                                      \
     }
 
 #define DECLARE_ARGUMENT(arg_id, type, size) type _a##arg_id size
 #define LIST_ARGUMENT(arg_id, type, size) _a##arg_id
 #define DECLARE_VARIABLE(arg_id, type, size) type _a##arg_id size ;
-#define SIZE_ARGUMENT(arg_id, type, size)     sizeof(type size) +                                            
+#define SIZE_ARGUMENT(arg_id, type, size)     ((* (uint32_t*) #type == DSTC_DYNARG_TAG)?(sizeof(uint32_t) + ((dstc_dynamic_data_t*) &_a##arg_id)->length): sizeof(type size)) +
 
 #define SERIALIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SERIALIZE_ARGUMENT, ##__VA_ARGS__)
 #define DESERIALIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(DESERIALIZE_ARGUMENT, ##__VA_ARGS__)
