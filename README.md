@@ -29,7 +29,9 @@ they do not contain pointers.
 ## Multiple parallel executions.
 If a server function is registered in multiple processes / nodes
 across a network, all of them will be invoked in parallel with a
-(single) client calls the given function. 
+(single) client calls the given function.<br>
+The provided chat system is implemented in ~50
+lines of C code.
 
 # LIMITATIONS
 Since the purpose is to provide bare-bones RPC mechanisms with a minimum of
@@ -58,14 +60,7 @@ are sending structs as arguments, compiler version may come into
 play. See gcc ```packed``` attribute for possible workarounds on
 compiler versions.
 
-## Single call, multiple execution
-A single call to the client function in one of the node will trigger
-the execution of the function's node variant in **all** nodes that has
-loaded the function. (Hence the lack of return values).
 
-
-The provided sample code is a simple chat node implemented in ~50
-lines of C code.
 
 # BUILDING 
 
