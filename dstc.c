@@ -153,11 +153,9 @@ void dstc_read(void)
             break;
     }
 
-    // No  funciton with the given name registered?
     if (i == -1) {
-        printf("ABORT: Function [%s] not loaded\n", rcv_buf);
-        // Out of sync on the stdin stream. Exit.
-        exit(255);
+        printf("[Info]: Function [%s] not loaded. Ignored\n", rcv_buf);
+        return;
     }
 
     (*symtab[i].server_func)(payload); // Read arguments from stdin and run function.
