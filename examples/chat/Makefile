@@ -4,7 +4,8 @@
 INCLUDE=../../dstc.h
 TARGET=chat
 OBJ=chat.o ../../dstc.o
-CC =gcc
+#use the compiler set by enviroment for cross compiling.
+#CC =gcc
 
 # The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
 # issues. Please note that no code will be executed that translates an integer
@@ -12,7 +13,7 @@ CC =gcc
 CFLAGS= -g -I ../.. -Wno-int-to-pointer-cast 
 
 $(TARGET): $(OBJ)
-	gcc $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 $(OBJ): $(INCLUDE)
 
