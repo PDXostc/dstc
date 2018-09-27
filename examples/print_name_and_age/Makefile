@@ -13,7 +13,8 @@ SERVER_OBJ=print_name_and_age_server.o ../../dstc.o
 # issues. Please note that no code will be executed that translates an integer
 # to a pointer.
 CFLAGS= -g -I ../.. -Wno-int-to-pointer-cast 
-CC =gcc
+#use the compiler set by enviroment for cross compiling.
+#CC =gcc
 .PHONY: all
 
 all: $(TARGET_SERVER) $(TARGET_CLIENT)
@@ -24,13 +25,13 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 #
 
 $(TARGET_SERVER): $(SERVER_OBJ)
-	gcc $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 #
 # The client is built as a regular binary
 #
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	gcc $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 
 # Recompile everything if dstc.h changes

@@ -14,7 +14,8 @@ SERVER_OBJ=dynamic_data_server.o ../../dstc.o
 # to a pointer.
 # 
 CFLAGS= -g -I ../.. -Wno-int-to-pointer-cast
-CC =gcc
+#use the compiler set by enviroment for cross compiling.
+#CC =gcc
 .PHONY: all
 
 all: $(TARGET_SERVER) $(TARGET_CLIENT)
@@ -25,13 +26,13 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 #
 
 $(TARGET_SERVER): $(SERVER_OBJ)
-	gcc $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 #
 # The client is built as a regular binary
 #
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	gcc $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 
 # Recompile everything if dstc.h changes
