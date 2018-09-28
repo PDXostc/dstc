@@ -40,3 +40,8 @@ $(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE)
 
 clean:
 	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(SERVER_OBJ)  *~
+
+install:
+	install -d ${DESTDIR}/dstc/dynamic_data
+	install -m 0755 dynamic_data_server ${DESTDIR}/dstc/dynamic_data/
+	install -m 0755 dynamic_data_client ${DESTDIR}/dstc/dynamic_data/

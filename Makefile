@@ -12,3 +12,6 @@ all:
 clean:
 	(cd examples; make clean)
 	rm -f $(OBJ) $(TARGET) *~
+
+install:
+	(cd examples/; make install)
