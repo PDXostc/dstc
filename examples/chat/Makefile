@@ -19,3 +19,7 @@ $(OBJ): $(INCLUDE)
 
 clean:
 	rm -f $(OBJ) $(TARGET) *~
+
+install:
+	install -d ${DESTDIR}/dstc/chat
+	install -m 0755 chat ${DESTDIR}/dstc/chat/
