@@ -11,7 +11,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/epoll.h>
 
 // TODO: ADD DOCUMENTATION
 typedef struct {
