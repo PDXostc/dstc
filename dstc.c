@@ -54,12 +54,6 @@ int dstc_setup_mcast_sub(void)
         exit(1);
     }
 
-    // Bind to local endpoint.
-    if (bind(_dstc_mcast_sock, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) < 0) {        
-        perror("bind");
-        exit(1);
-    }    
-
     // Join multicast group
     mreq.imr_multiaddr.s_addr = inet_addr(DSTC_MCAST_GROUP);         
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);         
@@ -67,6 +61,14 @@ int dstc_setup_mcast_sub(void)
         perror("ABORT: dstc_mcast_group(): setsockopt(IP_ADD_MEMBERSHIP)");
         exit(1);
     }         
+
+    // Bind to local endpoint.
+    if (bind(_dstc_mcast_sock, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) < 0) {        
+        perror("bind");
+        exit(1);
+    }    
+
+
     return _dstc_mcast_sock;
 }
 
