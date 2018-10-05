@@ -54,6 +54,11 @@ int dstc_setup_mcast_sub(void)
         exit(1);
     }
 
+    if (setsockopt(_dstc_mcast_sock, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
+        perror("ABORT: dstc_setup_mcast_sub(): setsockopt(SO_REUSEPORT)");
+        exit(1);
+    }
+
     // Join multicast group
     mreq.imr_multiaddr.s_addr = inet_addr(DSTC_MCAST_GROUP);         
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);         
