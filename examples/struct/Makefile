@@ -39,3 +39,8 @@ $(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE)
 
 clean:
 	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(SERVER_OBJ)  *~
+
+install:
+	install -d ${DESTDIR}/dstc/struct
+	install -m 0755 print_struct_server ${DESTDIR}/dstc/struct/
+	install -m 0755 print_struct_client ${DESTDIR}/dstc/struct/

@@ -39,3 +39,8 @@ $(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE)
 
 clean:
 	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(SERVER_OBJ)  *~
+
+install:
+	install -d ${DESTDIR}/dstc/print_name_and_age
+	install -m 0755 print_name_and_age_server ${DESTDIR}/dstc/print_name_and_age/
+	install -m 0755 print_name_and_age_client ${DESTDIR}/dstc/print_name_and_age/
