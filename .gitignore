@@ -1,54 +1,8 @@
-dstc_node
-
-# Prerequisites
-*.d
-
-# Object files
+examples/chat/chat
+examples/dynamic_data/dynamic_data_client
+examples/dynamic_data/dynamic_data_server
+examples/print_name_and_age/print_name_and_age_client
+examples/print_name_and_age/print_name_and_age_server
+examples/struct/print_struct_client
+examples/struct/print_struct_server
 *.o
-*.ko
-*.obj
-*.elf
-
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
