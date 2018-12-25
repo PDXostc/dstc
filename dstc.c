@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
+
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -32,7 +33,6 @@ static uint32_t symind = 0;
 extern int _dstc_mcast_sock;
 
 
-int _dstc_mcast_sock = -1;
 
 int dstc_setup_mcast_sub(void)
 {
