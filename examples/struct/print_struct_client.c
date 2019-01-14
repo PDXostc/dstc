@@ -23,6 +23,12 @@ int main(int argc, char* argv[])
         age = 25
     };
 
+    // Wait for function to become available on one or more servers.
+    while(!dstc_get_remote_count("print_struct")) 
+        dstc_process_events_simple(500000);
+
     dstc_print_struct(arg);
-    exit(0);
+
+    // Process events for another 100 msec to ensure that the call gets out.
+    dstc_process_events_simple(100000);
 }
