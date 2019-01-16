@@ -160,11 +160,12 @@ typedef dstc_dynamic_data_t DSTC;
 
 extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
-extern int dstc_setup_simple(void);
-extern int dstc_process_events_simple(usec_timestamp_t timeout);
-extern void dstc_process_events();
+extern int dstc_setup(void);
+extern int dstc_setup_epoll(int epollfd);
+extern int dstc_process_events(usec_timestamp_t timeout);
+extern void dstc_process_timeout();
 extern uint32_t dstc_get_remote_count(char* function_name);
-extern int dstc_get_actions(rmc_action_t* actions, uint32_t action_size);
-usec_timestamp_t get_timeout()
-
+extern usec_timestamp_t dstc_get_timeout_timestamp();
+struct epoll_event;
+extern void dstc_process_epoll(struct epoll_event* event);
 #endif // __DSTC_H__

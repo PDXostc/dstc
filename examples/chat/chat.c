@@ -5,9 +5,12 @@
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 
-#include <stdio.h>
 #include "dstc.h"
-#include <poll.h>
+#include "rmc_log.h"
+#include <sys/epoll.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 char g_username[128];
 
@@ -65,6 +68,11 @@ void chat_message(char username[128], char buf[512])
 
 int main(int argc, char* argv[])
 {
+    int epoll_fd = 0;
+    struct epoll_event ev = {
+        .data.u32 = 0, // stdin
+        .events = EPOLLIN
+    };
 
     // Ask for username
     printf("Username: ");
@@ -75,49 +83,55 @@ int main(int argc, char* argv[])
     printf("> ");
     fflush(stdout);
 
+    // Setup an epoll vector descriptor
+    epoll_fd = epoll_create1(0);
+
+    // Add stdin to epoll vector.
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, 0, &ev) == -1) {
+        RMC_LOG_FATAL("epoll_ctl(add, stdin): %s", strerror(errno));
+        exit(255);
+    }
+
+    // Setup dstc with the given epoll vector
+    dstc_setup_epoll(epoll_fd); 
+
     // Wait for input and process
     while(1) {
-        uint32_t count = dstc_get_socket_count() + 1;
-        struct pollfd pfd[count + 1];
-        rmc_action_t actions[count + 1];
-        int ind = -0;
+        usec_timestamp_t tout_ts = 0;
+        int timeout = 0;
+        int nfds = 0;
+        struct epoll_event events[dstc_get_socket_count() + 1];
 
-        // The solution below is slow, and epoll() with a callback mechanism
-        // should be used instead. But this one is simple to understand.
-        // Collect all event actions that we need to monitor
-        dstc_get_actions(actions, count);
+        // Find out when our next timeout is.
+        tout_ts = dstc_get_timeout_timestamp();
 
-        // Transfer events over to poll vector.
-        whild(ind < count) {
-            pfd[ind].revents = 0;
-            pfd[ind].events = 0;
-            pfd[ind].fd = action[ind].descriptor;
+        // Convert absolute timeout timestamp to an epoll_wait()-friendly timeout value.
+        // Only do this if the absolute timestamp is not -1 (infinite)
+        if (tout_ts != -1) {
+            timeout = (tout_ts - rmc_usec_monotonic_timestamp()) / 1000 + 1;
+        } else
+            timeout = -1;
+            
+        // Wait for events
+        nfds = epoll_wait(epoll_fd, events, sizeof(events)/sizeof(events[0]), timeout);
 
-            if (actions[ind].action & RMC_POLLREAD)
-                pfd[ind].events |= POLLIN;
-
-            if (actions[ind].action & RMC_POLLWRITE)
-                pfd[ind].events |= POLLOUT;
-
-            ++ind;
+        // Timeout?
+        if (nfds == 0) {
+            // Process dstc events and try again.
+            dstc_process_timeout();
+            continue;
         }
 
-        // Setup poll vector for stdin keyboard and dstc socket.
-        pfd[ind].fd = 0; // Stdin
-        pfd[ind].events = POLLIN;
-        pfd[ind].revents = 0;
+        // Process all events
+        while(nfds--) {
+            // Is this keyboard input?
+            if (events[nfds].data.fd == 0) {
+                handle_keyboard();
+                continue;
+            }
 
-        poll(pfd, sizeof(pfd) / sizeof(pfd[0]), -1);
-
-        if (pfd[ind].revents) // Keyboard inut?
-            handle_keyboard();
-
-        // Traverse all hits descriptors and have rmc process them
-        while(ind--) {
-            if (pfd[ind].events & POLLIN)
- 
-               dstc_process_input_event(ind);
-            CONTONUE HERE. 
-       }
+            dstc_process_epoll(&events[nfds]);
+                
+        }
     }
 }

@@ -33,7 +33,7 @@ void print_struct(struct name_and_age arg)
 int main(int argc, char* argv[])
 {
     // Process incoming events for ever
-    dstc_process_events_simple(-1);
+    dstc_process_events(-1);
 
     exit(0);
 }

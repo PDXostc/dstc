@@ -36,5 +36,5 @@ void print_name_and_age(char name[32], int age)
 int main(int argc, char* argv[])
 {
     // Process incoming events for ever
-    dstc_process_events_simple(-1);
+    dstc_process_events(-1);
 }

@@ -34,5 +34,5 @@ void test_dynamic_function(dstc_dynamic_data_t dynarg, int second_arg[4])
 int main(int argc, char* argv[])
 {
     // Process incoming events for ever
-    dstc_process_events_simple(-1);
+    dstc_process_events(-1);
 }

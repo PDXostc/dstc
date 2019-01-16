@@ -175,7 +175,6 @@ static void poll_add(user_data_t user_data,
                      uint32_t event_user_data,
                      rmc_poll_action_t action)
 {
-    char buf[16];
     int epollfd = user_data.i32;
     struct epoll_event ev = {
         .data.u32 = event_user_data,
@@ -271,7 +270,6 @@ static void poll_remove(user_data_t user_data,
                         int descriptor,
                         rmc_index_t index)
 {
-    char buf[16];
     int epollfd = user_data.i32;
 
     if (epoll_ctl(epollfd, EPOLL_CTL_DEL, descriptor, 0) == -1) {
@@ -282,7 +280,7 @@ static void poll_remove(user_data_t user_data,
 }
 
 
-usec_timestamp_t get_timeout()
+usec_timestamp_t dstc_get_timeout_timestamp()
 {
     usec_timestamp_t sub_event_tout_ts = 0;
     usec_timestamp_t pub_event_tout_ts = 0;
@@ -304,22 +302,15 @@ usec_timestamp_t get_timeout()
         pub_event_tout_ts:sub_event_tout_ts;
 }
 
-
-int dstc_process_events_simple(usec_timestamp_t timeout_arg)
+int dstc_process_events(usec_timestamp_t timeout_arg)
 {
-    int max_ev = 0;
     char buf[16];
     int nfds = 0;
     usec_timestamp_t timeout_ts = 0;
     usec_timestamp_t now = 0;
     
     if (!initialized)
-        dstc_setup_simple();
-
-    max_ev = rmc_sub_get_max_publisher_count(&_dstc_sub_ctx) +
-        rmc_pub_get_max_subscriber_count(&_dstc_pub_ctx);            
-
-    struct epoll_event events[max_ev];
+        dstc_setup();
 
     // Calculate an absolute timeout timestamp based on relative
     // timestamp provided in argument.
@@ -328,11 +319,12 @@ int dstc_process_events_simple(usec_timestamp_t timeout_arg)
 
     // Process evdents until we reach the timeout therhold.
     while((now = rmc_usec_monotonic_timestamp()) < timeout_ts || timeout_ts == -1) {
+        struct epoll_event events[dstc_get_socket_count()];
         usec_timestamp_t timeout = 0;
         char is_arg_timeout = 0;
         usec_timestamp_t event_tout_ts = 0;
 
-        event_tout_ts = get_timeout();
+        event_tout_ts = dstc_get_timeout_timestamp();
 
         // Figure out the shortest timeout between argument and event timeout
         if (timeout_ts == -1 && event_tout_ts == -1) {
@@ -367,7 +359,7 @@ int dstc_process_events_simple(usec_timestamp_t timeout_arg)
             }
         }
 
-        nfds = epoll_wait(simple_epollfd, events, max_ev, (timeout == -1)?-1:timeout);
+        nfds = epoll_wait(simple_epollfd, events, sizeof(events)/sizeof(events[0]), (timeout == -1)?-1:timeout);
 
         if (nfds == -1) {
             RMC_LOG_FATAL("epoll_wait(): %s", strerror(errno));
@@ -383,49 +375,60 @@ int dstc_process_events_simple(usec_timestamp_t timeout_arg)
                 RMC_LOG_DEBUG("Timed out on argument. returning" );
                 return 0;
             }
-            rmc_pub_timeout_process(&_dstc_pub_ctx);
-            rmc_sub_timeout_process(&_dstc_sub_ctx);
+
+            // Make rmc calls to handle scheduled events.
+            dstc_process_timeout();
             continue;
         }
 
-        while(nfds--) {
-            int res = 0;
-            uint8_t op_res = 0;
-            rmc_index_t c_ind = (rmc_index_t) events[nfds].data.u32 & USER_DATA_INDEX_MASK;
-            int is_pub = (events[nfds].data.u32 & USER_DATA_PUB_FLAG)?1:0;
+        // Process all pending events.
+        while(nfds--) 
+            dstc_process_epoll(&events[nfds]);
 
-            RMC_LOG_INDEX_DEBUG(c_ind, "%s: %s%s%s",
-                                (is_pub?"pub":"sub"),
-                                ((events[nfds].events & EPOLLIN)?" read":""),
-                                ((events[nfds].events & EPOLLOUT)?" write":""),
-                                ((events[nfds].events & EPOLLHUP)?" disconnect":""));
-
-
-            if (events[nfds].events & EPOLLIN) {
-                errno = 0;
-                if (is_pub)
-                    res = rmc_pub_read(&_dstc_pub_ctx, c_ind, &op_res);
-                else
-                    res = rmc_sub_read(&_dstc_sub_ctx, c_ind, &op_res);
-
-                RMC_LOG_INDEX_DEBUG(c_ind, "read result: %s - %s", _op_res_string(op_res),   strerror(res));
-            }
-
-            if (events[nfds].events & EPOLLOUT) {
-                if (is_pub && rmc_pub_write(&_dstc_pub_ctx, c_ind, &op_res) != 0) 
-                    rmc_pub_close_connection(&_dstc_pub_ctx, c_ind);
-
-                if (!is_pub && rmc_sub_write(&_dstc_sub_ctx, c_ind, &op_res) != 0)
-                    rmc_sub_close_connection(&_dstc_sub_ctx, c_ind);
-            }
-        }
     }
 
     return 0;
 }
 
+extern void dstc_process_epoll(struct epoll_event* event)
+{
+    int res = 0;
+    uint8_t op_res = 0;
+    rmc_index_t c_ind = (rmc_index_t) event->data.u32 & USER_DATA_INDEX_MASK;
+    int is_pub = (event->data.u32 & USER_DATA_PUB_FLAG)?1:0;
+
+    RMC_LOG_INDEX_DEBUG(c_ind, "%s: %s%s%s",
+                        (is_pub?"pub":"sub"),
+                        ((event->events & EPOLLIN)?" read":""),
+                        ((event->events & EPOLLOUT)?" write":""),
+                        ((event->events & EPOLLHUP)?" disconnect":""));
 
 
+    if (event->events & EPOLLIN) {
+        if (is_pub)
+            res = rmc_pub_read(&_dstc_pub_ctx, c_ind, &op_res);
+        else
+            res = rmc_sub_read(&_dstc_sub_ctx, c_ind, &op_res);
+
+        RMC_LOG_INDEX_DEBUG(c_ind, "read result: %s - %s", _op_res_string(op_res),   strerror(res));
+    }
+
+    if (event->events & EPOLLOUT) {
+        if (is_pub) {
+            if (rmc_pub_write(&_dstc_pub_ctx, c_ind, &op_res) != 0) 
+                rmc_pub_close_connection(&_dstc_pub_ctx, c_ind);
+        } else {
+            if (rmc_sub_write(&_dstc_sub_ctx, c_ind, &op_res) != 0)
+                rmc_sub_close_connection(&_dstc_sub_ctx, c_ind);
+        }
+    }
+}
+
+extern void dstc_process_timeout(void)
+{
+    rmc_pub_timeout_process(&_dstc_pub_ctx);
+    rmc_sub_timeout_process(&_dstc_sub_ctx);
+}
 
 static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
 {
@@ -516,37 +519,6 @@ static void dstc_subscriber_control_message_cb(rmc_pub_context_t* ctx,
 }
 
 
-int dstc_get_next_timeout(usec_timestamp_t* result_ts)
-{
-    usec_timestamp_t sub_timeout_ts = 0;
-    usec_timestamp_t pub_timeout_ts = 0;
-
-    if (!result_ts)
-        return EINVAL;
-     
-    rmc_sub_timeout_get_next(&_dstc_sub_ctx, &sub_timeout_ts);
-    rmc_pub_timeout_get_next(&_dstc_pub_ctx, &pub_timeout_ts);
-
-    if (sub_timeout_ts == -1 && pub_timeout_ts == -1) {
-        *result_ts = -1;
-        return 0;
-    }
-
-    if (sub_timeout_ts == -1 && pub_timeout_ts != -1) {
-        *result_ts = pub_timeout_ts;
-        return 0;
-    }
-
-    if (sub_timeout_ts != -1 && pub_timeout_ts == -1) {
-        *result_ts = sub_timeout_ts;
-        return 0;
-    }
-
-    *result_ts = (sub_timeout_ts < pub_timeout_ts)?sub_timeout_ts:pub_timeout_ts;
-    return 0;
-}
-
-
 uint32_t dstc_get_socket_count(void)
 {
     if (!initialized)
@@ -557,31 +529,6 @@ uint32_t dstc_get_socket_count(void)
 }
 
 
-int dstc_get_actions(rmc_action_t* actions, uint32_t action_size)
-{
-    uint32_t pub_act_sz = 0;
-    uint32_t sub_act_sz = 0;
-
-    if (!actions || !action_size)
-        return EINVAL;
-   
-    if (!initialized)
-        return 0;
-    
-    pub_act_sz = rmc_pub_get_subscriber_count(&_dstc_pub_ctx);
-    sub_act_sz = rmc_sub_get_publisher_count(&_dstc_sub_ctx);
-
-    if (pub_act_sz + sub_act_sz < action_size) 
-        return ENOMEM;
-
-    // Fill up actions both with pub and sub descriptors and actions
-    rmc_pub_get_subscriber_actions(&_dstc_pub_ctx, actions, pub_act_sz, &pub_act_sz);
-    rmc_sub_get_publisher_actions(&_dstc_sub_ctx, actions + pub_act_sz, sub_act_sz, &sub_act_sz);
-
-    return pub_act_sz + sub_act_sz;
-}
-
-
 static void free_published_packets(void* pl, payload_len_t len, user_data_t dt)
 {
     RMC_LOG_DEBUG("Freeing %p", pl);
@@ -589,10 +536,10 @@ static void free_published_packets(void* pl, payload_len_t len, user_data_t dt)
 }
 
 
-static int dstc_setup(rmc_pub_context_t* pub_ctx,
-                      rmc_sub_context_t* sub_ctx,
-                      int epollfd,
-                      user_data_t user_data)
+static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
+                               rmc_sub_context_t* sub_ctx,
+                               int epollfd,
+                               user_data_t user_data)
 {
     uint8_t* sub_conn_vec_mem = 0;
     uint8_t* pub_conn_vec_mem = 0;
@@ -602,7 +549,7 @@ static int dstc_setup(rmc_pub_context_t* pub_ctx,
     if (initialized) 
         return EBUSY;
 
-
+    rmc_log_set_start_time();
     pub_conn_vec_mem = malloc(sizeof(rmc_connection_t)*MAX_CONNECTIONS);
     memset(pub_conn_vec_mem, 0, sizeof(rmc_connection_t)*MAX_CONNECTIONS);
 
@@ -652,34 +599,20 @@ static int dstc_setup(rmc_pub_context_t* pub_ctx,
 
 
 
-int dstc_setup_simple(void)
+int dstc_setup_epoll(int epollfd)
 {
-    if (initialized)
-        return EEXIST;
-
-    rmc_log_set_start_time();
-    simple_epollfd = epoll_create(1);
-    
-    return dstc_setup(&_dstc_pub_ctx,
-                      &_dstc_sub_ctx,
-                      simple_epollfd,
-                      // user_data to be provided to poll_add, poll_modify, and poll_remove
-                      (user_data_t) { .i32 = simple_epollfd });
+    return dstc_setup_internal(&_dstc_pub_ctx,
+                               &_dstc_sub_ctx,
+                               epollfd,
+                               // user_data to be provided to poll_add, poll_modify, and poll_remove
+                               (user_data_t) { .i32 = epollfd });
 
 }
 
 
-
-int dstc_setup_epoll(int epollfd, user_data_t user_data)
+int dstc_setup(void)
 {
-    rmc_log_set_start_time();
-
-    return dstc_setup(&_dstc_pub_ctx,
-                      &_dstc_sub_ctx,
-                      epollfd,
-                      // user_data to be provided to poll_add, poll_modify, and poll_remove
-                      user_data);
-
+    return dstc_setup_epoll(epoll_create(1));
 }
 
 uint32_t dstc_get_remote_count(char* function_name)
@@ -702,7 +635,7 @@ void _dstc_queue(uint8_t* buf, uint32_t sz)
     //        Queue packet either at timeout (1-2 msec) or when packet is full (RMC_MAX_PAYLOAD)
     //
     if (!initialized) 
-        dstc_setup_simple();
+        dstc_setup();
 
     call->payload_len = sz;
     memcpy(call->payload, buf, sz);
