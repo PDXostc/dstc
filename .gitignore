@@ -52,3 +52,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+examples/chat/chat
+examples/dynamic_data/dynamic_data_client
+examples/dynamic_data/dynamic_data_server
+examples/print_name_and_age/print_name_and_age_client
+examples/print_name_and_age/print_name_and_age_server
+examples/struct/print_struct_client
+examples/struct/print_struct_server
