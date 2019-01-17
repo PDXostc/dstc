@@ -10,17 +10,26 @@ HDR=dstc.h
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
-# all: $(TARGET) examples
-all: $(LIB_TARGET) # $(LIB_SO_TARGET)
+RMC_LIB=reliable_multicast/librmc.a
+RMC_SO_LIB=reliable_multicast/librmc.so
+
+all:  $(LIB_TARGET) # $(LIB_SO_TARGET) # SO target deosn't build
 	(cd examples/; make)
 
 CFLAGS=-fPIC -g -I${CURDIR}/reliable_multicast
 
-$(LIB_TARGET): build_rmc $(OBJ) $(shell (cd reliable_multicast; make print_obj))
-	ar r $(LIB_TARGET) $(OBJ)  $(shell (cd reliable_multicast; make print_obj)) ${CURDIR}/libdstc.a
+# Unpack the static reliable_multicast library and repack it with dstc object files
+# into libdstc.a
+$(LIB_TARGET): $(RMC_LIB) $(OBJ) 
+	rm -rf ar_tmp
+	mkdir ar_tmp
+	(cd ar_tmp; ar x ../$(RMC_LIB))
+	ar r $(LIB_TARGET) $(OBJ) ar_tmp/*.o
+	rm -r ar_tmp
 
-# $(LIB_SO_TARGET): build_rmc $(OBJ) $(shell (cd reliable_multicast; make print_obj))
-#	gcc -shared -L${CURDIR}/reliable_multicast $(OBJ) $(shell (cd reliable_multicast; make print_obj)) -o $(LIB_SO_TARGET)
+# Build the shared object from librmc.a, which contains libdstc.a 
+$(LIB_SO_TARGET): $(RMC_LIB) $(LIB_TARGET)
+	gcc -shared -Wl,--whole-archive $(RMC_LIB) -o $(LIB_SO_TARGET)
 
 clean:
 	(cd reliable_multicast; make clean)
@@ -33,9 +42,9 @@ $(OBJ): $(HDR) Makefile
 install:
 	(cd examples/; make install)
 
-reliable_multicast:
+reliable_multicast/README.md:
 	git submodule init
 	git submodule update
 
-build_rmc: reliable_multicast
+$(RMC_LIB) $(RMC_SO_LIB): reliable_multicast/README.md
 	(cd reliable_multicast; make)
