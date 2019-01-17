@@ -32,7 +32,7 @@ $(LIB_SO_TARGET): $(RMC_LIB) $(LIB_TARGET)
 	gcc -shared -Wl,--whole-archive $(RMC_LIB) -o $(LIB_SO_TARGET)
 
 clean:
-	(cd reliable_multicast; make clean)
+	-(cd reliable_multicast; make clean)
 	(cd examples; make clean)
 	rm -f $(OBJ) $(TARGET) *~ $(LIB_TARGET) $(LIB_SO_TARGET)
 
