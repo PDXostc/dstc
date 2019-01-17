@@ -10,15 +10,24 @@
 
 #include <stdlib.h>
 #include "dstc.h"
+#include "rmc_log.h"
 
 // Generate serializer functionality and the callable client function
 // dstc_message().
 // A call to dstc_print_name_and_age will trigger a call to
 // print_name_and_age() in all (server) nodes that have loaded this library.
+//
 DSTC_CLIENT(print_name_and_age, char, [32], int,)
 
 int main(int argc, char* argv[])
 {
+    // Wait for function to become available on one or more servers.
+    while(!dstc_get_remote_count("print_name_and_age")) 
+        dstc_process_events(500000);
+
+    // Make the call
     dstc_print_name_and_age("Bob Smith", 25);
-    exit(0);
+
+    // Process events for another 100 msec to ensure that the call gets out.
+    dstc_process_events(100000);
 }
