@@ -40,7 +40,7 @@ static struct remote_func_t {
 static uint32_t local_func_ind = 0;
 static uint32_t remote_func_ind = 0;
 static int initialized = 0;
-static int epollfd_internal = -1;
+static int epoll_fd = -1;
 
 
 #define MCAST_GROUP_ADDRESS "239.40.41.42" // Completely made up
@@ -175,7 +175,6 @@ static void poll_add(user_data_t user_data,
                      uint32_t event_user_data,
                      rmc_poll_action_t action)
 {
-    int epollfd = user_data.i32;
     struct epoll_event ev = {
         .data.u32 = event_user_data,
         .events = 0 // EPOLLONESHOT
@@ -187,7 +186,7 @@ static void poll_add(user_data_t user_data,
     if (action & RMC_POLLWRITE)
         ev.events |= EPOLLOUT;
 
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, descriptor, &ev) == -1) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, descriptor, &ev) == -1) {
         RMC_LOG_INDEX_FATAL(event_user_data & USER_DATA_INDEX_MASK, "epoll_ctl(add)");
         exit(255);
     }
@@ -218,7 +217,6 @@ static void poll_modify(user_data_t user_data,
                         rmc_poll_action_t old_action,
                         rmc_poll_action_t new_action)
 {
-    int epollfd = user_data.i32;
     struct epoll_event ev = {
         .data.u32 = event_user_data,
         .events = 0 // EPOLLONESHOT
@@ -233,7 +231,7 @@ static void poll_modify(user_data_t user_data,
     if (new_action & RMC_POLLWRITE)
         ev.events |= EPOLLOUT;
 
-    if (epoll_ctl(epollfd, EPOLL_CTL_MOD, descriptor, &ev) == -1) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, descriptor, &ev) == -1) {
         RMC_LOG_INDEX_FATAL(event_user_data & USER_DATA_INDEX_MASK, "epoll_ctl(modify): %s", strerror(errno));
         exit(255);
     }
@@ -270,9 +268,7 @@ static void poll_remove(user_data_t user_data,
                         int descriptor,
                         rmc_index_t index)
 {
-    int epollfd = user_data.i32;
-
-    if (epoll_ctl(epollfd, EPOLL_CTL_DEL, descriptor, 0) == -1) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, descriptor, 0) == -1) {
         RMC_LOG_INDEX_WARNING(index, "epoll_ctl(delete): %s", strerror(errno));
         return;
     }
@@ -302,10 +298,29 @@ usec_timestamp_t dstc_get_timeout_timestamp()
         pub_event_tout_ts:sub_event_tout_ts;
 }
 
-int dstc_process_events_epoll(int epoll_fd, usec_timestamp_t timeout_arg)
+int dstc_process_single_event(int timeout)
 {
-    char buf[16];
     int nfds = 0;
+    struct epoll_event events[dstc_get_socket_count()];
+        
+    nfds = epoll_wait(epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
+
+    if (nfds == -1) {
+        RMC_LOG_FATAL("epoll_wait(): %s", strerror(errno));
+        exit(255);
+    }
+
+    // Timeout
+    if (nfds == 0) 
+        return ETIME;
+
+    // Process all pending events.
+    while(nfds--) 
+        dstc_process_epoll_result(&events[nfds]);
+}
+
+int dstc_process_events(usec_timestamp_t timeout_arg)
+{
     usec_timestamp_t timeout_ts = 0;
     usec_timestamp_t now = 0;
     
@@ -319,7 +334,6 @@ int dstc_process_events_epoll(int epoll_fd, usec_timestamp_t timeout_arg)
 
     // Process evdents until we reach the timeout therhold.
     while((now = rmc_usec_monotonic_timestamp()) < timeout_ts || timeout_ts == -1) {
-        struct epoll_event events[dstc_get_socket_count()];
         usec_timestamp_t timeout = 0;
         char is_arg_timeout = 0;
         usec_timestamp_t event_tout_ts = 0;
@@ -360,42 +374,22 @@ int dstc_process_events_epoll(int epoll_fd, usec_timestamp_t timeout_arg)
             }
         }
 
-        nfds = epoll_wait(epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
-
-        if (nfds == -1) {
-            RMC_LOG_FATAL("epoll_wait(): %s", strerror(errno));
-            exit(255);
-        }
-
-        // Timeout
-        if (nfds == 0) {
+        if (dstc_process_single_event((int) timeout) == ETIME) {
             // Did we time out on an RMC event to be processed, or did
             // we time out on the argument provided to
             // dstc_process_events()?
             if (is_arg_timeout) {
                 RMC_LOG_DEBUG("Timed out on argument. returning" );
-                return 0;
+                return ETIME;
             }
 
             // Make rmc calls to handle scheduled events.
             dstc_process_timeout();
             continue;
         }
-
-        // Process all pending events.
-        while(nfds--) 
-            dstc_process_epoll_result(&events[nfds]);
     }
 
     return 0;
-}
-
-extern int dstc_process_events(usec_timestamp_t timeout_arg)
-{
-    if (!initialized)
-        dstc_setup();
-
-    return dstc_process_events_epoll(epollfd_internal, timeout_arg);
 }
 
 extern void dstc_process_epoll_result(struct epoll_event* event)
@@ -547,7 +541,7 @@ static void free_published_packets(void* pl, payload_len_t len, user_data_t dt)
 
 static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
                                rmc_sub_context_t* sub_ctx,
-                               int epollfd,
+                               int epoll_fd_arg,
                                user_data_t user_data)
 {
     uint8_t* sub_conn_vec_mem = 0;
@@ -558,6 +552,7 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
     if (initialized) 
         return EBUSY;
 
+    epoll_fd = epoll_fd_arg,
     rmc_log_set_start_time();
     pub_conn_vec_mem = malloc(sizeof(rmc_connection_t)*MAX_CONNECTIONS);
     memset(pub_conn_vec_mem, 0, sizeof(rmc_connection_t)*MAX_CONNECTIONS);
@@ -607,14 +602,13 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
 }
 
 
-
-int dstc_setup_epoll(int epollfd)
+int dstc_setup_epoll(int epoll_fd_arg)
 {
     return dstc_setup_internal(&_dstc_pub_ctx,
                                &_dstc_sub_ctx,
-                               epollfd,
+                               epoll_fd_arg,
                                // user_data to be provided to poll_add, poll_modify, and poll_remove
-                               (user_data_t) { .i32 = epollfd });
+                               user_data_nil());
 
 }
 
@@ -624,9 +618,9 @@ int dstc_setup(void)
     if (initialized)
         return EBUSY;
 
-    epollfd_internal = epoll_create(1);
+    epoll_fd = epoll_create(1);
 
-    return dstc_setup_epoll(epollfd_internal);
+    return dstc_setup_epoll(epoll_fd);
 }
 
 uint32_t dstc_get_remote_count(char* function_name)

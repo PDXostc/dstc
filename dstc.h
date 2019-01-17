@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include "reliable_multicast/reliable_multicast.h"
 
-// TODO: ADD DOCUMENTATION
+// FIXME: ADD DOCUMENTATION
 typedef struct {
     uint32_t length;
     void* data;
@@ -25,6 +25,7 @@ typedef struct {
 // Used by DESERIALIZE_ARGUMENT and SERIALIZE_ARGUMENT
 // to detect dynamic data arguments
 #define DSTC_DYNARG_TAG 0x43545344  
+
 // Define an alias type that matches the magic cookie.
 typedef dstc_dynamic_data_t DSTC;
 
@@ -51,7 +52,7 @@ typedef dstc_dynamic_data_t DSTC;
 #define _FE12(_call, type, size, ...) _call(6, type, size) _FE11(_call, __VA_ARGS__)
 #define _FE14(_call, type, size, ...) _call(7, type, size) _FE14(_call, __VA_ARGS__)
 #define _FE16(_call, type, size, ...) _call(8, type, size) _FE16(_call, __VA_ARGS__)
-#define _ERR(...) "Declare arguments in pairs: (char, [16]). Leave size empty if not array (char,)"
+#define _ERR(...) "Declare arguments in pairs: (char, [16]). Leave size empty if not array (int,)"
 
 #define FOR_EACH_VARIADIC_MACRO(_call, ...)                             \
     _GET_NTH_ARG(__VA_ARGS__,                                           \
@@ -120,12 +121,9 @@ typedef dstc_dynamic_data_t DSTC;
 #define DECLARE_VARIABLES(...) FOR_EACH_VARIADIC_MACRO(DECLARE_VARIABLE, ##__VA_ARGS__)
 #define SIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SIZE_ARGUMENT, ##__VA_ARGS__)
 
-#define DSTC_MCAST_GROUP "239.0.0.1"
-#define DSTC_MCAST_PORT 4723
-
 // Create client function that serializes and writes to descriptor.
-// If the socket has not been setup when the client call is made,
-// it is will be done through dstc_net_client.c:dstc_setup_mcast_sub() 
+// If the reliable multicast system has not been started when the
+// client call is made, it is will be done through dstc_setup()
 #define DSTC_CLIENT(name, ...)                                          \
     void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                  \
         uint32_t sz = SIZE_ARGUMENTS(__VA_ARGS__) sizeof(#name);        \
@@ -141,6 +139,8 @@ typedef dstc_dynamic_data_t DSTC;
 
 // Generate server function that receives serialized data on
 // descriptor and invokes he local function.
+// If the socket has not been setup when the client call is made,
+// it is will be done through dstc_net_client.c:dstc_setup_mcast_sub() 
 #define DSTC_SERVER(name, ...)                                          \
     static void dstc_server_##name(uint8_t* data)                       \
     {                                                                   \
@@ -157,12 +157,10 @@ typedef dstc_dynamic_data_t DSTC;
         dstc_register_local_function(#name, dstc_server_##name);              \
     }
 
-
 extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
 extern int dstc_setup(void);
 extern int dstc_setup_epoll(int epollfd);
-extern int dstc_process_events_epoll(int epollfd, usec_timestamp_t timeout);
 extern int dstc_process_events(usec_timestamp_t timeout);
 extern void dstc_process_timeout();
 extern uint32_t dstc_get_remote_count(char* function_name);
