@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include "reliable_multicast.h"
 
 // TODO: ADD DOCUMENTATION
 typedef struct {
@@ -35,7 +36,7 @@ typedef dstc_dynamic_data_t DSTC;
 // Thanks to https://codecraft.co/2014/11/25/variadic-macros-tricks for
 // deciphering variadic macro iterations.
 // Return argument N.
-#define _GET_NTH_ARG(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, \
+#define _GET_NTH_ARG(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10,   \
                      _11, _12, _13, _14, _15, _16, N, ...) N
 
 #define _GET_ARG_COUNT(...) _GET_NTH_ARG(__VA_ARGS__, 16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1)
@@ -130,15 +131,11 @@ typedef dstc_dynamic_data_t DSTC;
         uint32_t sz = SIZE_ARGUMENTS(__VA_ARGS__) sizeof(#name);        \
         uint8_t buffer[sz];                                             \
         uint8_t *data = buffer + sizeof(#name);                         \
-        extern void _dstc_send(uint8_t* buffer, uint32_t sz);           \
-        extern int _dstc_mcast_sock;                                    \
-                                                                        \
-        if (_dstc_mcast_sock == -1)                                     \
-            _dstc_mcast_sock = dstc_setup_mcast_sub();                  \
+        extern void _dstc_queue(uint8_t* buffer, uint32_t sz);          \
                                                                         \
         strcpy(buffer, #name);                                          \
         SERIALIZE_ARGUMENTS(__VA_ARGS__)                                \
-        _dstc_send(buffer, sz);                                         \
+        _dstc_queue(buffer, sz);                                        \
     }                                                                   \
 
 
@@ -156,15 +153,20 @@ typedef dstc_dynamic_data_t DSTC;
                                                                         \
     static void __attribute__((constructor)) _dstc_register_##name()    \
     {                                                                   \
-        extern void dstc_register_function(char*, void (*)(uint8_t*));  \
-        dstc_register_function(#name, dstc_server_##name);              \
+        extern void dstc_register_local_function(char*, void (*)(uint8_t*));  \
+        dstc_register_local_function(#name, dstc_server_##name);              \
     }
 
-// Functions available in dstc_net_client.c
-// Used by stand-alone clients that do not execute as a 
-// shared library loaded by dstc_node.
-//
-extern int dstc_setup_mcast_sub(void);
-extern void dstc_read();
-extern int dstc_get_socket();
+
+extern uint32_t dstc_get_socket_count(void);
+extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
+extern int dstc_setup(void);
+extern int dstc_setup_epoll(int epollfd);
+extern int dstc_process_events_epoll(int epollfd, usec_timestamp_t timeout);
+extern int dstc_process_events(usec_timestamp_t timeout);
+extern void dstc_process_timeout();
+extern uint32_t dstc_get_remote_count(char* function_name);
+extern usec_timestamp_t dstc_get_timeout_timestamp();
+struct epoll_event;
+extern void dstc_process_epoll_result(struct epoll_event* event);
 #endif // __DSTC_H__

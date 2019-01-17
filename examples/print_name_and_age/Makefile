@@ -3,19 +3,20 @@
 #
 INCLUDE=../../dstc.h
 TARGET_CLIENT=print_name_and_age_client
-CLIENT_OBJ=print_name_and_age_client.o ../../dstc.o
+CLIENT_OBJ=print_name_and_age_client.o 
 
 
 TARGET_SERVER=print_name_and_age_server
-SERVER_OBJ=print_name_and_age_server.o ../../dstc.o
+SERVER_OBJ=print_name_and_age_server.o 
 
+DSTC_LIB=../../libdstc.a
 # The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
 # issues. Please note that no code will be executed that translates an integer
 # to a pointer.
-CFLAGS= -g -I ../.. -Wno-int-to-pointer-cast 
+CFLAGS= -g -I ../..  -I../../reliable_multicast -Wno-int-to-pointer-cast 
 #use the compiler set by enviroment for cross compiling.
 #CC =gcc
-.PHONY: all
+.PHONY: all clean install
 
 all: $(TARGET_SERVER) $(TARGET_CLIENT)
 
@@ -24,18 +25,19 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 # and gcc(1)
 #
 
-$(TARGET_SERVER): $(SERVER_OBJ)
-	$(CC) $(CFLAGS) $^ -o $@
+$(TARGET_SERVER): $(SERVER_OBJ) $(DSTC_LIB)
+	$(CC) $(CFLAGS) $^ -L../..  -o $@
 
 #
 # The client is built as a regular binary
 #
-$(TARGET_CLIENT): $(CLIENT_OBJ)
-	$(CC) $(CFLAGS) $^ -o $@
+$(TARGET_CLIENT): $(CLIENT_OBJ)  $(DSTC_LIB)
+	$(CC) $(CFLAGS) $^  -L../.. -o $@
 
 
 # Recompile everything if dstc.h changes
-$(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE)
+$(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE) 
+
 
 clean:
 	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(SERVER_OBJ)  *~

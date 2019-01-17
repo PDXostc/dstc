@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "dstc.h"
+#include "rmc_log.h"
+
 
 // Generate deserializer for multicast packets sent by dstc_message()
 // above.
@@ -33,11 +35,6 @@ void print_name_and_age(char name[32], int age)
 
 int main(int argc, char* argv[])
 {
-    while(1) {
-        dstc_read();
-    }
-        
-    exit(0);
+    // Process incoming events for ever
+    dstc_process_events(-1);
 }
-
-

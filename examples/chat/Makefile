@@ -3,17 +3,19 @@
 #
 INCLUDE=../../dstc.h
 TARGET=chat
-OBJ=chat.o ../../dstc.o
-#use the compiler set by enviroment for cross compiling.
-#CC =gcc
+OBJ=chat.o 
+DSTC_LIB=../../libdstc.a
+
 
 # The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
 # issues. Please note that no code will be executed that translates an integer
 # to a pointer.
-CFLAGS= -g -I ../.. -Wno-int-to-pointer-cast 
+CFLAGS= -g -I ../..  -I../../reliable_multicast -Wno-int-to-pointer-cast 
 
-$(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) $^ -o $@
+.PHONY: clean install
+
+$(TARGET): $(OBJ) $(DSTC_LIB)
+	$(CC) $(CFLAGS) $^ -L../../ -o $@ 
 
 $(OBJ): $(INCLUDE)
 

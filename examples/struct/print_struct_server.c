@@ -32,10 +32,9 @@ void print_struct(struct name_and_age arg)
 
 int main(int argc, char* argv[])
 {
-    while(1) {
-        dstc_read();
-    }
-        
+    // Process incoming events for ever
+    dstc_process_events(-1);
+
     exit(0);
 }
 
