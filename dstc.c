@@ -40,7 +40,7 @@ static struct remote_func_t {
 static uint32_t local_func_ind = 0;
 static uint32_t remote_func_ind = 0;
 static int initialized = 0;
-static int simple_epollfd = -1;
+static int epollfd_internal = -1;
 
 
 #define MCAST_GROUP_ADDRESS "239.40.41.42" // Completely made up
@@ -302,7 +302,7 @@ usec_timestamp_t dstc_get_timeout_timestamp()
         pub_event_tout_ts:sub_event_tout_ts;
 }
 
-int dstc_process_events(usec_timestamp_t timeout_arg)
+int dstc_process_events_epoll(int epoll_fd, usec_timestamp_t timeout_arg)
 {
     char buf[16];
     int nfds = 0;
@@ -345,6 +345,7 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
         if (timeout_ts != -1 && event_tout_ts != -1) {
             if (event_tout_ts < timeout_ts) {
                 timeout = (event_tout_ts - now) / 1000 + 1;
+                
                 is_arg_timeout = 0;
             } else {
                 timeout = (timeout_ts - now) / 1000 + 1;
@@ -359,7 +360,7 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
             }
         }
 
-        nfds = epoll_wait(simple_epollfd, events, sizeof(events)/sizeof(events[0]), (timeout == -1)?-1:timeout);
+        nfds = epoll_wait(epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
 
         if (nfds == -1) {
             RMC_LOG_FATAL("epoll_wait(): %s", strerror(errno));
@@ -370,7 +371,7 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
         if (nfds == 0) {
             // Did we time out on an RMC event to be processed, or did
             // we time out on the argument provided to
-            // dstc_process_events_simple()?
+            // dstc_process_events()?
             if (is_arg_timeout) {
                 RMC_LOG_DEBUG("Timed out on argument. returning" );
                 return 0;
@@ -383,14 +384,21 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
 
         // Process all pending events.
         while(nfds--) 
-            dstc_process_epoll(&events[nfds]);
-
+            dstc_process_epoll_result(&events[nfds]);
     }
 
     return 0;
 }
 
-extern void dstc_process_epoll(struct epoll_event* event)
+extern int dstc_process_events(usec_timestamp_t timeout_arg)
+{
+    if (!initialized)
+        dstc_setup();
+
+    return dstc_process_events_epoll(epollfd_internal, timeout_arg);
+}
+
+extern void dstc_process_epoll_result(struct epoll_event* event)
 {
     int res = 0;
     uint8_t op_res = 0;
@@ -524,8 +532,9 @@ uint32_t dstc_get_socket_count(void)
     if (!initialized)
         return 0;
   
-    return rmc_sub_get_publisher_count(&_dstc_sub_ctx) +
-        rmc_pub_get_subscriber_count(&_dstc_pub_ctx);
+    // Grab the count of all open sockets.
+    return rmc_sub_get_socket_count(&_dstc_sub_ctx) + 
+        rmc_pub_get_socket_count(&_dstc_pub_ctx);
 }
 
 
@@ -612,7 +621,12 @@ int dstc_setup_epoll(int epollfd)
 
 int dstc_setup(void)
 {
-    return dstc_setup_epoll(epoll_create(1));
+    if (initialized)
+        return EBUSY;
+
+    epollfd_internal = epoll_create(1);
+
+    return dstc_setup_epoll(epollfd_internal);
 }
 
 uint32_t dstc_get_remote_count(char* function_name)

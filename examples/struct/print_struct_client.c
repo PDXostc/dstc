@@ -19,8 +19,8 @@ DSTC_CLIENT(print_struct, struct name_and_age, )
 int main(int argc, char* argv[])
 {
     struct name_and_age arg = {
-        .name = "Bob Smith", .
-        age = 25
+        .name = "Bob Smith", 
+        .age = 25
     };
 
     // Wait for function to become available on one or more servers.

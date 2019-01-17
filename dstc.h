@@ -162,10 +162,11 @@ extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
 extern int dstc_setup(void);
 extern int dstc_setup_epoll(int epollfd);
+extern int dstc_process_events_epoll(int epollfd, usec_timestamp_t timeout);
 extern int dstc_process_events(usec_timestamp_t timeout);
 extern void dstc_process_timeout();
 extern uint32_t dstc_get_remote_count(char* function_name);
 extern usec_timestamp_t dstc_get_timeout_timestamp();
 struct epoll_event;
-extern void dstc_process_epoll(struct epoll_event* event);
+extern void dstc_process_epoll_result(struct epoll_event* event);
 #endif // __DSTC_H__

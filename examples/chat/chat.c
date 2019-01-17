@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
                 continue;
             }
 
-            dstc_process_epoll(&events[nfds]);
+            dstc_process_epoll_result(&events[nfds]);
                 
         }
     }
