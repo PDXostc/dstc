@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include "reliable_multicast.h"
+#include "reliable_multicast/reliable_multicast.h"
 
 // TODO: ADD DOCUMENTATION
 typedef struct {

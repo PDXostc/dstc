@@ -34,7 +34,7 @@ $(LIB_SO_TARGET): $(RMC_LIB) $(LIB_TARGET)
 clean:
 	-(cd reliable_multicast; make clean)
 	(cd examples; make clean)
-	rm -f $(OBJ) $(TARGET) *~ $(LIB_TARGET) $(LIB_SO_TARGET)
+	rm -f $(OBJ) *~ $(LIB_TARGET) $(LIB_SO_TARGET)
 
 $(OBJ): $(HDR) Makefile
 
