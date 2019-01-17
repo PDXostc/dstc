@@ -45,6 +45,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+*.o
+
 examples/chat/chat
 examples/dynamic_data/dynamic_data_client
 examples/dynamic_data/dynamic_data_server
