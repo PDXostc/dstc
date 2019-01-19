@@ -17,7 +17,7 @@
 // A call to dstc_print_name_and_age will trigger a call to
 // print_name_and_age() in all (server) nodes that have loaded this library.
 //
-DSTC_CLIENT(print_name_and_age, char, [32], int,)
+DSTC_CLIENT_SIGNAL(print_name_and_age, char, [32], int,)
 
 int main(int argc, char* argv[])
 {

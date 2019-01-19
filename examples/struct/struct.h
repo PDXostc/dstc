@@ -8,7 +8,8 @@
 
 
 // Struct to transmit as an argument between client and sserver.
-struct name_and_age {
+struct  __attribute__((packed))
+name_and_age {
     char name[32];
     int age;
 };

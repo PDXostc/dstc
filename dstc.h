@@ -19,6 +19,32 @@ typedef struct {
     void* data;
 } dstc_dynamic_data_t;
 
+typedef struct  __attribute__((packed))
+dstc_header {
+    uint16_t payload_len;          // 2
+    rmc_node_id_t node_id;         // 4 bytes  Publisher Node ID
+    uint32_t trans_id;             // 4 bytes of transaction ID. 0 for signals
+    uint8_t name_len;              // 1 byte of name length
+    uint8_t payload[];             // Function name
+} dstc_header_t;
+
+
+
+
+extern uint32_t dstc_get_socket_count(void);
+extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
+extern int dstc_setup(void);
+extern int dstc_setup_epoll(int epollfd);
+extern int dstc_process_events(usec_timestamp_t timeout);
+extern void dstc_process_timeout(void);
+extern int dstc_get_timeout_msec(void);
+extern uint32_t dstc_get_remote_count(char* function_name);
+extern usec_timestamp_t dstc_get_timeout_timestamp(void);
+struct epoll_event;
+extern int dstc_process_single_event(int timeout);
+extern void dstc_process_epoll_result(struct epoll_event* event);
+extern rmc_node_id_t dstc_get_node_id(void);
+
 #define DECL_DYNAMIC_ARG DSTC, 
 
 // Tag for dynamic data magic cookie: "DSTC" = 0x43545344
@@ -119,21 +145,30 @@ typedef dstc_dynamic_data_t DSTC;
 #define DECLARE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO_ELEM(DECLARE_ARGUMENT, ##__VA_ARGS__)
 #define LIST_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO_ELEM(LIST_ARGUMENT, ##__VA_ARGS__)
 #define DECLARE_VARIABLES(...) FOR_EACH_VARIADIC_MACRO(DECLARE_VARIABLE, ##__VA_ARGS__)
-#define SIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SIZE_ARGUMENT, ##__VA_ARGS__)
+#define SIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SIZE_ARGUMENT, ##__VA_ARGS__) 0
+
 
 // Create client function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
-#define DSTC_CLIENT(name, ...)                                          \
+#define DSTC_CLIENT_SIGNAL(name, ...)                                   \
     void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                  \
-        uint32_t sz = SIZE_ARGUMENTS(__VA_ARGS__) sizeof(#name);        \
-        uint8_t buffer[sz];                                             \
-        uint8_t *data = buffer + sizeof(#name);                         \
-        extern void _dstc_queue(uint8_t* buffer, uint32_t sz);          \
+        uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
+        uint8_t arg_buf[arg_sz];                                        \
+        uint8_t *data = arg_buf;                                        \
+        extern void _dstc_queue(uint8_t* name, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
-        strcpy(buffer, #name);                                          \
         SERIALIZE_ARGUMENTS(__VA_ARGS__)                                \
-        _dstc_queue(buffer, sz);                                        \
+        _dstc_queue(#name, arg_buf, arg_sz);                             \
+    }                                                                   \
+
+#define DSTC_CLIENT DSTC_CLIENT_SIGNAL
+
+#define _DSTC_AUTO_REGISTER(name)                                         \
+    void __attribute__((constructor)) _dstc_register_##name()           \
+    {                                                                   \
+        extern void dstc_register_local_function(char*, void (*)(rmc_node_id_t, uint32_t, uint8_t*)); \
+        dstc_register_local_function(#name, dstc_server_##name);        \
     }                                                                   \
 
 
@@ -141,30 +176,83 @@ typedef dstc_dynamic_data_t DSTC;
 // descriptor and invokes he local function.
 // If the socket has not been setup when the client call is made,
 // it is will be done through dstc_net_client.c:dstc_setup_mcast_sub() 
-#define DSTC_SERVER(name, ...)                                          \
-    static void dstc_server_##name(uint8_t* data)                       \
+#define DSTC_SERVER_SIGNAL_INTERNAL(name, ...)                          \
+    void dstc_server_##name(rmc_node_id_t node_id, uint32_t trans_id, uint8_t* data) \
     {                                                                   \
-        extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));               \
-        DECLARE_VARIABLES(__VA_ARGS__)                                  \
-        DESERIALIZE_ARGUMENTS(__VA_ARGS__)                              \
+        DECLARE_VARIABLES(__VA_ARGS__);                                 \
+        DESERIALIZE_ARGUMENTS(__VA_ARGS__);                             \
         name(LIST_ARGUMENTS(__VA_ARGS__));                              \
         return;                                                         \
     }                                                                   \
-                                                                        \
-    static void __attribute__((constructor)) _dstc_register_##name()    \
-    {                                                                   \
-        extern void dstc_register_local_function(char*, void (*)(uint8_t*));  \
-        dstc_register_local_function(#name, dstc_server_##name);              \
-    }
 
-extern uint32_t dstc_get_socket_count(void);
-extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
-extern int dstc_setup(void);
-extern int dstc_setup_epoll(int epollfd);
-extern int dstc_process_events(usec_timestamp_t timeout);
-extern void dstc_process_timeout();
-extern uint32_t dstc_get_remote_count(char* function_name);
-extern usec_timestamp_t dstc_get_timeout_timestamp();
-struct epoll_event;
-extern void dstc_process_epoll_result(struct epoll_event* event);
+#define DSTC_SERVER(name, ...)                                          \
+    extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));                   \
+    static DSTC_SERVER_SIGNAL_INTERNAL(name, __VA_ARGS__)               \
+    static _DSTC_AUTO_REGISTER(name)
+
+#define DSTC_SERVER_SIGNAL(name, ...)                                   \
+    extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));                   \
+    static DSTC_SERVER_SIGNAL_INTERNAL(name, __VA_ARGS__)               \
+    static _DSTC_AUTO_REGISTER(name)
+
+
+// Like a signal, but returns a value.
+#define DSTC_CLIENT_FUNCTION(name, ret_type, ...)                       \
+    ret_type dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {              \
+        uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
+        uint8_t arg_buf[arg_sz];                                        \
+        uint8_t *data = arg_buf;                                        \
+        uint8_t retval_received = 0;                                    \
+        uint8_t retval;                                                 \
+        static uint32_t st_trans_id = 1;                                \
+        uint32_t trans_id = st_trans_id++;                              \
+                                                                        \
+        extern void _dstc_queue(uint8_t* name, uint8_t* arg, uint32_t arg_); \
+                                                                        \
+        void name##_handle_res(rmc_node_id_t node_id,                 \
+                                       uint32_t tid,                    \
+                                       ret_type return_value) {         \
+                                                                        \
+            if (node_id != dstc_get_node_id() ||                        \
+                tid != trans_id)                                        \
+                return;                                                 \
+                                                                        \
+            retval = return_value;                                      \
+            retval_received = 1;                                        \
+        }                                                               \
+        DSTC_SERVER_SIGNAL_INTERNAL(name##_handle_res, rmc_node_id_t,, uint32_t,, ret_type,) \
+       _DSTC_AUTO_REGISTER(name##_handle_res)                         \
+                                                                        \
+        SERIALIZE_ARGUMENTS(__VA_ARGS__)                                \
+                                                                        \
+        _dstc_queue(#name, arg_buf, arg_sz);                            \
+                                                                        \
+        while(!retval_received)                                         \
+            dstc_process_single_event(-1);                              \
+                                                                        \
+        return retval;                                                  \
+    }                                                                   \
+    
+
+#define DSTC_SERVER_FUNCTION_INTERNAL(name, ret_type, ...)  \
+    extern ret_type name(DECLARE_ARGUMENTS(__VA_ARGS__));   \
+    static void dstc_server_##name(rmc_node_id_t node_id, uint32_t trans_id, uint8_t* data) \
+    {                                                                   \
+        ret_type retval;                                                \
+        DSTC_CLIENT_SIGNAL(name##_handle_res, rmc_node_id_t,, uint32_t,,ret_type,) \
+                                                                        \
+        DECLARE_VARIABLES(__VA_ARGS__)                                  \
+        dstc_header_t* hdr = (dstc_header_t*) data;                     \
+                                                                        \
+        data += sizeof(dstc_header_t) + hdr->name_len;                  \
+        DESERIALIZE_ARGUMENTS(__VA_ARGS__)                              \
+        retval = name(LIST_ARGUMENTS(__VA_ARGS__));                     \
+        dstc_##name##_handle_res(node_id, trans_id, retval);            \
+        return;                                                         \
+    }                                                                   \
+    _DSTC_AUTO_REGISTER(name)
+
+#define DSTC_SERVER_FUNCTION(name, ret_type, ...) \
+        DSTC_SERVER_FUNCTION_INTERNAL(name, ret_type, ##__VA_ARGS__)
+
 #endif // __DSTC_H__
