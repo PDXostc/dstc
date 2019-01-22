@@ -10,6 +10,7 @@
 #define __DSTC_H__
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 #include <unistd.h>
 #include "reliable_multicast/reliable_multicast.h"
 
@@ -168,6 +169,7 @@ typedef dstc_dynamic_data_t DSTC;
     void __attribute__((constructor)) _dstc_register_##name()           \
     {                                                                   \
         extern void dstc_register_local_function(char*, void (*)(rmc_node_id_t, uint32_t, uint8_t*)); \
+        printf("Registering local function [%s]->%p\n", #name, dstc_server_##name); \
         dstc_register_local_function(#name, dstc_server_##name);        \
     }                                                                   \
 
@@ -209,7 +211,7 @@ typedef dstc_dynamic_data_t DSTC;
                                                                         \
         extern void _dstc_queue(uint8_t* name, uint8_t* arg, uint32_t arg_); \
                                                                         \
-        void name##_handle_res(rmc_node_id_t node_id,                 \
+        void name##_handle_res(rmc_node_id_t node_id,                   \
                                        uint32_t tid,                    \
                                        ret_type return_value) {         \
                                                                         \
@@ -221,7 +223,7 @@ typedef dstc_dynamic_data_t DSTC;
             retval_received = 1;                                        \
         }                                                               \
         DSTC_SERVER_SIGNAL_INTERNAL(name##_handle_res, rmc_node_id_t,, uint32_t,, ret_type,) \
-       _DSTC_AUTO_REGISTER(name##_handle_res)                         \
+        _DSTC_AUTO_REGISTER(name##_handle_res)                          \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__)                                \
                                                                         \
@@ -244,7 +246,6 @@ typedef dstc_dynamic_data_t DSTC;
         DECLARE_VARIABLES(__VA_ARGS__)                                  \
         dstc_header_t* hdr = (dstc_header_t*) data;                     \
                                                                         \
-        data += sizeof(dstc_header_t) + hdr->name_len;                  \
         DESERIALIZE_ARGUMENTS(__VA_ARGS__)                              \
         retval = name(LIST_ARGUMENTS(__VA_ARGS__));                     \
         dstc_##name##_handle_res(node_id, trans_id, retval);            \

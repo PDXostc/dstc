@@ -119,7 +119,7 @@ static void (*dstc_find_local_function(char* name, int name_len))(rmc_node_id_t 
 //
 void dstc_register_local_function(char* name, void (*server_func)(rmc_node_id_t node_id, uint32_t trans_id, uint8_t*))
 {
-    RMC_LOG_INFO("Local function [%s] registered", name);
+    printf("Local function [%s] registered to [%p]\n", name, server_func);
     strcpy(local_func[local_func_ind].func_name, name);
     local_func[local_func_ind].server_func = server_func;
     local_func_ind++;
@@ -463,7 +463,7 @@ static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
     local_func_ptr = dstc_find_local_function(call->payload, call->name_len);
 
     if (!local_func_ptr) {
-        RMC_LOG_COMMENT("Function [%s] not loaded. Ignored", call->payload);
+        RMC_LOG_COMMENT("Function [%.*s] not loaded. Ignored", call->name_len, call->payload);
         return sizeof(dstc_header_t) + call->payload_len;
     }
 
