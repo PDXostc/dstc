@@ -40,7 +40,8 @@ $(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE)
 
 
 clean:
-	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(SERVER_OBJ)  *~
+	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(SERVER_OBJ)  *~ \
+		print_name_and_age_client_pretty.c print_name_and_age_server_pretty.c
 
 install:
 	install -d ${DESTDIR}/dstc/print_name_and_age
