@@ -119,7 +119,6 @@ static void (*dstc_find_local_function(char* name, int name_len))(rmc_node_id_t 
 //
 void dstc_register_local_function(char* name, void (*server_func)(rmc_node_id_t node_id, uint32_t trans_id, uint8_t*))
 {
-    printf("Local function [%s] registered to [%p]\n", name, server_func);
     strcpy(local_func[local_func_ind].func_name, name);
     local_func[local_func_ind].server_func = server_func;
     local_func_ind++;

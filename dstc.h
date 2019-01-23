@@ -10,15 +10,9 @@
 #define __DSTC_H__
 #include <stdint.h>
 #include <string.h>
-#include <stdio.h>
 #include <unistd.h>
 #include "reliable_multicast/reliable_multicast.h"
 
-// FIXME: ADD DOCUMENTATION
-typedef struct {
-    uint32_t length;
-    void* data;
-} dstc_dynamic_data_t;
 
 typedef struct  __attribute__((packed))
 dstc_header {
@@ -28,9 +22,6 @@ dstc_header {
     uint8_t name_len;              // 1 byte of name length
     uint8_t payload[];             // Function name
 } dstc_header_t;
-
-
-
 
 extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
@@ -46,12 +37,20 @@ extern int dstc_process_single_event(int timeout);
 extern void dstc_process_epoll_result(struct epoll_event* event);
 extern rmc_node_id_t dstc_get_node_id(void);
 
-#define DECL_DYNAMIC_ARG DSTC, 
+// FIXME: ADD DOCUMENTATION
+typedef struct {
+    uint32_t length;
+    void* data;
+} dstc_dynamic_data_t;
 
-// Tag for dynamic data magic cookie: "DSTC" = 0x43545344
+// Setup a simple macro so that we don't need an extra comma
+// when we use DECL_DYNAMIC_ARG in DSTC_CLIENT and DSTC_SERVER lines.
+#define DECL_DYNAMIC_ARG DSTC,
+
+// Tag for dynamic data magic cookie: "DSTC" = 0x44535443
 // Used by DESERIALIZE_ARGUMENT and SERIALIZE_ARGUMENT
 // to detect dynamic data arguments
-#define DSTC_DYNARG_TAG 0x43545344  
+#define DSTC_DYNARG_TAG 0x44535443
 
 // Define an alias type that matches the magic cookie.
 typedef dstc_dynamic_data_t DSTC;
@@ -60,6 +59,33 @@ typedef dstc_dynamic_data_t DSTC;
 // dstc_send_variable_len(DYNARG("Hello world", 11))
 #define DYNAMIC_ARG(_data, _length) ({ DSTC d = { .length = _length, .data = _data }; d; })
 
+// Tag for function pointer argument. "CBCK" = 0x4342434B
+// Used by DESERIALIZE_ARGUMENT and SERIALIZE_ARGUMENT
+// to detect callback function arguments
+#define DSTC_CALLBACK_TAG 0x4342434B
+
+typedef struct {
+    rmc_node_id_t node_id; // Used by callback to target the originating process
+    uint8_t name_len;      // Number of bytes in the callback function
+    uint8_t* callback_func; // Function name
+} dstc_callback_t;
+
+// Setup a simple macro so that we don't need an extra comma
+// when we use DECL_CALLBACK_ARG in DSTC_CLIENT and DSTC_SERVER lines.
+#define DECL_CALLBACK_ARG CBCK, 
+
+// Define an alias type that matches the magic cookie.
+typedef dstc_callback_t CBCK;
+
+
+#define CALLBACK_ARG(_func_name) ({              \
+            CBCK callback = {                    \
+                .name_len = strlen(#_func_name), \
+                .node_id = dstc_get_node_id(),   \
+                .func_name = #_func_name         \
+            };                                   \
+            callback;                            \
+        })
 
 // Thanks to https://codecraft.co/2014/11/25/variadic-macros-tricks for
 // deciphering variadic macro iterations.
@@ -107,14 +133,28 @@ typedef dstc_dynamic_data_t DSTC;
                  _LE8,  _ERR, _LE6,  _ERR,                              \
                  _LE4,  _ERR, _LE2,  _ERR, _LE0)(_call, ##__VA_ARGS__)  
 
+// replace if with switch?
 #define SERIALIZE_ARGUMENT(arg_id, type, size)                          \
-    if (* (uint32_t*) #type == DSTC_DYNARG_TAG) {                       \
+    switch(*(uint32_t*) #type) {                                       \
+    case DSTC_DYNARG_TAG:                                               \
         *((uint32_t*) data) = ((dstc_dynamic_data_t*) &_a##arg_id)->length; \
         data += sizeof(uint32_t);                                       \
         memcpy((void*) data, ((dstc_dynamic_data_t*) &_a##arg_id)->data, \
                ((dstc_dynamic_data_t*) & _a##arg_id)->length);          \
         data += ((dstc_dynamic_data_t*) & _a##arg_id)->length;          \
-    } else {                                                            \
+        break;                                                          \
+                                                                        \
+    case DSTC_CALLBACK_TAG:                                             \
+        *((rmc_node_id_t*) data) = ((dstc_callback_t*) &_a##arg_id)->node_id; \
+        data += sizeof(rmc_node_id_t);                                    \
+        *data = ((dstc_callback_t*) &_a##arg_id)->name_len;             \
+        data++;                                                         \
+        memcpy((void*) data, ((dstc_callback_t*) &_a##arg_id)->callback_func, \
+               ((dstc_callback_t*) &_a##arg_id)->name_len);         \
+        data += ((dstc_callback_t*) & _a##arg_id)->name_len;        \
+        break;                                                          \
+                                                                        \
+    default:                                                            \
         if (sizeof(type size ) == sizeof(type))                         \
             memcpy((void*) data, (void*) &_a##arg_id, sizeof(type size)); \
         else                                                            \
@@ -122,13 +162,27 @@ typedef dstc_dynamic_data_t DSTC;
         data += sizeof(type size);                                      \
     }
 
+
 #define DESERIALIZE_ARGUMENT(arg_id, type, size)                        \
-    if (* (uint32_t*) #type == DSTC_DYNARG_TAG) {                       \
-        ((dstc_dynamic_data_t*) &_a##arg_id)-> length = *((uint32_t*) data); \
+    switch(*(uint32_t*) #type) {                                        \
+    case DSTC_DYNARG_TAG:                                               \
+        ((dstc_dynamic_data_t*) &_a##arg_id)->length = *((uint32_t*) data); \
         data += sizeof(uint32_t);                                       \
-        ((dstc_dynamic_data_t*) &_a##arg_id)->data = data;               \
-        data += ((dstc_dynamic_data_t*) &_a##arg_id)->length;            \
-    } else {                                                            \
+        ((dstc_dynamic_data_t*) &_a##arg_id)->data = data;              \
+        data += ((dstc_dynamic_data_t*) &_a##arg_id)->length;           \
+        break;                                                          \
+                                                                        \
+    case DSTC_CALLBACK_TAG:                                             \
+        ((dstc_callback_t*) &_a##arg_id)->node_id = ((dstc_callback_t*) data)->node_id; \
+        data += sizeof(rmc_node_id_t);                                    \
+        ((dstc_callback_t*) &_a##arg_id)->name_len = ((dstc_callback_t*) data)->name_len; \
+        data++;                                                         \
+        memcpy(((dstc_callback_t*) &_a##arg_id)->callback_func, data,   \
+               ((dstc_callback_t*) &_a##arg_id)->name_len);             \
+        data += ((dstc_callback_t*) &_a##arg_id)->name_len;             \
+        break;                                                          \
+                                                                        \
+    default:                                                            \
         if (sizeof(type size) == sizeof(type))                          \
             memcpy((void*) &_a##arg_id, (void*) data, sizeof(type size)); \
         else                                                            \
@@ -152,24 +206,21 @@ typedef dstc_dynamic_data_t DSTC;
 // Create client function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
-#define DSTC_CLIENT_SIGNAL(name, ...)                                   \
+#define DSTC_CLIENT(name, ...)                                   \
     void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                  \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
         uint8_t *data = arg_buf;                                        \
         extern void _dstc_queue(uint8_t* name, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
-        SERIALIZE_ARGUMENTS(__VA_ARGS__)                                \
-        _dstc_queue(#name, arg_buf, arg_sz);                             \
+        SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
+        _dstc_queue(#name, arg_buf, arg_sz);                            \
     }                                                                   \
 
-#define DSTC_CLIENT DSTC_CLIENT_SIGNAL
-
-#define _DSTC_AUTO_REGISTER(name)                                         \
+#define _DSTC_AUTO_REGISTER(name)                                       \
     void __attribute__((constructor)) _dstc_register_##name()           \
     {                                                                   \
         extern void dstc_register_local_function(char*, void (*)(rmc_node_id_t, uint32_t, uint8_t*)); \
-        printf("Registering local function [%s]->%p\n", #name, dstc_server_##name); \
         dstc_register_local_function(#name, dstc_server_##name);        \
     }                                                                   \
 
@@ -178,7 +229,7 @@ typedef dstc_dynamic_data_t DSTC;
 // descriptor and invokes he local function.
 // If the socket has not been setup when the client call is made,
 // it is will be done through dstc_net_client.c:dstc_setup_mcast_sub() 
-#define DSTC_SERVER_SIGNAL_INTERNAL(name, ...)                          \
+#define DSTC_SERVER_INTERNAL(name, ...)                                 \
     void dstc_server_##name(rmc_node_id_t node_id, uint32_t trans_id, uint8_t* data) \
     {                                                                   \
         DECLARE_VARIABLES(__VA_ARGS__);                                 \
@@ -187,73 +238,11 @@ typedef dstc_dynamic_data_t DSTC;
         return;                                                         \
     }                                                                   \
 
-#define DSTC_SERVER(name, ...)                                          \
-    extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));                   \
-    static DSTC_SERVER_SIGNAL_INTERNAL(name, __VA_ARGS__)               \
+#define DSTC_SERVER(name, ...)                          \
+    extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));   \
+    static DSTC_SERVER_INTERNAL(name, __VA_ARGS__)      \
     static _DSTC_AUTO_REGISTER(name)
-
-#define DSTC_SERVER_SIGNAL(name, ...)                                   \
-    extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));                   \
-    static DSTC_SERVER_SIGNAL_INTERNAL(name, __VA_ARGS__)               \
-    static _DSTC_AUTO_REGISTER(name)
-
-
-// Like a signal, but returns a value.
-#define DSTC_CLIENT_FUNCTION(name, ret_type, ...)                       \
-    ret_type dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {              \
-        uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
-        uint8_t arg_buf[arg_sz];                                        \
-        uint8_t *data = arg_buf;                                        \
-        uint8_t retval_received = 0;                                    \
-        uint8_t retval;                                                 \
-        static uint32_t st_trans_id = 1;                                \
-        uint32_t trans_id = st_trans_id++;                              \
-                                                                        \
-        extern void _dstc_queue(uint8_t* name, uint8_t* arg, uint32_t arg_); \
-                                                                        \
-        void name##_handle_res(rmc_node_id_t node_id,                   \
-                                       uint32_t tid,                    \
-                                       ret_type return_value) {         \
-                                                                        \
-            if (node_id != dstc_get_node_id() ||                        \
-                tid != trans_id)                                        \
-                return;                                                 \
-                                                                        \
-            retval = return_value;                                      \
-            retval_received = 1;                                        \
-        }                                                               \
-        DSTC_SERVER_SIGNAL_INTERNAL(name##_handle_res, rmc_node_id_t,, uint32_t,, ret_type,) \
-        _DSTC_AUTO_REGISTER(name##_handle_res)                          \
-                                                                        \
-        SERIALIZE_ARGUMENTS(__VA_ARGS__)                                \
-                                                                        \
-        _dstc_queue(#name, arg_buf, arg_sz);                            \
-                                                                        \
-        while(!retval_received)                                         \
-            dstc_process_single_event(-1);                              \
-                                                                        \
-        return retval;                                                  \
-    }                                                                   \
-    
-
-#define DSTC_SERVER_FUNCTION_INTERNAL(name, ret_type, ...)  \
-    extern ret_type name(DECLARE_ARGUMENTS(__VA_ARGS__));   \
-    static void dstc_server_##name(rmc_node_id_t node_id, uint32_t trans_id, uint8_t* data) \
-    {                                                                   \
-        ret_type retval;                                                \
-        DSTC_CLIENT_SIGNAL(name##_handle_res, rmc_node_id_t,, uint32_t,,ret_type,) \
-                                                                        \
-        DECLARE_VARIABLES(__VA_ARGS__)                                  \
-        dstc_header_t* hdr = (dstc_header_t*) data;                     \
-                                                                        \
-        DESERIALIZE_ARGUMENTS(__VA_ARGS__)                              \
-        retval = name(LIST_ARGUMENTS(__VA_ARGS__));                     \
-        dstc_##name##_handle_res(node_id, trans_id, retval);            \
-        return;                                                         \
-    }                                                                   \
-    _DSTC_AUTO_REGISTER(name)
-
-#define DSTC_SERVER_FUNCTION(name, ret_type, ...) \
-        DSTC_SERVER_FUNCTION_INTERNAL(name, ret_type, ##__VA_ARGS__)
 
 #endif // __DSTC_H__
+
+

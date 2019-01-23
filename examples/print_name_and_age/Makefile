@@ -16,7 +16,7 @@ DSTC_LIB=../../libdstc.a
 CFLAGS= -g -I ../..  -I../../reliable_multicast -Wno-int-to-pointer-cast 
 #use the compiler set by enviroment for cross compiling.
 #CC =gcc
-.PHONY: all clean install
+.PHONY: all clean install prettu
 
 all: $(TARGET_SERVER) $(TARGET_CLIENT)
 
@@ -46,3 +46,11 @@ install:
 	install -d ${DESTDIR}/dstc/print_name_and_age
 	install -m 0755 print_name_and_age_server ${DESTDIR}/dstc/print_name_and_age/
 	install -m 0755 print_name_and_age_client ${DESTDIR}/dstc/print_name_and_age/
+
+pretty: print_name_and_age_client_pretty.c print_name_and_age_server_pretty.c
+
+print_name_and_age_client_pretty.c: print_name_and_age_client.c ../../dstc.h
+	cpp -I ../.. -I ../../reliable_multicast/ -E print_name_and_age_client.c | clang-format  > print_name_and_age_client_pretty.c
+
+print_name_and_age_server_pretty.c: print_name_and_age_client.c ../../dstc.h
+	cpp -I ../.. -I ../../reliable_multicast/ -E print_name_and_age_server.c | clang-format  > print_name_and_age_server_pretty.c

@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
     }
 
     // Wait for function to become available on one or more servers.
-    while(!dstc_get_remote_count("test_dynamic_function")) 
+    while(!dstc_get_remote_count("test_dynamic_function"))
         dstc_process_events(500000);
 
     // Make the call
