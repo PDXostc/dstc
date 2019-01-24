@@ -60,9 +60,12 @@ rmc_pub_context_t _dstc_pub_ctx;
 uint8_t sub_conn_vec_buf[sizeof(rmc_connection_t)*MAX_CONNECTIONS];
 uint8_t pub_conn_vec_buf[sizeof(rmc_connection_t)*MAX_CONNECTIONS];
 
-#define USER_DATA_INDEX_MASK 0x0000FFFF
-#define USER_DATA_PUB_FLAG   0x00010000
-
+#define USER_DATA_INDEX_MASK 0x00007FFF
+#define USER_DATA_PUB_FLAG   0x00008000
+#define DSTC_EVENT_FLAG      0x80000000
+#define TO_EPOLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
+#define FROM_EPOLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
+#define IS_PUB(_user_data) (((_user_data) & USER_DATA_PUB_FLAG)?1:0)
 
 char* _op_res_string(uint8_t res)
 {
@@ -248,7 +251,8 @@ static void poll_add(user_data_t user_data,
         ev.events |= EPOLLOUT;
 
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, descriptor, &ev) == -1) {
-        RMC_LOG_INDEX_FATAL(event_user_data & USER_DATA_INDEX_MASK, "epoll_ctl(add)");
+        RMC_LOG_INDEX_FATAL(FROM_EPOLL_EVENT_USER_DATA(event_user_data), "epoll_ctl(add) event_udata[%lX]",
+                            event_user_data);
         exit(255);
     }
 }
@@ -259,7 +263,7 @@ static void poll_add_sub(user_data_t user_data,
                          rmc_index_t index,
                          rmc_poll_action_t action)
 {
-    poll_add(user_data, descriptor, (uint32_t) index, action);
+    poll_add(user_data, descriptor, TO_EPOLL_EVENT_USER_DATA(index, 0), action);
 }
 
 static void poll_add_pub(user_data_t user_data,
@@ -267,11 +271,10 @@ static void poll_add_pub(user_data_t user_data,
                          rmc_index_t index,
                          rmc_poll_action_t action)
 {
-    poll_add(user_data, descriptor, ((uint32_t) index) | USER_DATA_PUB_FLAG, action);
+    poll_add(user_data, descriptor, TO_EPOLL_EVENT_USER_DATA(index, 1), action);
 }
 
-
-
+ 
 static void poll_modify(user_data_t user_data,
                         int descriptor,
                         uint32_t event_user_data,
@@ -293,7 +296,7 @@ static void poll_modify(user_data_t user_data,
         ev.events |= EPOLLOUT;
 
     if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, descriptor, &ev) == -1) {
-        RMC_LOG_INDEX_FATAL(event_user_data & USER_DATA_INDEX_MASK, "epoll_ctl(modify): %s", strerror(errno));
+        RMC_LOG_INDEX_FATAL(FROM_EPOLL_EVENT_USER_DATA(event_user_data), "epoll_ctl(modify): %s", strerror(errno));
         exit(255);
     }
 }
@@ -306,7 +309,7 @@ static void poll_modify_pub(user_data_t user_data,
 {
     poll_modify(user_data,
                 descriptor,
-                ((uint32_t) index) | USER_DATA_PUB_FLAG,
+                TO_EPOLL_EVENT_USER_DATA(index, 1),
                 old_action,
                 new_action);
 }
@@ -319,7 +322,7 @@ static void poll_modify_sub(user_data_t user_data,
 {
     poll_modify(user_data,
                 descriptor,
-                (uint32_t) index,
+                TO_EPOLL_EVENT_USER_DATA(index, 0),
                 old_action,
                 new_action);
 }
@@ -333,7 +336,7 @@ static void poll_remove(user_data_t user_data,
         RMC_LOG_INDEX_WARNING(index, "epoll_ctl(delete): %s", strerror(errno));
         return;
     }
-    RMC_LOG_INDEX_COMMENT(index, "poll_remove()");
+    RMC_LOG_INDEX_COMMENT(index, "poll_remove() desc[%d] index[%d]", descriptor, index);
 }
 
 
@@ -380,7 +383,7 @@ int dstc_process_single_event(int timeout)
 {
     int nfds = 0;
     struct epoll_event events[dstc_get_socket_count()];
-        
+
     nfds = epoll_wait(epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
 
     if (nfds == -1) {
@@ -399,7 +402,7 @@ int dstc_process_single_event(int timeout)
 
 int dstc_process_events(usec_timestamp_t timeout_arg)
 {
-    usec_timestamp_t timeout_ts = 0;
+    usec_timestamp_t timeout_arg_ts = 0;
     usec_timestamp_t now = 0;
     
     if (!initialized)
@@ -408,47 +411,42 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
     // Calculate an absolute timeout timestamp based on relative
     // timestamp provided in argument.
     
-    timeout_ts = (timeout_arg == -1)?-1:(rmc_usec_monotonic_timestamp() + timeout_arg);
+    timeout_arg_ts = (timeout_arg == -1)?-1:(rmc_usec_monotonic_timestamp() + timeout_arg);
 
     // Process evdents until we reach the timeout therhold.
-    while((now = rmc_usec_monotonic_timestamp()) < timeout_ts || timeout_ts == -1) {
+    while((now = rmc_usec_monotonic_timestamp()) < timeout_arg_ts || timeout_arg_ts == -1) {
         usec_timestamp_t timeout = 0;
         char is_arg_timeout = 0;
-        usec_timestamp_t event_tout_ts = 0;
+        usec_timestamp_t event_tout_rel = 0;
+        usec_timestamp_t timeout_arg_rel = (timeout_arg_ts == -1)?-1:(timeout_arg_ts - now) / 1000 + 1 ;
 
-        event_tout_ts = dstc_get_timeout_timestamp();
+        event_tout_rel = dstc_get_timeout_msec();
 
         // Figure out the shortest timeout between argument and event timeout
-        if (timeout_ts == -1 && event_tout_ts == -1) {
+        if (timeout_arg_rel == -1 && event_tout_rel == -1) {
             RMC_LOG_DEBUG("Both argument and event timeout are -1 -> -1");
             timeout = -1;
         }
 
-        if (timeout_ts == -1 && event_tout_ts != -1) {
-            timeout = (event_tout_ts - now) / 1000 + 1 ;
+        if (timeout_arg_rel == -1 && event_tout_rel != -1) {
+            timeout = event_tout_rel; // Will never be less than 0
             RMC_LOG_DEBUG("arg timeout == -1. Event timeout != -1 -> %ld", timeout);
         }
 
-        if (timeout_ts != -1 && event_tout_ts == -1) {
-            timeout = (timeout_ts - now) / 1000 + 1 ;
+        if (timeout_arg_rel != -1 && event_tout_rel == -1) { 
+            is_arg_timeout = 1;
+            timeout = timeout_arg_rel; // Will never be less than 0
             RMC_LOG_DEBUG("arg timeout != -1. Event timeout == -1 -> %ld", timeout);
         }
 
-        if (timeout_ts != -1 && event_tout_ts != -1) {
-            if (event_tout_ts < timeout_ts) {
-                timeout = (event_tout_ts - now) / 1000 + 1;
-                
-                is_arg_timeout = 0;
-            } else {
-                timeout = (timeout_ts - now) / 1000 + 1;
-                is_arg_timeout = 1;
-            }
-                
-            if (event_tout_ts < timeout_ts) {
+        if (timeout_arg_rel != -1 && event_tout_rel != -1) {
+            if (event_tout_rel < timeout_arg_rel) {
+                timeout = event_tout_rel;
                 RMC_LOG_DEBUG("event timeout is less than arg timeout -> %ld", timeout);
-            }
-            else {
+            } else {
+                timeout = timeout_arg_rel;
                 RMC_LOG_DEBUG("arg timeout is less than event timeout -> %ld", timeout);
+                is_arg_timeout = 1;
             }
         }
 
@@ -474,8 +472,8 @@ extern void dstc_process_epoll_result(struct epoll_event* event)
 {
     int res = 0;
     uint8_t op_res = 0;
-    rmc_index_t c_ind = (rmc_index_t) event->data.u32 & USER_DATA_INDEX_MASK;
-    int is_pub = (event->data.u32 & USER_DATA_PUB_FLAG)?1:0;
+    rmc_index_t c_ind = (rmc_index_t) FROM_EPOLL_EVENT_USER_DATA(event->data.u32);
+    int is_pub = IS_PUB(event->data.u32);
 
     RMC_LOG_INDEX_DEBUG(c_ind, "%s: %s%s%s",
                         (is_pub?"pub":"sub"),
