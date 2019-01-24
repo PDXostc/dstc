@@ -152,6 +152,7 @@ static void (*dstc_find_callback(uint64_t func_addr))(rmc_node_id_t node_id, uin
         }
         ++i;
     }
+    RMC_LOG_COMMENT("Did not find callback [%lX]\n", func_addr);
     return (callback_t) 0;
 }
 
@@ -176,7 +177,8 @@ void dstc_register_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
         exit(255);
     }
     local_callback[callback_ind] = callback;;
-    local_func_ind++;
+    RMC_LOG_FATAL("Registered callback [%lX]", (uint64_t) callback);
+    callback_ind++;
 }
 
 void dstc_cancel_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
@@ -526,7 +528,11 @@ static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
                   call->node_id, 
                   call->name_len,
                   call->name_len, call->payload, call->payload_len - call->name_len);
-    local_func_ptr = dstc_find_local_function(call->payload, call->name_len);
+    if (call->name_len)
+        local_func_ptr = dstc_find_local_function(call->payload, call->name_len);
+    else
+        local_func_ptr = dstc_find_callback(*(uint64_t*)call->payload);
+        
 
     if (!local_func_ptr) {
         RMC_LOG_COMMENT("Function [%.*s] not loaded. Ignored", call->name_len, call->payload);

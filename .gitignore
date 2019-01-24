@@ -46,6 +46,7 @@ Module.symvers
 Mkfile.old
 dkms.conf
 *.o
+*_nomacro.c
 
 examples/chat/chat
 examples/dynamic_data/dynamic_data_client

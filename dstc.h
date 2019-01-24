@@ -94,13 +94,14 @@ typedef dstc_callback_t CBCK;
         return;                                                         \
     }                                                                   \
     CBCK callback = {                                                   \
-        .func_addr = (uint64_t) _func_ptr                               \
+        .func_addr = (uint64_t) dstc_callback_##_func_ptr               \
     };                                                                  \
+    extern void dstc_register_callback(void (*)(rmc_node_id_t node_id, uint8_t*)); \
     dstc_register_callback(dstc_callback_##_func_ptr);                  \
     callback;                                                           \
     })
 
-#define SERVER_CALLBACK_ARG(_func_ptr) ({         \
+#define SERVER_CALLBACK_ARG(_func_ptr, ...) ({        \
     CBCK callback = {                             \
         .func_addr = (uint64_t) _func_ptr         \
     };                                            \
@@ -226,6 +227,21 @@ typedef dstc_callback_t CBCK;
                                                                         \
       SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
       dstc_queue_func(#name, arg_buf, arg_sz);                          \
+  }                                                                     \
+
+
+// Create callback function that serializes and writes to descriptor.
+// If the reliable multicast system has not been started when the
+// client call is made, it is will be done through dstc_setup()
+#define DSTC_CALLBACK(name, ...)                                        \
+  void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                    \
+      uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                    \
+      uint8_t arg_buf[arg_sz];                                          \
+      uint8_t *data = arg_buf;                                          \
+      extern void dstc_queue_callback(uint64_t addr, uint8_t* arg_buf, uint32_t arg_sz); \
+                                                                        \
+      SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
+      dstc_queue_callback(name.func_addr, arg_buf, arg_sz);             \
   }                                                                     \
 
 
