@@ -35,7 +35,7 @@ DSTC_LIB=../../libdstc.a
 # issues. Please note that no code will be executed that translates an integer
 # to a pointer.
 # 
-CFLAGS= -g -I ../.. -I../../reliable_multicast -Wno-int-to-pointer-cast
+CFLAGS= -g -I ../.. -I../../reliable_multicast -Wno-int-to-pointer-cast $(CFLAGS) $(LDFLAGS)
 
 .PHONY: all clean install nomacro
 
