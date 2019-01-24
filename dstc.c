@@ -367,6 +367,11 @@ int dstc_get_timeout_msec(void)
     if (tout == -1)
         return -1;
 
+    // Convert to relative timestamp.
+    tout -= rmc_usec_monotonic_timestamp();
+    if (tout < 0)
+        return 0;
+    
     return tout / 1000 + 1;
 }
 

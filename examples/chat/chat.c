@@ -97,27 +97,25 @@ int main(int argc, char* argv[])
 
     // Wait for input and process
     while(1) {
-        usec_timestamp_t tout_ts = 0;
         int timeout = 0;
         int nfds = 0;
         struct epoll_event events[dstc_get_socket_count() + 1];
 
         // Find out when our next timeout is.
-        tout_ts = dstc_get_timeout_timestamp();
-
-        // Convert absolute timeout timestamp to an epoll_wait()-friendly timeout value.
-        // Only do this if the absolute timestamp is not -1 (infinite)
-        if (tout_ts != -1) {
-            timeout = (tout_ts - rmc_usec_monotonic_timestamp()) / 1000 + 1;
-        } else
-            timeout = -1;
+        while (!(timeout = dstc_get_timeout_msec())) {
+            RMC_LOG_DEBUG("Got timeout in dstc_get_timeout_msec()");
+            dstc_process_timeout();
+        }
             
-        // Wait for events
+
+        // Wait for the given time.
+        RMC_LOG_DEBUG("Entering wait with %d msec", timeout);
         nfds = epoll_wait(epoll_fd, events, sizeof(events)/sizeof(events[0]), timeout);
 
         // Timeout?
         if (nfds == 0) {
             // Process dstc events and try again.
+            RMC_LOG_DEBUG("Got timeout in epoll_wait()");
             dstc_process_timeout();
             continue;
         }
@@ -133,5 +131,5 @@ int main(int argc, char* argv[])
             dstc_process_epoll_result(&events[nfds]);
                 
         }
-    }
+    }    
 }
