@@ -539,7 +539,7 @@ static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
         return sizeof(dstc_header_t) + call->payload_len;
     }
 
-    (*local_func_ptr)(call->node_id, call->payload + call->name_len); 
+    (*local_func_ptr)(call->node_id, call->payload + (call->name_len?call->name_len:sizeof(uint64_t))); 
     return sizeof(dstc_header_t) + call->payload_len;
 }
 
