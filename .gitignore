@@ -57,4 +57,12 @@ examples/struct/print_struct_client
 examples/struct/print_struct_server
 examples/callback/callback_client
 examples/callback/callback_server
-
+examples/chat/chat_nomacro
+examples/print_name_and_age/print_name_and_age_client_nomacro
+examples/print_name_and_age/print_name_and_age_server_nomacro
+examples/struct/print_struct_client_nomacro
+examples/struct/print_struct_server_nomacro
+examples/callback/callback_client_nomacro
+examples/callback/callback_server_nomacro
+examples/dynamic_data/dynamic_data_client_nomacro
+examples/dynamic_data/dynamic_data_server_nomacro

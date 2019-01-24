@@ -1,24 +1,47 @@
 #
 # Executable example code from the README.md file
 #
+
+NAME=print_name_and_age
+
+# FIXME variable substitution is a thing
 INCLUDE=../../dstc.h
-TARGET_CLIENT=print_name_and_age_client
-CLIENT_OBJ=print_name_and_age_client.o 
 
+TARGET_CLIENT=${NAME}_client
+TARGET_NOMACRO_CLIENT=${TARGET_CLIENT}_nomacro
 
-TARGET_SERVER=print_name_and_age_server
-SERVER_OBJ=print_name_and_age_server.o 
+CLIENT_OBJ=print_name_and_age_client.o
+CLIENT_SOURCE=$(CLIENT_OBJ:%.o=%.c)
+
+CLIENT_NOMACRO_OBJ=$(CLIENT_OBJ:%.o=%_nomacro.o)
+CLIENT_NOMACRO_SOURCE=$(CLIENT_NOMACRO_OBJ:%.o=%.c)
+
+#
+# Server
+# 
+TARGET_SERVER=${NAME}_server
+TARGET_NOMACRO_SERVER=${TARGET_SERVER}_nomacro
+
+SERVER_OBJ=print_name_and_age_server.o
+SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
+
+SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
+SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
+
 
 DSTC_LIB=../../libdstc.a
+
 # The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
 # issues. Please note that no code will be executed that translates an integer
 # to a pointer.
-CFLAGS= -g -I ../..  -I../../reliable_multicast -Wno-int-to-pointer-cast 
-#use the compiler set by enviroment for cross compiling.
-#CC =gcc
-.PHONY: all clean install prettu
+# 
+CFLAGS= -g -I ../.. -I../../reliable_multicast -Wno-int-to-pointer-cast
 
-all: $(TARGET_SERVER) $(TARGET_CLIENT)
+.PHONY: all clean install nomacro
+
+all: $(TARGET_SERVER) $(TARGET_CLIENT) 
+
+nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT) 
 
 # -rdynamic is needed so that a loade .so file can resolve and call
 # dstc_src:dstc_register_function(). See manpage for dlopen(2)
@@ -26,32 +49,41 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 #
 
 $(TARGET_SERVER): $(SERVER_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -L../..  -o $@
+	$(CC) $(CFLAGS) $^ -o $@
 
 #
 # The client is built as a regular binary
 #
-$(TARGET_CLIENT): $(CLIENT_OBJ)  $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^  -L../.. -o $@
+$(TARGET_CLIENT): $(CLIENT_OBJ) $(DSTC_LIB)
+	$(CC) $(CFLAGS) $^ -o $@
 
 
 # Recompile everything if dstc.h changes
-$(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE) 
-
+$(SERVER_OBJ) $(CLIENT_OBJ): $(INCLUDE)
 
 clean:
 	rm -f $(TARGET_CLIENT) $(CLIENT_OBJ) $(TARGET_SERVER) $(SERVER_OBJ)  *~ \
-		print_name_and_age_client_pretty.c print_name_and_age_server_pretty.c
+	$(TARGET_NOMACRO_CLIENT) $(TARGET_NOMACRO_SERVER) \
+	$(CLIENT_NOMACRO_SOURCE) $(SERVER_NOMACRO_SOURCE) \
+	$(CLIENT_NOMACRO_OBJ) $(SERVER_NOMACRO_OBJ)
 
 install:
-	install -d ${DESTDIR}/dstc/print_name_and_age
-	install -m 0755 print_name_and_age_server ${DESTDIR}/dstc/print_name_and_age/
-	install -m 0755 print_name_and_age_client ${DESTDIR}/dstc/print_name_and_age/
+	install -d ${DESTDIR}/dstc/${NAME}
+	install -m 0755 ${NAME}_server ${DESTDIR}/dstc/${NAME}/
+	install -m 0755 ${NAME}_client ${DESTDIR}/dstc/${NAME}/
 
-pretty: print_name_and_age_client_pretty.c print_name_and_age_server_pretty.c
+#
+# The client is built as a regular binary
+#
+$(TARGET_NOMACRO_CLIENT): $(CLIENT_NOMACRO_OBJ) $(DSTC_LIB)
+	$(CC) $(CFLAGS) $^ -o $@
 
-print_name_and_age_client_pretty.c: print_name_and_age_client.c ../../dstc.h
-	cpp -I ../.. -I ../../reliable_multicast/ -E print_name_and_age_client.c | clang-format  > print_name_and_age_client_pretty.c
+$(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTC_LIB)
+	$(CC) $(CFLAGS) $^ -o $@
 
-print_name_and_age_server_pretty.c: print_name_and_age_client.c ../../dstc.h
-	cpp -I ../.. -I ../../reliable_multicast/ -E print_name_and_age_server.c | clang-format  > print_name_and_age_server_pretty.c
+
+$(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h
+	cpp -I ../.. -I ../../reliable_multicast/ -E ${CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${CLIENT_NOMACRO_SOURCE}
+
+$(SERVER_NOMACRO_SOURCE): ${SERVER_SOURCE} ../../dstc.h
+	cpp -I ../.. -I ../../reliable_multicast/ -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
