@@ -29,7 +29,7 @@ $(LIB_TARGET): $(RMC_LIB) $(OBJ)
 
 # Build the shared object from librmc.a, which contains libdstc.a 
 $(LIB_SO_TARGET): $(RMC_LIB) $(LIB_TARGET)
-	gcc -shared -Wl,--whole-archive $(RMC_LIB) -o $(LIB_SO_TARGET)
+	$(CC) -shared -Wl,--whole-archive $(RMC_LIB) -o $(LIB_SO_TARGET)
 
 clean:
 	-(cd reliable_multicast; make clean)
