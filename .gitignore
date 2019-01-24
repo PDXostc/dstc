@@ -55,4 +55,6 @@ examples/print_name_and_age/print_name_and_age_client
 examples/print_name_and_age/print_name_and_age_server
 examples/struct/print_struct_client
 examples/struct/print_struct_server
+examples/callback/callback_client
+examples/callback/callback_server
 
