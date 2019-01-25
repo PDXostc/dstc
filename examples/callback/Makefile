@@ -29,13 +29,14 @@ SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
 
-DSTC_LIB=../../libdstc.a
+LIBPATH=-L../.. -L../../reliable_multicast
+INCPATH=-I../.. -I../../reliable_multicast
+LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
 
 # The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
-# issues. Please note that no code will be executed that translates an integer
-# to a pointer.
+# issues.
 # 
-CFLAGS= -g -I ../.. -I../../reliable_multicast -Wno-int-to-pointer-cast
+CFLAGS= -g ${INCPATH} -Wno-int-to-pointer-cast
 
 .PHONY: all clean install nomacro
 
@@ -43,19 +44,12 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT) 
 
-# -rdynamic is needed so that a loade .so file can resolve and call
-# dstc_src:dstc_register_function(). See manpage for dlopen(2)
-# and gcc(1)
-#
+$(TARGET_SERVER): $(SERVER_OBJ) $(LIBDEPS)
+	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@  
 
-$(TARGET_SERVER): $(SERVER_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -o $@
 
-#
-# The client is built as a regular binary
-#
-$(TARGET_CLIENT): $(CLIENT_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -o $@
+$(TARGET_CLIENT): $(CLIENT_OBJ) $(LIBDEPS)
+	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@  
 
 
 # Recompile everything if dstc.h changes
@@ -75,15 +69,15 @@ install:
 #
 # The client is built as a regular binary
 #
-$(TARGET_NOMACRO_CLIENT): $(CLIENT_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -o $@
+$(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTC_LIB)
+	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@  
 
 $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@  
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h
-	cpp -I ../.. -I ../../reliable_multicast/ -E ${CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${CLIENT_NOMACRO_SOURCE}
+	cpp ${INCPATH} -E ${CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${CLIENT_NOMACRO_SOURCE}
 
 $(SERVER_NOMACRO_SOURCE): ${SERVER_SOURCE} ../../dstc.h
-	cpp -I ../.. -I ../../reliable_multicast/ -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
+	cpp ${INCPATH} -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}

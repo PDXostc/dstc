@@ -16,14 +16,15 @@ SOURCE=$(OBJ:%.o=%.c)
 NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
-
-DSTC_LIB=../../libdstc.a
+LIBPATH=-L../.. -L../../reliable_multicast
+INCPATH=-I../.. -I../../reliable_multicast
+LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
 
 # The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
 # issues. Please note that no code will be executed that translates an integer
 # to a pointer.
 # 
-CFLAGS= -g -I ../.. -I../../reliable_multicast -Wno-int-to-pointer-cast
+CFLAGS= -g ${INCPATH} -Wno-int-to-pointer-cast
 
 .PHONY: all clean install nomacro
 
@@ -34,8 +35,8 @@ nomacro:  $(TARGET_NOMACRO)
 #
 # The client is built as a regular binary
 #
-$(TARGET): $(OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -o $@
+$(TARGET): $(OBJ) ${LIBDEPSS}
+	$(CC) $(CFLAGS) ${LIBPATH} $^ -ldstc -lrmc -o $@
 
 
 # Recompile everything if dstc.h changes
@@ -53,9 +54,9 @@ install:
 #
 # The client is built as a regular binary
 #
-$(TARGET_NOMACRO): $(NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -o $@
+$(TARGET_NOMACRO): $(NOMACRO_OBJ)  $(LIBDEPS)
+	$(CC) $(CFLAGS) ${LIBPATH} -ldstc -lrmc $^ -o $@
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h
-	cpp -I ../.. -I ../../reliable_multicast/ -E ${SOURCE} | clang-format | grep -v '^# [0-9]' > ${NOMACRO_SOURCE}
+	cpp ${INCPATH} ${SOURCE} | clang-format | grep -v '^# [0-9]' > ${NOMACRO_SOURCE}
