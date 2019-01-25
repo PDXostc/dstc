@@ -24,7 +24,7 @@ $(LIB_TARGET): $(OBJ)
 
 # Build the shared object from librmc.a, which contains libdstc.a 
 $(LIB_SO_TARGET):  $(OBJ)
-	gcc -shared $(OBJ) -o $(LIB_SO_TARGET)
+	$(CC) -shared $(OBJ) -o $(LIB_SO_TARGET)
 
 clean:
 	-(cd reliable_multicast; make clean)
