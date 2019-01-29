@@ -14,8 +14,12 @@
 #include "dstc.h"
 
 // Generate serializer functionality and the callable client function
-// dstc_message().
-
+// dstc_test_dynamic_function().
+//
+// The DECL_DYNAMIC_ARG indicates that the first argument to test_dynamic_function()
+// is a dynamic, variable length argument.
+//
+// The second argument is a regular array of four integers.
 DSTC_CLIENT(test_dynamic_function, DECL_DYNAMIC_ARG, int, [4])
 
 
@@ -31,7 +35,11 @@ int main(int argc, char* argv[])
     while(!dstc_get_remote_count("test_dynamic_function"))
         dstc_process_events(500000);
 
-    // Make the call
+    // Make the call.
+    // The DYNAMIC_ARG() macro takes a pointer to data and the length
+    // of the data (in bytes), and transmits those bytes together with
+    // all other arguments (such as second_array_arg) to the server.
+    //
     dstc_test_dynamic_function(DYNAMIC_ARG(argv[1], strlen(argv[1])+1), second_array_arg);
 
     // Process events for another 100 msec to ensure that the call gets out.

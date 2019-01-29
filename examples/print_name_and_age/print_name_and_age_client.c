@@ -8,14 +8,13 @@
 // Running example code from README.md in https://github.com/PDXOSTC/dstc
 //
 
-#include <stdlib.h>
 #include "dstc.h"
-#include "rmc_log.h"
 
 // Generate serializer functionality and the callable client function
-// dstc_message().
-// A call to dstc_print_name_and_age will trigger a call to
-// print_name_and_age() in all (server) nodes that have loaded this library.
+// dstc_print_name_and_age().
+// A call to dstc_print_name_and_age() will trigger a call to
+// print_name_and_age() in all servers that have regiistered
+// print_name_and_age through a DSTC_SERVER macro.
 //
 DSTC_CLIENT(print_name_and_age, char, [32], int,)
 

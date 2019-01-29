@@ -22,6 +22,8 @@ dstc_header {
     uint8_t payload[];             // Function name followed by function args.
 } dstc_header_t;
 
+#define DSTC_EVENT_FLAG      0x80000000
+
 extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
 extern int dstc_setup(void);

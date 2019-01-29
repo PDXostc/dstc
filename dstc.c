@@ -62,7 +62,6 @@ uint8_t pub_conn_vec_buf[sizeof(rmc_connection_t)*MAX_CONNECTIONS];
 
 #define USER_DATA_INDEX_MASK 0x00007FFF
 #define USER_DATA_PUB_FLAG   0x00008000
-#define DSTC_EVENT_FLAG      0x80000000
 #define TO_EPOLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
 #define FROM_EPOLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
 #define IS_PUB(_user_data) (((_user_data) & USER_DATA_PUB_FLAG)?1:0)

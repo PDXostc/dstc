@@ -9,13 +9,10 @@
 //
 
 #include <stdio.h>
-#include <stdlib.h>
 #include "dstc.h"
-#include "rmc_log.h"
 
 
-// Generate deserializer for multicast packets sent by dstc_message()
-// above.
+// Generate deserializer for multicast packets sent by the client
 // The deserializer decodes the incoming data and calls the
 // print_name_and_age() function in this file.
 //
@@ -35,6 +32,6 @@ void print_name_and_age(char name[32], int age)
 
 int main(int argc, char* argv[])
 {
-    // Process incoming events for ever
+    // Process incoming events forever
     dstc_process_events(-1);
 }

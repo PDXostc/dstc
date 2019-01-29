@@ -36,7 +36,7 @@ nomacro:  $(TARGET_NOMACRO)
 # The client is built as a regular binary
 #
 $(TARGET): $(OBJ) ${LIBDEPSS}
-	$(CC) $(CFLAGS) ${LIBPATH} $^ -ldstc -lrmc -o $@
+	$(CC) -static $(CFLAGS) ${LIBPATH} $^ -ldstc -lrmc -o $@
 
 
 # Recompile everything if dstc.h changes

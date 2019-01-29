@@ -13,7 +13,8 @@
 #include "struct.h"
 
 // A call to dstc_print_struct() will trigger a call to
-// print_struct() in all (server) nodes that have loaded this library.
+// print_struct() in servers that have declared this function
+// through a DSTC_SERVER() macro.
 DSTC_CLIENT(print_struct, struct name_and_age, )
 
 int main(int argc, char* argv[])

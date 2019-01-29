@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "dstc.h"
-
 #include "callback_dyndata.h"
 
 // Globally stored elements.
