@@ -10,28 +10,48 @@ To setup a client call or a server function, a program only needs to
 compile and link ```dstc.c```, include ```dstc.h```, and add a single
 macro. A program can be both a DSTC client and server. 
 
+DSTC uses reliable_multicast to ensure that data is delivered
+robustly. See https://github.com/PDXostc/reliable_multicast for details
+
 
 # FEATURES
 
 ## Lightweight
-The ```dstc.c``` and ```dstc.h``` currently weighs in at 235 lines of
-code. The sample multi-user chat server is 36 lines of code.
+The ```dstc.c``` and ```dstc.h``` currently weighs in at ~750 lines of
+physical code. The sample multi-user chat server is 36 lines of code.
 
-## No dependencies
-Apart from standard Linux system calls and libraries, and a few
-GCC-specific C extensions, no additional libraries, header files, or
-other code is needed to setup RPC calls.
+## Fast 
+The underlying reliable multicast can transmit 25 million signals / second
+between a publisher and subscriber running on a i7 laptop. Our
+intent is to support a similar number of DSTC calls per sercond.
+
+## Light dependencies
+You just need gcc and reliable multicast to build and deploy your services.
 
 ## Can transmit arbitrary data types
 All scalars, arrays, unions and structs can be transmitted, as long as
 they do not contain pointers.
 
-## Multiple parallel executions.
+## Multiple parallel executions
 If a server function is registered in multiple processes / nodes
 across a network, all of them will be invoked in parallel with a
 (single) client calls the given function.<br>
 The provided chat system is implemented in ~50
 lines of C code.
+
+## Supports callbacks
+A client call to a server can include a pointer to a client-side
+function that can be invoked by the server code. 
+
+This allows a service to use event-driven programming to replace
+synchronous RPC calls with return values that risk blocking threads
+and resources across the network as load increases.
+
+## Guaranteed function execution
+Reliable multicast will retransmit any dropped packets via a sideband TCP channel,
+combining TCP-level robustness with the scalability of UDP.
+
+
 
 # LIMITATIONS
 Since the purpose is to provide bare-bones RPC mechanisms with a minimum of
@@ -39,12 +59,7 @@ dependencies, there are several limitaions, listed below
 
 ## No return value
 All functions that are to be remotely executed must be of type ```void```. 
-There is nothing stopping you from making a callback function to the caller.
-
-## No guaranteed function execution
-Since the network uses UDP/IP multicast packets may be lost, which means that
-the function call carried by that packet will be lost as well. Retry mechanisms
-can be implemented but is currently outside the scope of this project.
+See callbacks above for an event-driven solution.
 
 ## Max 64K function calls.
 UDP/IP packets have a maximum of 64K. Meaning that your function call
@@ -55,16 +70,16 @@ arguments, taking overhead data into consideration, should stay under
 Arguments are currently copied across the network in their native
 format using ```memcpy()``` without respect to endianess or
 padding. This means that arguments will only be transferred correctly
-between a client and server using the same CPU architecture.  If you
-are sending structs as arguments, compiler version may come into
-play. See gcc ```packed``` attribute for possible workarounds on
-compiler versions.
+between a client and server using the same endieness, which is little-endian 
+on x86 and Arm, and byte sequence.
 
+See gcc ```__attribute__ ((packed))``` and  ```__attribute__ ((endianness(big)))```
+for how this can easily be achieved in a mixed-architecture deployment.
 
 
 # BUILDING 
 
-    make
+    make 
 
 # SIMPLE CLIENT SERVER EXAMPLE
 The client program invokes a C function on the server that prints the
@@ -185,7 +200,7 @@ The ```DECL_DYNAMIC_ARG``` macro can be used in ```DSTC_CLIENT```
 and ```DSTC_SERVER``` to specifiy that the given argument has dynamic length.
 
 
-## Client side dynamic data
+## Client-side dynamic data
 Below is an example from ```examples/dynamic_data/dynamic_data_client.c``` where
 the ```dynamic_message()``` function accepts an dynamic length argument and an 
 array of four integers.
@@ -204,7 +219,7 @@ The client-side call to ```dynamic_message``` is as follows:
 The first argument to ```DYNAMIC_ARG``` is expected to be ```void*```. The second
 argument is expected to be ```uint32_t```.
 
-## Server side dynamic data
+## Server-side dynamic data
 
 The server-side declaration of dynamic arguments is identical to the client side.
 From ```examples/dynamic_data/dynamic_data_client.c```:
@@ -237,12 +252,97 @@ memory pointed to by ```dynarg.data```.
 The memory refered to by the ```dstc_dynamic_data_t``` struct is owned
 by the DSTC system and should not be modified or freed. Once the called function returns,
 the memory pointed to by the ```data``` element will be deleted.
+
+
+
+
+
+# CALLBACKS
+A ```DSTC_CLIENT```-declared call can accept a function pointer
+argument to be forwarded by the call to the remote server. The
+receiving server function, declared via ```DSTC_SERVER``` will receive
+a corresponding function pointer to invoke in order to make a callback
+to the client.
+
+This allows the server to deliver execution results to the clier in
+lieu of return values. The callback can only be invoked once and will
+only be received by the sending client. 
+
+If multiple servers execute a call and invoke their callbacks, only
+one of those callback will be forwarded to the client-side code. The
+rest of the callbacks are silently dropped. It is undefined which of
+the server callbacks will be executed.
+
+
+## Client-side callback
+Below is an example from ```examples/callback/callback_client.c```
+where a call is made to the remote ```double_value()``` in order to
+double the provided value and send back the result through a callback.
+
+    DSTC_CLIENT(double_value, int,, DECL_CALLBACK_ARG);
+
+The ```double_value()``` function accepts the value to double and a
+callback function pointer.
+
+The call to the function on the client side looks like below.
+
+    dstc_double_value(42, CLIENT_CALLBACK_ARG(double_value_callback,int,));
     
+The ```42``` argument is the value to double. 
+
+The ```CLIENT_CALLBACK_ARG(double_value_callback,int,)``` specifies
+that a pointer to ```double_value_callbacl()``` function should be
+sent to the remote server, and that this callback function takes a
+single integer (the doubled value) as its sole argument.
+ 
+The callback function implemnentation is a regular C function that
+prints out the doubled value it recevies from the remote server's
+callback invocation:
+
+    void double_value_callback(int value)
+    {
+        printf("Callback received: %d\n", value);
+    }
+
+## Server-side callback
+
+The server-side declaration of a callback argument to a function is the same
+as the client side. Below is code from ```examples/callback/callback_server.c```
+
+    DSTC_SERVER(double_value, int,, DECL_CALLBACK_ARG)
+    
+The implementation is as follows:
+
+    void double_value(int value, dstc_callback_t callback_ref)
+    {
+        DSTC_CALLBACK(callback_ref, int,);
+
+        printf("double_value(%d) called with a callback\n", value);
+        dstc_callback_ref(value + value);
+    }
+
+The ```dstc_callback_t callback_ref``` argument declares a DSTC-specific variable that
+hosts all information necessary to make a remote callback to the calling process.
+
+The ```DSTC_CALLBACK(callback_ref, int,);``` sets up the necessary code to
+define a local function, ```dstc_callback_ref()``` in this case, that will forwarded
+the callback to the client process.
+
+Finally, the callback itself is invoked through a regular C call to ```dstc_callback_ref()```.
+
+Please note that callback_ref specifies the name of both the argument and the generated local
+callback function. 
+
+
 # ENCODING AND DECODING
 RPC encoding is done by the code generated by the ```DSTC_CLIENT``` macro. The encoding
 (for now) is done by simply copying out the bytes from the argument to a data bufscvafer
 to be transmitted.
 
 The code generated by ```DSTC_SERVER``` will decode the incoming data.
+
+To see what the generated code looks like, build the examples using
+make nomacro. The nomacro-files will contain the expanded macros at
+the end of the file.
 
 # MULTIPLE INSTANCES OF A SERVER
