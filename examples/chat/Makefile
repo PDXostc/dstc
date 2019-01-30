@@ -20,11 +20,7 @@ LIBPATH=-L../.. -L../../reliable_multicast
 INCPATH=-I../.. -I../../reliable_multicast
 LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
 
-# The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
-# issues. Please note that no code will be executed that translates an integer
-# to a pointer.
-# 
-CFLAGS= -g ${INCPATH} -Wno-int-to-pointer-cast
+CFLAGS= -g ${INCPATH} -Wall
 
 .PHONY: all clean install nomacro
 

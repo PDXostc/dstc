@@ -157,7 +157,7 @@ typedef dstc_callback_t CBCK;
                  _LE8,  _ERR, _LE6,  _ERR,                              \
                      _LE4,  _ERR, _LE2,  _ERR, _LE0)(_call, ##__VA_ARGS__)  
 
-// replace if with switch?
+
 #define SERIALIZE_ARGUMENT(arg_id, type, size)                          \
     switch(*(uint32_t*) #type) {                                        \
     case DSTC_DYNARG_TAG:                                               \
@@ -204,6 +204,7 @@ typedef dstc_callback_t CBCK;
         data += sizeof(type size);                                      \
     }
 
+
 #define DECLARE_ARGUMENT(arg_id, type, size) type _a##arg_id size
 #define LIST_ARGUMENT(arg_id, type, size) _a##arg_id
 #define DECLARE_VARIABLE(arg_id, type, size) type _a##arg_id size ;
@@ -216,7 +217,6 @@ typedef dstc_callback_t CBCK;
 #define DECLARE_VARIABLES(...) FOR_EACH_VARIADIC_MACRO(DECLARE_VARIABLE, ##__VA_ARGS__)
 #define SIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SIZE_ARGUMENT, ##__VA_ARGS__) 0
 
-
 // Create client function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
@@ -228,7 +228,7 @@ typedef dstc_callback_t CBCK;
       extern void dstc_queue_func(uint8_t* name, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
       SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
-      dstc_queue_func(#name, arg_buf, arg_sz);                          \
+      dstc_queue_func((uint8_t*) #name, arg_buf, arg_sz);               \
   }                                                                     \
 
 
@@ -244,7 +244,7 @@ typedef dstc_callback_t CBCK;
                                                                         \
       SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
       dstc_queue_callback(name.func_addr, arg_buf, arg_sz);             \
-  }                                                                     \
+  }
 
 
         
@@ -266,7 +266,7 @@ typedef dstc_callback_t CBCK;
     {                                                                   \
         extern void dstc_register_local_function(char*, void (*)(rmc_node_id_t, uint8_t*)); \
         dstc_register_local_function(#name, dstc_server_##name);        \
-    }                                                                   \
+    }
 
 #define DSTC_SERVER(name, ...)                          \
     extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));   \
