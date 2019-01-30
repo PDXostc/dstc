@@ -15,7 +15,7 @@ LIB_SO_TARGET=libdstc.so
 all: $(LIB_TARGET) $(LIB_SO_TARGET) 
 	(cd examples/; make)
 
-CFLAGS=-fPIC -g -I${CURDIR}/reliable_multicast
+CFLAGS=-fPIC -g -I${CURDIR}/reliable_multicast -Wall
 
 # Unpack the static reliable_multicast library and repack it with dstc object files
 # into libdstc.a

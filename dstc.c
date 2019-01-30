@@ -224,7 +224,7 @@ void dstc_register_remote_function(char* name)
     remote = &remote_func[remote_func_ind];
     ++remote_func_ind;
 
-    strncpy(remote->func_name, (uint8_t*) name, sizeof(remote->func_name));
+    strncpy(remote->func_name, name, sizeof(remote->func_name));
     remote->func_name[sizeof(remote->func_name)-1] = 0;
     remote->count = 1;
     RMC_LOG_INFO("Remote [%s] now supported by one (first) node", remote->func_name, remote->count);
@@ -397,6 +397,8 @@ int dstc_process_single_event(int timeout)
     // Process all pending events.
     while(nfds--) 
         dstc_process_epoll_result(&events[nfds]);
+
+    return 0;
 }
 
 int dstc_process_events(usec_timestamp_t timeout_arg)
@@ -531,7 +533,7 @@ static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
                   call->name_len,
                   call->name_len, call->payload, call->payload_len - call->name_len);
     if (call->name_len)
-        local_func_ptr = dstc_find_local_function(call->payload, call->name_len);
+        local_func_ptr = dstc_find_local_function((char*) call->payload, call->name_len);
     else
         local_func_ptr = dstc_find_callback(*(uint64_t*)call->payload);
         
@@ -723,7 +725,7 @@ uint32_t dstc_get_remote_count(char* function_name)
 static void dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t arg_sz)
 {
     // Will be freed by RMC on confirmed delivery
-    dstc_header_t *call = (dstc_header_t*) malloc(sizeof(dstc_header_t) + strlen(name) + arg_sz) ;
+    dstc_header_t *call = (dstc_header_t*) malloc(sizeof(dstc_header_t) + strlen((char*) name) + arg_sz) ;
     uint16_t actual_name_len = name_len?name_len:sizeof(uint64_t);
 
     // FIXME: Stuff multiple calls into a single packet.
@@ -760,5 +762,5 @@ void dstc_queue_callback(uint64_t addr, uint8_t* arg, uint32_t arg_sz)
 
 void dstc_queue_func(uint8_t* name, uint8_t* arg, uint32_t arg_sz)
 {
-    dstc_queue(name, strlen(name), arg, arg_sz);
+    dstc_queue(name, strlen((char*) name), arg, arg_sz);
 }
