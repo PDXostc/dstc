@@ -7,9 +7,6 @@
 
 // Server that can load and execute lambda functions.
 // See README.md for details
-#define SYMTAB_SIZE 128
-#define MAX_CONNECTIONS 16
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,42 +23,11 @@
 #include "dstc.h"
 #include "rmc_log.h"
 
-// FIXME: Hash table.
-typedef struct dispatch_table {
-    char func_name[256];
-    void (*server_func)(rmc_node_id_t node_id, uint8_t*);
-} dispatch_table_t;
+#define MAX_CONNECTIONS 16
 
-static dispatch_table_t local_func[SYMTAB_SIZE];
+static int _dstc_initialized = 0;
+dstc_context_t _dstc_default_context;
 
-typedef void (*callback_t)(rmc_node_id_t node_id, uint8_t*);
-
-
-static callback_t local_callback[SYMTAB_SIZE];
-
-static struct remote_func_t {
-    char func_name[256];
-    uint32_t count; // Number of remotes supporting this function
-} remote_func[SYMTAB_SIZE];
-
-static uint32_t local_func_ind = 0;
-static uint32_t callback_ind = 0;
-static uint32_t remote_func_ind = 0;
-static int initialized = 0;
-static int epoll_fd = -1;
-
-
-#define MCAST_GROUP_ADDRESS "239.40.41.42" // Completely made up
-#define MCAST_GROUP_PORT 4723 // Completely made up
-
-rmc_sub_context_t _dstc_sub_ctx;
-rmc_pub_context_t _dstc_pub_ctx;
-
-uint8_t sub_conn_vec_buf[sizeof(rmc_connection_t)*MAX_CONNECTIONS];
-uint8_t pub_conn_vec_buf[sizeof(rmc_connection_t)*MAX_CONNECTIONS];
-
-#define USER_DATA_INDEX_MASK 0x00007FFF
-#define USER_DATA_PUB_FLAG   0x00008000
 #define TO_EPOLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
 #define FROM_EPOLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
 #define IS_PUB(_user_data) (((_user_data) & USER_DATA_PUB_FLAG)?1:0)
@@ -114,10 +80,10 @@ char* _op_res_string(uint8_t res)
 //
 static void (*dstc_find_local_function(char* name, int name_len))(rmc_node_id_t node_id, uint8_t*)
 {
-    int i = local_func_ind;
+    int i = _dstc_default_context.local_func_ind;
     while(i--) {
-        if (!strncmp(local_func[i].func_name, name, name_len))
-            return local_func[i].server_func;
+        if (!strncmp(_dstc_default_context.local_func[i].func_name, name, name_len))
+            return _dstc_default_context.local_func[i].server_func;
     }
     return (void (*) (rmc_node_id_t, uint8_t*)) 0;
 }
@@ -129,14 +95,14 @@ static void (*dstc_find_local_function(char* name, int name_len))(rmc_node_id_t 
 //
 void dstc_register_local_function(char* name, void (*server_func)(rmc_node_id_t node_id, uint8_t*))
 {
-    if (local_func_ind == SYMTAB_SIZE - 1) {
+    if (_dstc_default_context.local_func_ind == SYMTAB_SIZE - 1) {
         RMC_LOG_FATAL("Out of memory trying to register local function. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
         
-    strcpy(local_func[local_func_ind].func_name, name);
-    local_func[local_func_ind].server_func = server_func;
-    local_func_ind++;
+    strcpy(_dstc_default_context.local_func[_dstc_default_context.local_func_ind].func_name, name);
+    _dstc_default_context.local_func[_dstc_default_context.local_func_ind].server_func = server_func;
+    _dstc_default_context.local_func_ind++;
 }
 
 // Retrieve a callback function. Each time it is invoked, it will be deleted.
@@ -145,17 +111,17 @@ void dstc_register_local_function(char* name, void (*server_func)(rmc_node_id_t 
 static void (*dstc_find_callback(uint64_t func_addr))(rmc_node_id_t node_id, uint8_t*)
 {
     int i = 0;
-    while(i < callback_ind) {
-        if ((uint64_t) local_callback[i] == func_addr) {
-            callback_t res = local_callback[i];
+    while(i < _dstc_default_context.callback_ind) {
+        if ((uint64_t) _dstc_default_context.local_callback[i] == func_addr) {
+            dstc_internal_callback_t res = _dstc_default_context.local_callback[i];
             // Nill out the callback since it is a one-time shot thing.
-            local_callback[i] = 0;
+            _dstc_default_context.local_callback[i] = 0;
             return res;
         }
         ++i;
     }
     RMC_LOG_COMMENT("Did not find callback [%lX]\n", func_addr);
-    return (callback_t) 0;
+    return (dstc_internal_callback_t) 0;
 }
 
 
@@ -167,8 +133,8 @@ void dstc_register_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
 {
     int ind = 0;
     // Find a previously freed slot, or allocate a new one
-    while(ind < callback_ind) {
-        if (!local_callback[ind])
+    while(ind < _dstc_default_context.callback_ind) {
+        if (!_dstc_default_context.local_callback[ind])
             break;
         ++ind;
     }
@@ -178,9 +144,9 @@ void dstc_register_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
         RMC_LOG_FATAL("Out of memory trying to register callback. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
-    local_callback[callback_ind] = callback;;
+    _dstc_default_context.local_callback[_dstc_default_context.callback_ind] = callback;;
     RMC_LOG_FATAL("Registered callback [%lX]", (uint64_t) callback);
-    callback_ind++;
+    _dstc_default_context.callback_ind++;
 }
 
 void dstc_cancel_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
@@ -189,13 +155,13 @@ void dstc_cancel_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
     dstc_find_callback((uint64_t) callback);
 }
 
-static struct remote_func_t* dstc_find_remote_func(char* func_name)
+static dstc_internal_remote_func_t* dstc_find_remote_func(char* func_name)
 {
-    int ind = remote_func_ind;
+    int ind = _dstc_default_context.remote_func_ind;
 
     while(ind--) {
-        if (!strcmp(func_name, remote_func[ind].func_name))
-            return &remote_func[ind];
+        if (!strcmp(func_name, _dstc_default_context.remote_func[ind].func_name))
+            return &_dstc_default_context.remote_func[ind];
     }
     return 0;
 }
@@ -204,9 +170,9 @@ static struct remote_func_t* dstc_find_remote_func(char* func_name)
 // through a control message call processed by
 // dstc_subscriber_control_message_cb()
 //
-void dstc_register_remote_function(char* name)
+static void dstc_register_remote_function(char* name)
 {
-    struct remote_func_t* remote = dstc_find_remote_func(name);
+    dstc_internal_remote_func_t* remote = dstc_find_remote_func(name);
 
     // Is this an additional registration of an existing function.
     if (remote) {
@@ -216,13 +182,13 @@ void dstc_register_remote_function(char* name)
     }
     
     // Are we out of memory
-    if (remote_func_ind == SYMTAB_SIZE) {
+    if (_dstc_default_context.remote_func_ind == SYMTAB_SIZE) {
         RMC_LOG_FATAL("Out of memory trying to register remote func. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
 
-    remote = &remote_func[remote_func_ind];
-    ++remote_func_ind;
+    remote = &_dstc_default_context.remote_func[_dstc_default_context.remote_func_ind];
+    ++_dstc_default_context.remote_func_ind;
 
     strncpy(remote->func_name, name, sizeof(remote->func_name));
     remote->func_name[sizeof(remote->func_name)-1] = 0;
@@ -249,7 +215,7 @@ static void poll_add(user_data_t user_data,
     if (action & RMC_POLLWRITE)
         ev.events |= EPOLLOUT;
 
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, descriptor, &ev) == -1) {
+    if (epoll_ctl(_dstc_default_context.epoll_fd, EPOLL_CTL_ADD, descriptor, &ev) == -1) {
         RMC_LOG_INDEX_FATAL(FROM_EPOLL_EVENT_USER_DATA(event_user_data), "epoll_ctl(add) event_udata[%lX]",
                             event_user_data);
         exit(255);
@@ -294,7 +260,7 @@ static void poll_modify(user_data_t user_data,
     if (new_action & RMC_POLLWRITE)
         ev.events |= EPOLLOUT;
 
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_MOD, descriptor, &ev) == -1) {
+    if (epoll_ctl(_dstc_default_context.epoll_fd, EPOLL_CTL_MOD, descriptor, &ev) == -1) {
         RMC_LOG_INDEX_FATAL(FROM_EPOLL_EVENT_USER_DATA(event_user_data), "epoll_ctl(modify): %s", strerror(errno));
         exit(255);
     }
@@ -331,7 +297,7 @@ static void poll_remove(user_data_t user_data,
                         int descriptor,
                         rmc_index_t index)
 {
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, descriptor, 0) == -1) {
+    if (epoll_ctl(_dstc_default_context.epoll_fd, EPOLL_CTL_DEL, descriptor, 0) == -1) {
         RMC_LOG_INDEX_WARNING(index, "epoll_ctl(delete): %s", strerror(errno));
         return;
     }
@@ -344,8 +310,8 @@ usec_timestamp_t dstc_get_timeout_timestamp()
     usec_timestamp_t sub_event_tout_ts = 0;
     usec_timestamp_t pub_event_tout_ts = 0;
 
-    rmc_pub_timeout_get_next(&_dstc_pub_ctx, &pub_event_tout_ts);
-    rmc_sub_timeout_get_next(&_dstc_sub_ctx, &sub_event_tout_ts);
+    rmc_pub_timeout_get_next(&_dstc_default_context.pub_ctx, &pub_event_tout_ts);
+    rmc_sub_timeout_get_next(&_dstc_default_context.sub_ctx, &sub_event_tout_ts);
 
     // Figure out the shortest event timeout between pub and sub context
     if (pub_event_tout_ts == -1 && sub_event_tout_ts == -1)
@@ -383,7 +349,7 @@ int dstc_process_single_event(int timeout)
     int nfds = 0;
     struct epoll_event events[dstc_get_socket_count()];
 
-    nfds = epoll_wait(epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
+    nfds = epoll_wait(_dstc_default_context.epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
 
     if (nfds == -1) {
         RMC_LOG_FATAL("epoll_wait(): %s", strerror(errno));
@@ -406,7 +372,7 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
     usec_timestamp_t timeout_arg_ts = 0;
     usec_timestamp_t now = 0;
     
-    if (!initialized)
+    if (!_dstc_initialized)
         dstc_setup();
 
     // Calculate an absolute timeout timestamp based on relative
@@ -485,28 +451,28 @@ extern void dstc_process_epoll_result(struct epoll_event* event)
 
     if (event->events & EPOLLIN) {
         if (is_pub)
-            res = rmc_pub_read(&_dstc_pub_ctx, c_ind, &op_res);
+            res = rmc_pub_read(&_dstc_default_context.pub_ctx, c_ind, &op_res);
         else
-            res = rmc_sub_read(&_dstc_sub_ctx, c_ind, &op_res);
+            res = rmc_sub_read(&_dstc_default_context.sub_ctx, c_ind, &op_res);
 
         RMC_LOG_INDEX_DEBUG(c_ind, "read result: %s - %s", _op_res_string(op_res),   strerror(res));
     }
 
     if (event->events & EPOLLOUT) {
         if (is_pub) {
-            if (rmc_pub_write(&_dstc_pub_ctx, c_ind, &op_res) != 0) 
-                rmc_pub_close_connection(&_dstc_pub_ctx, c_ind);
+            if (rmc_pub_write(&_dstc_default_context.pub_ctx, c_ind, &op_res) != 0) 
+                rmc_pub_close_connection(&_dstc_default_context.pub_ctx, c_ind);
         } else {
-            if (rmc_sub_write(&_dstc_sub_ctx, c_ind, &op_res) != 0)
-                rmc_sub_close_connection(&_dstc_sub_ctx, c_ind);
+            if (rmc_sub_write(&_dstc_default_context.sub_ctx, c_ind, &op_res) != 0)
+                rmc_sub_close_connection(&_dstc_default_context.sub_ctx, c_ind);
         }
     }
 }
 
 extern void dstc_process_timeout(void)
 {
-    rmc_pub_timeout_process(&_dstc_pub_ctx);
-    rmc_sub_timeout_process(&_dstc_sub_ctx);
+    rmc_pub_timeout_process(&_dstc_default_context.pub_ctx);
+    rmc_sub_timeout_process(&_dstc_default_context.sub_ctx);
 }
 
 static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
@@ -553,18 +519,18 @@ static void dstc_subscription_complete(rmc_sub_context_t* sub_ctx,
                                        in_port_t listen_port,
                                        rmc_node_id_t node_id)
 {
-    int ind = local_func_ind;
+    int ind = _dstc_default_context.local_func_ind;
     RMC_LOG_COMMENT("Subscription complete. Sending supported functions.");
 
     // Retrieve function pointer from name, as previously
-    // registered with dstc_register_local_function()
+    // registered with dstc_register__dstc_default_context.local_function()
     // Include null terminator for an easier life.
     while(ind--) {
-        RMC_LOG_COMMENT("  [%s]", local_func[ind].func_name);
+        RMC_LOG_COMMENT("  [%s]", _dstc_default_context.local_func[ind].func_name);
         rmc_sub_write_control_message_by_node_id(sub_ctx, 
                                                  node_id, 
-                                                 local_func[ind].func_name, 
-                                                 strlen(local_func[ind].func_name) + 1);
+                                                 _dstc_default_context.local_func[ind].func_name, 
+                                                 strlen(_dstc_default_context.local_func[ind].func_name) + 1);
         
     }
     RMC_LOG_COMMENT("Done sending functions");
@@ -605,12 +571,12 @@ static void dstc_subscriber_control_message_cb(rmc_pub_context_t* ctx,
 
 uint32_t dstc_get_socket_count(void)
 {
-    if (!initialized)
+    if (!_dstc_initialized)
         return 0;
   
     // Grab the count of all open sockets.
-    return rmc_sub_get_socket_count(&_dstc_sub_ctx) + 
-        rmc_pub_get_socket_count(&_dstc_pub_ctx);
+    return rmc_sub_get_socket_count(&_dstc_default_context.sub_ctx) + 
+        rmc_pub_get_socket_count(&_dstc_default_context.pub_ctx);
 }
 
 
@@ -631,15 +597,15 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
 
 
     // Already intialized?
-    if (initialized) 
+    if (_dstc_initialized) 
         return EBUSY;
 
-    epoll_fd = epoll_fd_arg,
+    _dstc_default_context.epoll_fd = epoll_fd_arg,
     rmc_log_set_start_time();
     pub_conn_vec_mem = malloc(sizeof(rmc_connection_t)*MAX_CONNECTIONS);
     memset(pub_conn_vec_mem, 0, sizeof(rmc_connection_t)*MAX_CONNECTIONS);
 
-    rmc_pub_init_context(&_dstc_pub_ctx,
+    rmc_pub_init_context(&_dstc_default_context.pub_ctx,
                          0, // Random node_id
                          MCAST_GROUP_ADDRESS, MCAST_GROUP_PORT, 
                          "0.0.0.0", // Bind to any address for tcp control listen
@@ -652,16 +618,16 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
 
     // Setup a subscriber callback, allowing us to know when a subscribe that can
     // execute the function has attached.
-    rmc_pub_set_control_message_callback(&_dstc_pub_ctx, dstc_subscriber_control_message_cb);
+    rmc_pub_set_control_message_callback(&_dstc_default_context.pub_ctx, dstc_subscriber_control_message_cb);
 
     // Subscriber init.
 
     sub_conn_vec_mem = malloc(sizeof(rmc_connection_t)*MAX_CONNECTIONS);
     memset(sub_conn_vec_mem, 0, sizeof(rmc_connection_t)*MAX_CONNECTIONS);
 
-    rmc_sub_init_context(&_dstc_sub_ctx,
+    rmc_sub_init_context(&_dstc_default_context.sub_ctx,
                          // Reuse pub node id to detect and avoid loopback messages
-                         rmc_pub_node_id(&_dstc_pub_ctx), 
+                         rmc_pub_node_id(&_dstc_default_context.pub_ctx), 
                          MCAST_GROUP_ADDRESS,
                          "0.0.0.0", // Any interface for multicast address
                          MCAST_GROUP_PORT,  
@@ -670,31 +636,31 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
                          sub_conn_vec_mem, MAX_CONNECTIONS,
                          0,0);
     
-    rmc_sub_set_packet_ready_callback(&_dstc_sub_ctx, dstc_process_incoming);
-    rmc_sub_set_subscription_complete_callback(&_dstc_sub_ctx, dstc_subscription_complete);
+    rmc_sub_set_packet_ready_callback(&_dstc_default_context.sub_ctx, dstc_process_incoming);
+    rmc_sub_set_subscription_complete_callback(&_dstc_default_context.sub_ctx, dstc_subscription_complete);
 
-    rmc_pub_activate_context(&_dstc_pub_ctx);
-    rmc_sub_activate_context(&_dstc_sub_ctx);
+    rmc_pub_activate_context(&_dstc_default_context.pub_ctx);
+    rmc_sub_activate_context(&_dstc_default_context.sub_ctx);
 
     // Start ticking announcements as a client that the server will connect back to.
-    rmc_pub_set_announce_interval(&_dstc_pub_ctx, 200000); // Start ticking announces.
+    rmc_pub_set_announce_interval(&_dstc_default_context.pub_ctx, 200000); // Start ticking announces.
 
-    initialized = 1;
+    _dstc_initialized = 1;
     return 0;
 }
 
 rmc_node_id_t dstc_get_node_id(void)
 {
-    if (!initialized)
+    if (!_dstc_initialized)
         return 0;
 
-    return rmc_pub_node_id(&_dstc_pub_ctx);
+    return rmc_pub_node_id(&_dstc_default_context.pub_ctx);
 }
 
 int dstc_setup_epoll(int epoll_fd_arg)
 {
-    return dstc_setup_internal(&_dstc_pub_ctx,
-                               &_dstc_sub_ctx,
+    return dstc_setup_internal(&_dstc_default_context.pub_ctx,
+                               &_dstc_default_context.sub_ctx,
                                epoll_fd_arg,
                                // user_data to be provided to poll_add, poll_modify, and poll_remove
                                user_data_nil());
@@ -703,17 +669,17 @@ int dstc_setup_epoll(int epoll_fd_arg)
 
 int dstc_setup(void)
 {
-    if (initialized)
+    if (_dstc_initialized)
         return EBUSY;
 
-    epoll_fd = epoll_create(1);
+    _dstc_default_context.epoll_fd = epoll_create(1);
 
-    return dstc_setup_epoll(epoll_fd);
+    return dstc_setup_epoll(_dstc_default_context.epoll_fd);
 }
 
 uint32_t dstc_get_remote_count(char* function_name)
 {
-    struct remote_func_t* remote = dstc_find_remote_func(function_name);
+    dstc_internal_remote_func_t* remote = dstc_find_remote_func(function_name);
 
     // Is this an additional registration of an existing function.
     if (!remote)
@@ -731,7 +697,7 @@ static void dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t a
     // FIXME: Stuff multiple calls into a single packet.
     //        Queue packet either at timeout (1-2 msec) or when packet is full (RMC_MAX_PAYLOAD)
     //
-    if (!initialized)
+    if (!_dstc_initialized)
         dstc_setup();
 
     call->name_len = name_len; // May be zero to indicate thtat this is an address.
@@ -747,7 +713,7 @@ static void dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t a
                   call->name_len?call->name_len:10,
                   call->name_len?call->payload:((uint8_t*)"[callback]"),
                   call->payload_len - actual_name_len);
-    rmc_pub_queue_packet(&_dstc_pub_ctx, call, sizeof(dstc_header_t) + actual_name_len + arg_sz, 0);
+    rmc_pub_queue_packet(&_dstc_default_context.pub_ctx, call, sizeof(dstc_header_t) + actual_name_len + arg_sz, 0);
     return;
 }
 
@@ -755,7 +721,7 @@ static void dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t a
 void dstc_queue_callback(uint64_t addr, uint8_t* arg, uint32_t arg_sz)
 {
     // Call with zero namelen to treat name as a 64bit integer.
-    // This integer will be mapped by the received through the local_callback
+    // This integer will be mapped by the received through the _dstc_default_context.local_callback
     // table to a pending callback function.
     dstc_queue((uint8_t*) &addr, 0, arg, arg_sz);
 }

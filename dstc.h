@@ -13,6 +13,40 @@
 #include <unistd.h>
 #include "reliable_multicast/reliable_multicast.h"
 
+// FIXME: Hash table for both local and remote func
+#define SYMTAB_SIZE 128
+
+
+typedef struct  {
+    char func_name[256];
+    void (*server_func)(rmc_node_id_t node_id, uint8_t*);
+} dstc_internal_local_func_t;
+
+typedef struct {
+    char func_name[256];
+    uint32_t count; // Number of remotes supporting this function
+} dstc_internal_remote_func_t;
+
+// Temporary callback functions 
+typedef void (*dstc_internal_callback_t)(rmc_node_id_t node_id, uint8_t*);
+
+
+// Single context
+typedef struct {
+    dstc_internal_local_func_t local_func[SYMTAB_SIZE];
+    uint32_t local_func_ind;
+
+    dstc_internal_remote_func_t remote_func[SYMTAB_SIZE];
+    uint32_t remote_func_ind;
+
+    dstc_internal_callback_t local_callback[SYMTAB_SIZE];
+    uint32_t callback_ind ;
+
+    int epoll_fd;
+    rmc_sub_context_t sub_ctx;
+    rmc_pub_context_t pub_ctx;
+} dstc_context_t;
+
 
 typedef struct  __attribute__((packed))
 dstc_header {
@@ -22,7 +56,15 @@ dstc_header {
     uint8_t payload[];             // Function name followed by function args.
 } dstc_header_t;
 
+// DSTC_EVENT_FLAG is used to determine if the user data associated with
+// a returned (epoll) event is to be processed by DSTC, or if
+// the event was supplied by the calling code outside DSTC.
+//
 #define DSTC_EVENT_FLAG      0x80000000
+#define MCAST_GROUP_ADDRESS "239.40.41.42" // Completely made up
+#define MCAST_GROUP_PORT 4723 // Completely made up
+#define USER_DATA_INDEX_MASK 0x00007FFF
+#define USER_DATA_PUB_FLAG   0x00008000
 
 extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
