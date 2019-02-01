@@ -238,8 +238,6 @@ static void poll_add_pub(user_data_t user_data,
 {
     poll_add(user_data, descriptor, TO_EPOLL_EVENT_USER_DATA(index, 1), action);
 }
-
- 
 static void poll_modify(user_data_t user_data,
                         int descriptor,
                         uint32_t event_user_data,
@@ -253,7 +251,7 @@ static void poll_modify(user_data_t user_data,
 
     if (old_action == new_action)
         return ;
-    
+
     if (new_action & RMC_POLLREAD)
         ev.events |= EPOLLIN;
 
@@ -347,6 +345,10 @@ int dstc_get_timeout_msec(void)
 int dstc_process_single_event(int timeout)
 {
     int nfds = 0;
+    int retval = 0;
+    if (!_dstc_initialized)
+        dstc_setup();
+
     struct epoll_event events[dstc_get_socket_count()];
 
     nfds = epoll_wait(_dstc_default_context.epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
@@ -358,22 +360,27 @@ int dstc_process_single_event(int timeout)
 
     // Timeout
     if (nfds == 0) 
-        return ETIME;
+        retval = ETIME;
 
     // Process all pending events.
     while(nfds--) 
         dstc_process_epoll_result(&events[nfds]);
+    
+    if (!dstc_get_timeout_msec())
+        dstc_process_timeout();
 
-    return 0;
+    return retval;
 }
 
 int dstc_process_events(usec_timestamp_t timeout_arg)
 {
     usec_timestamp_t timeout_arg_ts = 0;
     usec_timestamp_t now = 0;
-    
-    if (!_dstc_initialized)
-        dstc_setup();
+
+    // Is this a one-pass thing where we just want to process all pending
+    // epoll events and timeout and then return?
+    if (!timeout_arg)
+        return dstc_process_single_event(0);
 
     // Calculate an absolute timeout timestamp based on relative
     // timestamp provided in argument.
@@ -469,10 +476,18 @@ extern void dstc_process_epoll_result(struct epoll_event* event)
     }
 }
 
-extern void dstc_process_timeout(void)
+extern int dstc_process_timeout(void)
 {
-    rmc_pub_timeout_process(&_dstc_default_context.pub_ctx);
-    rmc_sub_timeout_process(&_dstc_default_context.sub_ctx);
+    // If either of the timeout processor fails in with EAGAIN, then they
+    // tried resending un-acknolwedged packets but encountered full transmissions
+    // queues in rmc.
+    // In that case process events until the queues are sent out on the network
+    // and are cleared up.
+    if (rmc_pub_timeout_process(&_dstc_default_context.pub_ctx) == EAGAIN ||
+        rmc_sub_timeout_process(&_dstc_default_context.sub_ctx) == EAGAIN)
+        return EAGAIN;
+
+    return 0;        
 }
 
 static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
@@ -539,9 +554,9 @@ static void dstc_subscription_complete(rmc_sub_context_t* sub_ctx,
 
 static void dstc_process_incoming(rmc_sub_context_t* sub_ctx)
 {
-    sub_packet_t* pack = rmc_sub_get_next_dispatch_ready(sub_ctx);
+    sub_packet_t* pack = 0;
     RMC_LOG_DEBUG("Processing incoming");
-    while(pack) {
+    while((pack = rmc_sub_get_next_dispatch_ready(sub_ctx))) {
         uint32_t ind = 0;
 
         RMC_LOG_DEBUG("Got packet. payload_len[%d]", pack->payload_len);
@@ -551,7 +566,6 @@ static void dstc_process_incoming(rmc_sub_context_t* sub_ctx)
         }
 
         rmc_sub_packet_dispatched(sub_ctx, pack);
-        pack = rmc_sub_get_next_dispatch_ready(sub_ctx);            
     }
     return;
 }
