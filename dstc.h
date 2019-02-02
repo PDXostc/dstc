@@ -12,35 +12,65 @@
 #include <string.h>
 #include <unistd.h>
 #include "reliable_multicast/reliable_multicast.h"
+#include "reliable_multicast/rmc_list.h"
 
 // FIXME: Hash table for both local and remote func
 #define SYMTAB_SIZE 128
 
-
+// A local DSTC_SERVER-registered name / func ptr combination
+//
 typedef struct  {
     char func_name[256];
     void (*server_func)(rmc_node_id_t node_id, uint8_t*);
-} dstc_internal_local_func_t;
+} dstc_server_func_t;
 
+
+RMC_LIST(dstc_func_name_list, dstc_func_name_node, char*)
+typedef dstc_func_name_list dstc_func_name_list_t;
+typedef dstc_func_name_node dstc_func_name_node_t;
+
+// Remote nodes and their registered functions
 typedef struct {
-    char func_name[256];
-    uint32_t count; // Number of remotes supporting this function
-} dstc_internal_remote_func_t;
+    rmc_node_id_t node_id;
+    dstc_func_name_list_t functions;
+} dstc_remote_node_t;
 
 // Temporary callback functions 
 typedef void (*dstc_internal_callback_t)(rmc_node_id_t node_id, uint8_t*);
 
+// A local DSTC_CLIENT- registered name / func ptr combination.
+//
+typedef struct {
+    char func_name[256];
+    void *client_func;
+} dstc_client_func_t;
 
 // Single context
 typedef struct {
-    dstc_internal_local_func_t local_func[SYMTAB_SIZE];
-    uint32_t local_func_ind;
+    // All local server functions that can be called by remote nodes
+    // FIXME: Hash table
+    dstc_server_func_t server_func[SYMTAB_SIZE];
+    uint32_t server_func_ind;
 
-    dstc_internal_remote_func_t remote_func[SYMTAB_SIZE];
-    uint32_t remote_func_ind;
+    // All remote nodes and their functions that can be called
+    // through DSTC_CLIENT-registered functions
+    // FIXME: Hash table
+    dstc_remote_node_t remote_node[SYMTAB_SIZE];
+    uint32_t remote_node_ind;
 
+    // All currently active local callback functions passed
+    // to DSTC_CLIENT-registered call by the application.
+    // FIXME: Hash table
     dstc_internal_callback_t local_callback[SYMTAB_SIZE];
+
+    // All DSTC_CLIENT-registered functions (dstc_print_name_and_age)
+    // and its string name.
+    // FIXME: Hash table
+    dstc_client_func_t client_func[SYMTAB_SIZE];
+    uint32_t client_func_ind;
+    
     uint32_t callback_ind ;
+
 
     int epoll_fd;
     rmc_sub_context_t sub_ctx;
@@ -73,12 +103,12 @@ extern int dstc_setup_epoll(int epollfd);
 extern int dstc_process_events(usec_timestamp_t timeout);
 extern int dstc_process_timeout(void);
 extern int dstc_get_timeout_msec(void);
-extern uint32_t dstc_get_remote_count(char* function_name);
 extern usec_timestamp_t dstc_get_timeout_timestamp(void);
 struct epoll_event;
 extern int dstc_process_single_event(int timeout);
 extern void dstc_process_epoll_result(struct epoll_event* event);
 extern rmc_node_id_t dstc_get_node_id(void);
+extern uint8_t dstc_remote_function_available(void* func_ptr);
 
 // FIXME: ADD DOCUMENTATION
 typedef struct {
@@ -272,6 +302,11 @@ typedef dstc_callback_t CBCK;
       SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
       dstc_queue_func((uint8_t*) #name, arg_buf, arg_sz);               \
   }                                                                     \
+  void __attribute__((constructor)) _dstc_register_client_##name()      \
+  {                                                                     \
+      extern void dstc_register_client_function(char*, void *);         \
+      dstc_register_client_function(#name, dstc_##name);                \
+  }
 
 
 // Create callback function that serializes and writes to descriptor.
@@ -302,18 +337,15 @@ typedef dstc_callback_t CBCK;
         name(LIST_ARGUMENTS(__VA_ARGS__));                              \
         return;                                                         \
     }                                                                   \
-
-#define _DSTC_AUTO_REGISTER(name)                                       \
-    void __attribute__((constructor)) _dstc_register_##name()           \
+    void __attribute__((constructor)) _dstc_register_server_##name()    \
     {                                                                   \
-        extern void dstc_register_local_function(char*, void (*)(rmc_node_id_t, uint8_t*)); \
-        dstc_register_local_function(#name, dstc_server_##name);        \
+        extern void dstc_register_server_function(char*, void (*)(rmc_node_id_t, uint8_t*)); \
+        dstc_register_server_function(#name, dstc_server_##name);        \
     }
 
 #define DSTC_SERVER(name, ...)                          \
     extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));   \
     static DSTC_SERVER_INTERNAL(name, __VA_ARGS__)      \
-    static _DSTC_AUTO_REGISTER(name)
 
 #endif // __DSTC_H__
 
