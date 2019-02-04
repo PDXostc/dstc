@@ -12,7 +12,6 @@
 #include <string.h>
 #include <unistd.h>
 #include "reliable_multicast/reliable_multicast.h"
-#include "reliable_multicast/rmc_list.h"
 
 // FIXME: Hash table for both local and remote func
 #define SYMTAB_SIZE 128
@@ -25,14 +24,10 @@ typedef struct  {
 } dstc_server_func_t;
 
 
-RMC_LIST(dstc_func_name_list, dstc_func_name_node, char*)
-typedef dstc_func_name_list dstc_func_name_list_t;
-typedef dstc_func_name_node dstc_func_name_node_t;
-
 // Remote nodes and their registered functions
 typedef struct {
     rmc_node_id_t node_id;
-    dstc_func_name_list_t functions;
+    char func_name[256];
 } dstc_remote_node_t;
 
 // Temporary callback functions 
@@ -47,11 +42,6 @@ typedef struct {
 
 // Single context
 typedef struct {
-    // All local server functions that can be called by remote nodes
-    // FIXME: Hash table
-    dstc_server_func_t server_func[SYMTAB_SIZE];
-    uint32_t server_func_ind;
-
     // All remote nodes and their functions that can be called
     // through DSTC_CLIENT-registered functions
     // FIXME: Hash table
@@ -62,15 +52,7 @@ typedef struct {
     // to DSTC_CLIENT-registered call by the application.
     // FIXME: Hash table
     dstc_internal_callback_t local_callback[SYMTAB_SIZE];
-
-    // All DSTC_CLIENT-registered functions (dstc_print_name_and_age)
-    // and its string name.
-    // FIXME: Hash table
-    dstc_client_func_t client_func[SYMTAB_SIZE];
-    uint32_t client_func_ind;
-    
     uint32_t callback_ind ;
-
 
     int epoll_fd;
     rmc_sub_context_t sub_ctx;

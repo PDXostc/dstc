@@ -22,14 +22,25 @@
 #include <sys/epoll.h>
 #include "dstc.h"
 #include "rmc_log.h"
-#include "rmc_list_template.h"
 
 #define MAX_CONNECTIONS 16
 
 static int _dstc_initialized = 0;
 dstc_context_t _dstc_default_context;
+// All DSTC_CLIENT-registered functions (dstc_print_name_and_age)
+// and their string name.
+// These need to be global since they are setup by
+// dstc_register_client_function() called by DSTC_CLIENT() macro
+// as a part of generated __attribute__((constructor)) functions.
 
-RMC_LIST_IMPL(dstc_func_name_list, dstc_func_name_node, char*)
+// FIXME: Hash table
+static dstc_client_func_t _dstc_client_func[SYMTAB_SIZE] ;
+static uint32_t _dstc_client_func_ind = 0;
+    
+// All local server functions that can be called by remote nodes
+// FIXME: Hash table
+static dstc_server_func_t _dstc_server_func[SYMTAB_SIZE];
+static uint32_t _dstc_server_func_ind;
 
 #define TO_EPOLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
 #define FROM_EPOLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
@@ -40,6 +51,8 @@ typedef struct {
     uint8_t name_len;
     char name[256];
 } dstc_control_message_t;
+
+
 
 char* _op_res_string(uint8_t res)
 {
@@ -89,10 +102,10 @@ char* _op_res_string(uint8_t res)
 //
 static void (*dstc_find_server_function(char* name, int name_len))(rmc_node_id_t node_id, uint8_t*)
 {
-    int i = _dstc_default_context.server_func_ind;
+    int i = _dstc_server_func_ind;
     while(i--) {
-        if (!strncmp(_dstc_default_context.server_func[i].func_name, name, name_len))
-            return _dstc_default_context.server_func[i].server_func;
+        if (!strncmp(_dstc_server_func[i].func_name, name, name_len))
+            return _dstc_server_func[i].server_func;
     }
     return (void (*) (rmc_node_id_t, uint8_t*)) 0;
 }
@@ -106,39 +119,33 @@ void dstc_register_server_function(char* name, void (*server_func)(rmc_node_id_t
 {
     int ind = 0;
 
-    if (!_dstc_initialized)
-        dstc_setup();
-
-    ind = _dstc_default_context.server_func_ind;
+    ind = _dstc_server_func_ind;
     if (ind == SYMTAB_SIZE - 1) {
         RMC_LOG_FATAL("Out of memory trying to register server function. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
     
 //    printf("Registering local server function [%s] -> %p\n",  name, server_func);
-    strcpy(_dstc_default_context.server_func[ind].func_name, name);
-    _dstc_default_context.server_func[ind].server_func = server_func;
-    _dstc_default_context.server_func_ind++;
+    strcpy(_dstc_server_func[ind].func_name, name);
+    _dstc_server_func[ind].server_func = server_func;
+    _dstc_server_func_ind++;
 }
 
 void dstc_register_client_function(char* name, void *client_func)
 {
     int ind = 0;
 
-    if (!_dstc_initialized)
-        dstc_setup();
-
 //    printf("Registering local client function [%s] -> %p\n",  name, client_func);
     
-    ind = _dstc_default_context.client_func_ind;
+    ind = _dstc_client_func_ind;
     if (ind == SYMTAB_SIZE - 1) {
         RMC_LOG_FATAL("Out of memory trying to register client function. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
         
-    strcpy(_dstc_default_context.client_func[ind].func_name, name);
-    _dstc_default_context.client_func[ind].client_func = client_func;
-    _dstc_default_context.client_func_ind++;
+    strcpy(_dstc_client_func[ind].func_name, name);
+    _dstc_client_func[ind].client_func = client_func;
+    _dstc_client_func_ind++;
 }
 
 
@@ -201,9 +208,9 @@ uint8_t dstc_remote_function_available(void* client_func)
     // Find the string name for the dstc_[func_name] function
     // pointer provided in client_func
 
-    ind = _dstc_default_context.client_func_ind;
+    ind = _dstc_client_func_ind;
     while(ind--) 
-        if (_dstc_default_context.client_func[ind].client_func == client_func)
+        if (_dstc_client_func[ind].client_func == client_func)
             break;
 
     // No hit?
@@ -212,40 +219,16 @@ uint8_t dstc_remote_function_available(void* client_func)
     }
 
     // We have a string name
-    name = _dstc_default_context.client_func[ind].func_name;
+    name = _dstc_client_func[ind].func_name;
 
     // Scan all remotely registered nodes and their functions
     // to see if you can find one with a matching na,e
     ind = _dstc_default_context.remote_node_ind;
     while(ind--) {
-
-        // Check the current node_id if we have a function registered
-        dstc_func_name_node_t* node =
-            dstc_func_name_list_find_node(&_dstc_default_context.remote_node[ind].functions,
-                                          name, 
-                                          lambda(int, (char* search_name, char* list_name) {
-                                                  return (strcmp(search_name, list_name) == 0)?1:0;
-                                              }));
-        if (node) {
-            RMC_LOG_DEBUG("Remote function %s supported by node [0x%X]",
-                          name, &_dstc_default_context.remote_node[ind].node_id);
-
+        if (!strcmp(name, _dstc_default_context.remote_node[ind].func_name))
             return 1;
-        }
     }
     RMC_LOG_DEBUG("Could not find a remote node that had registered function %s", name);
-    return 0;
-}
-
-static dstc_remote_node_t* dstc_find_remote_node(rmc_node_id_t node_id)
-{
-    int ind = _dstc_default_context.remote_node_ind;
-
-    while(ind--) {
-        // If not a node match, move on
-        if (node_id == _dstc_default_context.remote_node[ind].node_id)
-            return &_dstc_default_context.remote_node[ind];
-    }
     return 0;
 }
 
@@ -255,56 +238,34 @@ static dstc_remote_node_t* dstc_find_remote_node(rmc_node_id_t node_id)
 //
 static void dstc_register_remote_function(rmc_node_id_t node_id, char* func_name)
 {
+    int ind = 0;
     dstc_remote_node_t* remote = 0;
-
+    
     // See if the node has registered any prior functions
     // If so, check that we don't have a duplicate and then register
     // the new function.
-    remote = dstc_find_remote_node(node_id);
-
-    if (remote) {
-        dstc_func_name_node_t* func_node = 
-            dstc_func_name_list_find_node(&remote->functions,
-                                     func_name,
-                                     lambda(int, (char* search_name, char* list_name) {
-                                             return (strcmp(search_name, list_name)) == 0?1:0;
-                                         }));
-
-        // Is this an additional registration of an existing function.
-        if (func_node) {
+    ind = _dstc_default_context.remote_node_ind;
+    while(ind--) {
+        if (node_id == _dstc_default_context.remote_node[ind].node_id &&
+            !strcmp(func_name, _dstc_default_context.remote_node[ind].func_name))
             RMC_LOG_WARNING("Remote function [%s] registered several times by node [0x%X]",
-                            func_node->data, node_id);
+                            func_name, node_id);
             return;
-
-        }
-    
-        // Add the node. Allocate memory for the name's storage in the
-        // list
-        dstc_func_name_list_push_head(&remote->functions,
-                                 strcpy(malloc(strlen(func_name)+1), func_name));
-        RMC_LOG_INFO("Remote function [%s] registered by existing node [0x%X]",
-                        func_name,node_id);
-        return;
     }
-                                                  
-    // This is the first function registered by this particular node.
-    // Allocate a new slot in the remote node table of the context
+
     if (_dstc_default_context.remote_node_ind == SYMTAB_SIZE) {
         RMC_LOG_FATAL("Out of memory trying to register remote func. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
 
     remote = &_dstc_default_context.remote_node[_dstc_default_context.remote_node_ind];
-    _dstc_default_context.remote_node_ind++;
     remote->node_id = node_id;
-    dstc_func_name_list_init(&remote->functions, 0, 0, 0);
-    dstc_func_name_list_push_head(&remote->functions,
-                                  strcpy(malloc(strlen(func_name)+1), func_name));
+    strcpy(remote->func_name, func_name);
 
-    RMC_LOG_INFO("Remote [%s] now supported by new node [0x%X] %d",
-                 func_name, node_id,
-                 dstc_func_name_list_size(&remote->functions));
-    
+    _dstc_default_context.remote_node_ind++;
+    RMC_LOG_INFO("Remote [%s] now supported by new node [0x%X]",
+                 func_name, node_id);
+    return;
 }
 
 
@@ -312,23 +273,18 @@ static void dstc_register_remote_function(rmc_node_id_t node_id, char* func_name
 // the dstc_register_remote_function() call.
 static void dstc_unregister_remote_node(rmc_node_id_t node_id)
 {
-    dstc_remote_node_t* node = dstc_find_remote_node(node_id);
+    int ind = _dstc_default_context.remote_node_ind;
 
-    if (!node) {
-        RMC_LOG_INFO("Remote node [0x%X] unregistered with no previously registered functions",
-                     node_id);
-        return;
+    while(ind--) {
+        if (node_id == _dstc_default_context.remote_node[ind].node_id) {
+            RMC_LOG_INFO("Uhregistering node [0x%X] function [%s]",
+                         _dstc_default_context.remote_node[ind].node_id,
+                         _dstc_default_context.remote_node[ind].func_name);
+                         
+            _dstc_default_context.remote_node[ind].node_id = 0;
+            _dstc_default_context.remote_node[ind].func_name[0] = 0;
+        }
     }
-
-    // Traverse list and free memory allocated by
-    // dstc_register_remote_function().
-    dstc_func_name_list_for_each(&node->functions,
-                            lambda (uint8_t, (dstc_func_name_node_t* node, void *user_data) {
-                                    RMC_LOG_INFO("Unregistering remote function [%s] from node [0x%X]",
-                                                 node->data, node_id);
-                                    free(node->data);
-                                    return 1;
-                                }), 0);
 }
 
 
@@ -668,20 +624,20 @@ static void dstc_subscription_complete(rmc_sub_context_t* sub_ctx,
                                        in_port_t listen_port,
                                        rmc_node_id_t node_id)
 {
-    int ind = _dstc_default_context.server_func_ind;
+    int ind = _dstc_server_func_ind;
     RMC_LOG_COMMENT("Subscription complete. Sending supported functions.");
 
     // Retrieve function pointer from name, as previously
     // registered with dstc_register_dstc_default_context.local_function()
     // Include null terminator for an easier life.
     while(ind--) {
-        RMC_LOG_COMMENT("  [%s]", _dstc_default_context.server_func[ind].func_name);
+        RMC_LOG_COMMENT("  [%s]", _dstc_server_func[ind].func_name);
         dstc_control_message_t ctl = {
             .node_id = node_id,
-            .name_len = strlen(_dstc_default_context.server_func[ind].func_name) + 1
+            .name_len = strlen(_dstc_server_func[ind].func_name) + 1
         };
 
-        strcpy(ctl.name, _dstc_default_context.server_func[ind].func_name);
+        strcpy(ctl.name, _dstc_server_func[ind].func_name);
        
         rmc_sub_write_control_message_by_node_id(sub_ctx, 
                                                  node_id, 
@@ -759,8 +715,8 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
                                int epoll_fd_arg,
                                user_data_t user_data)
 {
-    uint8_t* sub_conn_vec_mem = 0;
-    uint8_t* pub_conn_vec_mem = 0;
+    static uint8_t pub_conn_vec_mem[sizeof(rmc_connection_t) * MAX_CONNECTIONS];
+    static uint8_t sub_conn_vec_mem[sizeof(rmc_connection_t) * MAX_CONNECTIONS];
 
 
     // Already intialized?
@@ -768,13 +724,11 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
         return EBUSY;
 
     _dstc_default_context.epoll_fd = epoll_fd_arg;
-    _dstc_default_context.server_func_ind = 0;
     _dstc_default_context.remote_node_ind = 0;
-    _dstc_default_context.client_func_ind = 0;
+    _dstc_default_context.callback_ind = 0;
 
     rmc_log_set_start_time();
-    pub_conn_vec_mem = malloc(sizeof(rmc_connection_t)*MAX_CONNECTIONS);
-    memset(pub_conn_vec_mem, 0, sizeof(rmc_connection_t)*MAX_CONNECTIONS);
+    memset(pub_conn_vec_mem, 0, sizeof(pub_conn_vec_mem));
 
     rmc_pub_init_context(&_dstc_default_context.pub_ctx,
                          0, // Random node_id
@@ -797,8 +751,7 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
 
     // Subscriber init.
 
-    sub_conn_vec_mem = malloc(sizeof(rmc_connection_t)*MAX_CONNECTIONS);
-    memset(sub_conn_vec_mem, 0, sizeof(rmc_connection_t)*MAX_CONNECTIONS);
+    memset(sub_conn_vec_mem, 0, sizeof(sub_conn_vec_mem));
 
     rmc_sub_init_context(&_dstc_default_context.sub_ctx,
                          // Reuse pub node id to detect and avoid loopback messages
