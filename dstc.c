@@ -189,7 +189,7 @@ void dstc_register_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
         exit(255);
     }
     _dstc_default_context.local_callback[_dstc_default_context.callback_ind] = callback;;
-    RMC_LOG_FATAL("Registered callback [%lX]", (uint64_t) callback);
+    RMC_LOG_COMMENT("Registered callback [%lX]", (uint64_t) callback);
     _dstc_default_context.callback_ind++;
 }
 
@@ -467,6 +467,9 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
 {
     usec_timestamp_t timeout_arg_ts = 0;
     usec_timestamp_t now = 0;
+
+    if (!_dstc_initialized)
+        dstc_setup();
 
     // Is this a one-pass thing where we just want to process all pending
     // epoll events and timeout and then return?
