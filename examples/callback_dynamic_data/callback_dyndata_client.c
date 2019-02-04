@@ -91,8 +91,8 @@ int main(int argc, char* argv[])
     // Wait for function to become available on one or more servers.
     puts("Waiting for remote functions to become available");
 
-    while(!dstc_get_remote_count("add_name_and_age_element") ||
-          !dstc_get_remote_count("get_all_elements"))
+    while(!dstc_remote_function_available(dstc_add_name_and_age_element) ||
+          !dstc_remote_function_available(dstc_get_all_elements))
         dstc_process_events(500000);
 
     puts("Remotes are available. ");
