@@ -1,6 +1,6 @@
 // Copyright (C) 2018, Jaguar Land Rover
 // This program is licensed under the terms and conditions of the
-// Mozilla Public License, version 2.0.  The full text of the 
+// Mozilla Public License, version 2.0.  The full text of the
 // Mozilla Public License is at https://www.mozilla.org/MPL/2.0/
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
@@ -38,7 +38,7 @@ static dstc_client_func_t _dstc_client_func[SYMTAB_SIZE] ;
 static uint32_t _dstc_client_func_ind = 0;
 
 static uint32_t _dstc_client_callback_count = 0;
-    
+
 // All local server functions that can be called by remote nodes
 // FIXME: Hash table
 static dstc_server_func_t _dstc_server_func[SYMTAB_SIZE];
@@ -61,25 +61,25 @@ char* _op_res_string(uint8_t res)
     switch(res) {
     case RMC_ERROR:
         return "error";
-        
+
     case RMC_READ_MULTICAST:
         return "read multicast";
- 
+
     case RMC_READ_MULTICAST_LOOPBACK:
         return "multicast loopback";
- 
+
     case RMC_READ_MULTICAST_NEW:
         return "new multicast";
 
     case RMC_READ_MULTICAST_NOT_READY:
         return "multicast not ready";
-        
+
     case RMC_READ_TCP:
         return "read tcp";
-        
+
     case RMC_READ_ACCEPT:
         return "accept";
-        
+
     case RMC_READ_DISCONNECT:
         return "disconnect";
 
@@ -94,7 +94,7 @@ char* _op_res_string(uint8_t res)
 
     default:
         return "[unknown]";
-        
+
     }
 }
 
@@ -126,7 +126,7 @@ void dstc_register_server_function(char* name, void (*server_func)(rmc_node_id_t
         RMC_LOG_FATAL("Out of memory trying to register server function. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
-    
+
 //    printf("Registering local server function [%s] -> %p\n",  name, server_func);
     strcpy(_dstc_server_func[ind].func_name, name);
     _dstc_server_func[ind].server_func = server_func;
@@ -138,13 +138,13 @@ void dstc_register_client_function(char* name, void *client_func)
     int ind = 0;
 
 //    printf("Registering local client function [%s] -> %p\n",  name, client_func);
-    
+
     ind = _dstc_client_func_ind;
     if (ind == SYMTAB_SIZE - 1) {
         RMC_LOG_FATAL("Out of memory trying to register client function. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
-        
+
     strcpy(_dstc_client_func[ind].func_name, name);
     _dstc_client_func[ind].client_func = client_func;
     _dstc_client_func_ind++;
@@ -222,7 +222,7 @@ uint8_t dstc_remote_function_available(void* client_func)
     // pointer provided in client_func
 
     ind = _dstc_client_func_ind;
-    while(ind--) 
+    while(ind--)
         if (_dstc_client_func[ind].client_func == client_func)
             break;
 
@@ -253,7 +253,7 @@ static void dstc_register_remote_function(rmc_node_id_t node_id, char* func_name
 {
     int ind = 0;
     dstc_remote_node_t* remote = 0;
-    
+
     // See if the node has registered any prior functions
     // If so, check that we don't have a duplicate and then register
     // the new function.
@@ -294,7 +294,7 @@ static void dstc_unregister_remote_node(rmc_node_id_t node_id)
             RMC_LOG_INFO("Uhregistering node [0x%X] function [%s]",
                          _dstc_default_context.remote_node[ind].node_id,
                          _dstc_default_context.remote_node[ind].func_name);
-                         
+
             _dstc_default_context.remote_node[ind].node_id = 0;
             _dstc_default_context.remote_node[ind].func_name[0] = 0;
         }
@@ -416,7 +416,7 @@ usec_timestamp_t dstc_get_timeout_timestamp()
     rmc_sub_timeout_get_next(&_dstc_default_context.sub_ctx, &sub_event_tout_ts);
 
     // Figure out the shortest event timeout between pub and sub context
-    if (pub_event_tout_ts == -1 && sub_event_tout_ts == -1) 
+    if (pub_event_tout_ts == -1 && sub_event_tout_ts == -1)
         return -1;
 
     if (pub_event_tout_ts == -1 && sub_event_tout_ts != -1)
@@ -441,7 +441,7 @@ int dstc_get_timeout_msec(void)
     tout -= rmc_usec_monotonic_timestamp();
     if (tout < 0)
         return 0;
-    
+
     return tout / 1000 + 1;
 }
 
@@ -463,13 +463,13 @@ int dstc_process_single_event(int timeout)
     }
 
     // Timeout
-    if (nfds == 0) 
+    if (nfds == 0)
         retval = ETIME;
 
     // Process all pending events.
-    while(nfds--) 
+    while(nfds--)
         dstc_process_epoll_result(&events[nfds]);
-    
+
     if (!dstc_get_timeout_msec())
         dstc_process_timeout();
 
@@ -491,7 +491,7 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
 
     // Calculate an absolute timeout timestamp based on relative
     // timestamp provided in argument.
-    
+
     timeout_arg_ts = (timeout_arg == -1)?-1:(rmc_usec_monotonic_timestamp() + timeout_arg);
 
     // Process evdents until we reach the timeout therhold.
@@ -514,7 +514,7 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
             RMC_LOG_DEBUG("arg timeout == -1. Event timeout != -1 -> %ld", timeout);
         }
 
-        if (timeout_arg_rel != -1 && event_tout_rel == -1) { 
+        if (timeout_arg_rel != -1 && event_tout_rel == -1) {
             is_arg_timeout = 1;
             timeout = timeout_arg_rel; // Will never be less than 0
             RMC_LOG_DEBUG("arg timeout != -1. Event timeout == -1 -> %ld", timeout);
@@ -574,7 +574,7 @@ extern void dstc_process_epoll_result(struct epoll_event* event)
 
     if (event->events & EPOLLOUT) {
         if (is_pub) {
-            if (rmc_pub_write(&_dstc_default_context.pub_ctx, c_ind, &op_res) != 0) 
+            if (rmc_pub_write(&_dstc_default_context.pub_ctx, c_ind, &op_res) != 0)
                 rmc_pub_close_connection(&_dstc_default_context.pub_ctx, c_ind);
         } else {
             if (rmc_sub_write(&_dstc_default_context.sub_ctx, c_ind, &op_res) != 0)
@@ -594,7 +594,7 @@ extern int dstc_process_timeout(void)
         rmc_sub_timeout_process(&_dstc_default_context.sub_ctx) == EAGAIN)
         return EAGAIN;
 
-    return 0;        
+    return 0;
 }
 
 static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
@@ -617,21 +617,21 @@ static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
     // Retrieve function pointer from name, as previously
     // registered with dstc_register_server_function()
     RMC_LOG_DEBUG("DSTC Serve: node_id[%lu] name_len[%d] name[%.*s] payload_len[%d]",
-                  call->node_id, 
+                  call->node_id,
                   call->name_len,
                   call->name_len, call->payload, call->payload_len - call->name_len);
     if (call->name_len)
         local_func_ptr = dstc_find_server_function((char*) call->payload, call->name_len);
     else
         local_func_ptr = dstc_find_callback(*(uint64_t*)call->payload);
-        
+
 
     if (!local_func_ptr) {
         RMC_LOG_COMMENT("Function [%.*s] not loaded. Ignored", call->name_len, call->payload);
         return sizeof(dstc_header_t) + call->payload_len;
     }
 
-    (*local_func_ptr)(call->node_id, call->payload + (call->name_len?call->name_len:sizeof(uint64_t))); 
+    (*local_func_ptr)(call->node_id, call->payload + (call->name_len?call->name_len:sizeof(uint64_t)));
     return sizeof(dstc_header_t) + call->payload_len;
 }
 
@@ -655,14 +655,14 @@ static void dstc_subscription_complete(rmc_sub_context_t* sub_ctx,
         };
 
         strcpy(ctl.name, _dstc_server_func[ind].func_name);
-       
-        rmc_sub_write_control_message_by_node_id(sub_ctx, 
-                                                 node_id, 
+
+        rmc_sub_write_control_message_by_node_id(sub_ctx,
+                                                 node_id,
                                                  &ctl,
                                                  sizeof(rmc_node_id_t) +
                                                  sizeof(uint8_t) +
                                                  ctl.name_len);
-        
+
     }
     RMC_LOG_COMMENT("Done sending functions");
     return;
@@ -713,9 +713,9 @@ uint32_t dstc_get_socket_count(void)
 {
     if (!_dstc_initialized)
         return 0;
-  
+
     // Grab the count of all open sockets.
-    return rmc_sub_get_socket_count(&_dstc_default_context.sub_ctx) + 
+    return rmc_sub_get_socket_count(&_dstc_default_context.sub_ctx) +
         rmc_pub_get_socket_count(&_dstc_default_context.pub_ctx);
 }
 
@@ -737,7 +737,7 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
 
 
     // Already intialized?
-    if (_dstc_initialized) 
+    if (_dstc_initialized)
         return EBUSY;
 
     _dstc_default_context.epoll_fd = epoll_fd_arg;
@@ -749,7 +749,7 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
 
     rmc_pub_init_context(&_dstc_default_context.pub_ctx,
                          0, // Random node_id
-                         MCAST_GROUP_ADDRESS, MCAST_GROUP_PORT, 
+                         MCAST_GROUP_ADDRESS, MCAST_GROUP_PORT,
                          "0.0.0.0", // Bind to any address for tcp control listen
                          0, // Use ephereal tcp port for tcp control
                          user_data,
@@ -772,15 +772,15 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
 
     rmc_sub_init_context(&_dstc_default_context.sub_ctx,
                          // Reuse pub node id to detect and avoid loopback messages
-                         rmc_pub_node_id(&_dstc_default_context.pub_ctx), 
+                         rmc_pub_node_id(&_dstc_default_context.pub_ctx),
                          MCAST_GROUP_ADDRESS,
                          "0.0.0.0", // Any interface for multicast address
-                         MCAST_GROUP_PORT,  
+                         MCAST_GROUP_PORT,
                          user_data,
                          poll_add_sub, poll_modify_sub, poll_remove,
                          sub_conn_vec_mem, MAX_CONNECTIONS,
                          0,0);
-    
+
     rmc_sub_set_packet_ready_callback(&_dstc_default_context.sub_ctx, dstc_process_incoming);
     rmc_sub_set_subscription_complete_callback(&_dstc_default_context.sub_ctx, dstc_subscription_complete);
 
@@ -794,10 +794,10 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
         RMC_LOG_INFO("There are %d DSTC_CLIENT() and %d DSTC_CALLBACK() functions declared. Will send out announce.",
                      _dstc_client_func_ind, _dstc_client_callback_count);
         rmc_pub_set_announce_interval(&_dstc_default_context.pub_ctx, 200000); // Start ticking announces.
-    }    
+    }
     else
         RMC_LOG_INFO("No DSTC_CLIENT() or DSTC_CALLBACK() functions declared. Will not send out announce.");
-        
+
 
     _dstc_initialized = 1;
     return 0;
