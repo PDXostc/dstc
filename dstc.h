@@ -152,8 +152,8 @@ typedef dstc_callback_t CBCK;
     CBCK callback = {                                                   \
         .func_addr = (uint64_t) dstc_callback_##_func_ptr               \
     };                                                                  \
-    extern void dstc_register_callback(void (*)(rmc_node_id_t node_id, uint8_t*)); \
-    dstc_register_callback(dstc_callback_##_func_ptr);                  \
+    extern void dstc_register_callback_server(void (*)(rmc_node_id_t node_id, uint8_t*)); \
+    dstc_register_callback_server(dstc_callback_##_func_ptr);           \
     callback;                                                           \
     })
 
@@ -295,15 +295,20 @@ typedef dstc_callback_t CBCK;
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
 #define DSTC_CALLBACK(name, ...)                                        \
-  void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                    \
-      uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                    \
-      uint8_t arg_buf[arg_sz];                                          \
-      uint8_t *data = arg_buf;                                          \
-      extern void dstc_queue_callback(uint64_t addr, uint8_t* arg_buf, uint32_t arg_sz); \
+    void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {         \
+        uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
+        uint8_t arg_buf[arg_sz];                                        \
+        uint8_t *data = arg_buf;                                        \
+        extern void dstc_queue_callback(uint64_t addr, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
-      SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
-      dstc_queue_callback(name.func_addr, arg_buf, arg_sz);             \
-  }
+        SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
+        dstc_queue_callback(name.func_addr, arg_buf, arg_sz);           \
+    }                                                                   \
+    void __attribute__((constructor)) _dstc_register_callback_##name()  \
+    {                                                                   \
+        extern void dstc_register_callback_client(char*, void *);       \
+        dstc_register_callback_client(#name, (void*) dstc_##name);      \
+    }
 
 
         
