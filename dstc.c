@@ -250,7 +250,7 @@ static void dstc_register_remote_function(rmc_node_id_t node_id, char* func_name
             !strcmp(func_name, _dstc_default_context.remote_node[ind].func_name))
             RMC_LOG_WARNING("Remote function [%s] registered several times by node [0x%X]",
                             func_name, node_id);
-            return;
+        return;
     }
 
     if (_dstc_default_context.remote_node_ind == SYMTAB_SIZE) {
@@ -771,7 +771,17 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
     rmc_sub_activate_context(&_dstc_default_context.sub_ctx);
 
     // Start ticking announcements as a client that the server will connect back to.
-    rmc_pub_set_announce_interval(&_dstc_default_context.pub_ctx, 200000); // Start ticking announces.
+    // Only do announce if we have client services that requires servers to connect
+    // back to us as a subsriber in order to make their remote functions available.
+
+    if (_dstc_client_func_ind) {
+        RMC_LOG_INFO("There are %d DSTC_CLIENT() functions declared. Will send out announce.",
+                     _dstc_client_func_ind);
+        rmc_pub_set_announce_interval(&_dstc_default_context.pub_ctx, 200000); // Start ticking announces.
+    }    
+    else
+        RMC_LOG_INFO("No DSTC_CLIENT() functions declared. Will not send out announce.");
+        
 
     _dstc_initialized = 1;
     return 0;
