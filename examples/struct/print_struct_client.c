@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include "dstc.h"
 #include "struct.h"
+#include <stdio.h>
 
 // A call to dstc_print_struct() will trigger a call to
 // print_struct() in servers that have declared this function
@@ -25,8 +26,9 @@ int main(int argc, char* argv[])
     };
 
     // Wait for function to become available on one or more servers.
-    while(!dstc_get_remote_count("print_struct")) 
+    while(!dstc_remote_function_available(dstc_print_struct)) {
         dstc_process_events(500000);
+    }
 
     dstc_print_struct(arg);
 

@@ -41,7 +41,7 @@ void double_value_callback(int value)
 int main(int argc, char* argv[])
 {
     // Wait for function to become available on one or more servers.
-    while(!dstc_get_remote_count("double_value")) 
+    while(!dstc_remote_function_available(dstc_double_value)) 
         dstc_process_events(500000);
 
     // Make the call
