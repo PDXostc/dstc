@@ -247,10 +247,11 @@ static void dstc_register_remote_function(rmc_node_id_t node_id, char* func_name
     ind = _dstc_default_context.remote_node_ind;
     while(ind--) {
         if (node_id == _dstc_default_context.remote_node[ind].node_id &&
-            !strcmp(func_name, _dstc_default_context.remote_node[ind].func_name))
+            !strcmp(func_name, _dstc_default_context.remote_node[ind].func_name)) {
             RMC_LOG_WARNING("Remote function [%s] registered several times by node [0x%X]",
                             func_name, node_id);
-        return;
+            return;
+        }
     }
 
     if (_dstc_default_context.remote_node_ind == SYMTAB_SIZE) {
