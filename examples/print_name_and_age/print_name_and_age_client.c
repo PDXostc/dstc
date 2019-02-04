@@ -20,17 +20,11 @@ DSTC_CLIENT(print_name_and_age, char, [32], int,)
 
 int main(int argc, char* argv[])
 {
-    int i = 0;
     // Wait for function to become available on one or more servers.
-    while(!dstc_get_remote_count("print_name_and_age")) 
+    while(!dstc_remote_function_available(dstc_print_name_and_age)) 
         dstc_process_events(500000);
 
-    // Make the call
-    while(1) {
-        dstc_print_name_and_age("Bob Smith", i);
-        ++i;
-        dstc_process_single_event(0);
-    }
+    dstc_print_name_and_age("Bob Smith", 25);
     // Process events for another 100 msec to ensure that the call gets out.
     dstc_process_events(100000);
 }
