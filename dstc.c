@@ -24,6 +24,8 @@
 #include "rmc_log.h"
 
 #define MAX_CONNECTIONS 16
+#define SUSPEND_TRAFFIC_THRESHOLD 500
+#define RESTART_TRAFFIC_THRESHOLD 300
 
 static int _dstc_initialized = 0;
 dstc_context_t _dstc_default_context;
@@ -766,6 +768,10 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
     // execute the function has attached.
     rmc_pub_set_control_message_callback(&_dstc_default_context.pub_ctx, dstc_subscriber_control_message_cb);
 
+    rmc_pub_throttling(&_dstc_default_context.pub_ctx,
+                       SUSPEND_TRAFFIC_THRESHOLD,
+                       RESTART_TRAFFIC_THRESHOLD);
+
     // Subscriber init.
 
     memset(sub_conn_vec_mem, 0, sizeof(sub_conn_vec_mem));
@@ -832,7 +838,7 @@ int dstc_setup(void)
 }
 
 
-static void dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t arg_sz)
+static int dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t arg_sz)
 {
     // Will be freed by RMC on confirmed delivery
     dstc_header_t *call = (dstc_header_t*) malloc(sizeof(dstc_header_t) + strlen((char*) name) + arg_sz) ;
@@ -844,6 +850,12 @@ static void dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t a
     if (!_dstc_initialized)
         dstc_setup();
 
+    // Do we need to wait for outbound calls to drain?
+    if (rmc_pub_traffic_suspended(&_dstc_default_context.pub_ctx) == EBUSY) {
+        return EBUSY;
+    }
+
+    // Check the current inflight queue length.
     call->name_len = name_len; // May be zero to indicate thtat this is an address.
     call->payload_len = arg_sz + actual_name_len;
     call->node_id = dstc_get_node_id();
@@ -857,20 +869,22 @@ static void dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t a
                   call->name_len?call->name_len:10,
                   call->name_len?call->payload:((uint8_t*)"[callback]"),
                   call->payload_len - actual_name_len);
-    rmc_pub_queue_packet(&_dstc_default_context.pub_ctx, call, sizeof(dstc_header_t) + actual_name_len + arg_sz, 0);
-    return;
+
+    return rmc_pub_queue_packet(&_dstc_default_context.pub_ctx, call, sizeof(dstc_header_t) + actual_name_len + arg_sz, 0);
 }
 
 
-void dstc_queue_callback(uint64_t addr, uint8_t* arg, uint32_t arg_sz)
+// Returns EBUSY if outbound queues are full
+int dstc_queue_callback(uint64_t addr, uint8_t* arg, uint32_t arg_sz)
 {
     // Call with zero namelen to treat name as a 64bit integer.
     // This integer will be mapped by the received through the _dstc_default_context.local_callback
     // table to a pending callback function.
-    dstc_queue((uint8_t*) &addr, 0, arg, arg_sz);
+    return dstc_queue((uint8_t*) &addr, 0, arg, arg_sz);
 }
 
-void dstc_queue_func(uint8_t* name, uint8_t* arg, uint32_t arg_sz)
+// Returns EBUSY if outbound queues are full
+int dstc_queue_func(uint8_t* name, uint8_t* arg, uint32_t arg_sz)
 {
-    dstc_queue(name, strlen((char*) name), arg, arg_sz);
+    return dstc_queue(name, strlen((char*) name), arg, arg_sz);
 }

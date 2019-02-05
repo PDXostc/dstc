@@ -275,14 +275,14 @@ typedef dstc_callback_t CBCK;
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
 #define DSTC_CLIENT(name, ...)                                          \
-  void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                    \
+    int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                   \
       uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                    \
       uint8_t arg_buf[arg_sz];                                          \
       uint8_t *data = arg_buf;                                          \
-      extern void dstc_queue_func(uint8_t* name, uint8_t* arg_buf, uint32_t arg_sz); \
+      extern int dstc_queue_func(uint8_t* name, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
       SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
-      dstc_queue_func((uint8_t*) #name, arg_buf, arg_sz);               \
+      return dstc_queue_func((uint8_t*) #name, arg_buf, arg_sz);        \
   }                                                                     \
   void __attribute__((constructor)) _dstc_register_client_##name()      \
   {                                                                     \
@@ -295,14 +295,14 @@ typedef dstc_callback_t CBCK;
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
 #define DSTC_CALLBACK(name, ...)                                        \
-    void dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {         \
+    int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                   \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
         uint8_t *data = arg_buf;                                        \
-        extern void dstc_queue_callback(uint64_t addr, uint8_t* arg_buf, uint32_t arg_sz); \
+        extern int dstc_queue_callback(uint64_t addr, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        dstc_queue_callback(name.func_addr, arg_buf, arg_sz);           \
+        return dstc_queue_callback(name.func_addr, arg_buf, arg_sz);    \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \
