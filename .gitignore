@@ -70,3 +70,5 @@ examples/dynamic_data/dynamic_data_client_nomacro
 examples/dynamic_data/dynamic_data_server_nomacro
 examples/callback_dynamic_data/callback_dyndata_client_nomacro
 examples/callback_dynamic_data/callback_dyndata_server_nomacro
+examples/stress/stress_client
+examples/stress/stress_server
