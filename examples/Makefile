@@ -4,6 +4,7 @@ all:
 	(cd struct; make)
 	(cd callback; make)
 	(cd callback_dynamic_data; make)
+	(cd stress; make)
 	(cd chat; make)
 
 clean:
@@ -12,6 +13,7 @@ clean:
 	(cd struct; make clean)
 	(cd callback; make clean)
 	(cd callback_dynamic_data; make clean)
+	(cd stress; make clean)
 	(cd chat; make clean)
 
 install:
@@ -20,4 +22,5 @@ install:
 	(cd struct; make install)
 	(cd callback; make install)
 	(cd callback_dynamic_data; make install)
+	(cd stress; make install)
 	(cd chat; make install)
