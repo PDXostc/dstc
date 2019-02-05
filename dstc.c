@@ -465,8 +465,12 @@ int dstc_process_single_event(int timeout)
     }
 
     // Timeout
-    if (nfds == 0)
+    if (nfds == 0) {
+        if (!dstc_get_timeout_msec())
+            dstc_process_timeout();
+
         retval = ETIME;
+    }
 
     // Process all pending events.
     while(nfds--)
@@ -542,8 +546,6 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
                 return ETIME;
             }
 
-            // Make rmc calls to handle scheduled events.
-            dstc_process_timeout();
             continue;
         }
     }
