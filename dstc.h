@@ -57,6 +57,8 @@ typedef struct {
     int epoll_fd;
     rmc_sub_context_t sub_ctx;
     rmc_pub_context_t pub_ctx;
+    uint8_t pub_buffer[RMC_MAX_PAYLOAD];
+    uint32_t pub_buffer_ind;
 } dstc_context_t;
 
 

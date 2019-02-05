@@ -24,8 +24,8 @@
 #include "rmc_log.h"
 
 #define MAX_CONNECTIONS 16
-#define SUSPEND_TRAFFIC_THRESHOLD 500
-#define RESTART_TRAFFIC_THRESHOLD 300
+#define SUSPEND_TRAFFIC_THRESHOLD 3000
+#define RESTART_TRAFFIC_THRESHOLD 2800
 
 static int _dstc_initialized = 0;
 dstc_context_t _dstc_default_context;
@@ -55,7 +55,6 @@ typedef struct {
     uint8_t name_len;
     char name[256];
 } dstc_control_message_t;
-
 
 
 char* _op_res_string(uint8_t res)
@@ -100,6 +99,38 @@ char* _op_res_string(uint8_t res)
     }
 }
 
+static uint32_t dstc_payload_buffer_in_use(dstc_context_t* ctx)
+{
+    return ctx->pub_buffer_ind;
+}
+
+static uint32_t dstc_payload_buffer_available(dstc_context_t* ctx)
+{
+    return sizeof(ctx->pub_buffer) - ctx->pub_buffer_ind;
+}
+
+static uint8_t* dstc_payload_buffer(dstc_context_t* ctx)
+{
+    return ctx->pub_buffer;
+}
+
+static uint8_t* dstc_payload_buffer_alloc(dstc_context_t* ctx, uint32_t size)
+{
+    uint8_t* res = 0;
+    if (dstc_payload_buffer_available(ctx) < size)
+        return 0;
+
+    res = dstc_payload_buffer(ctx) + dstc_payload_buffer_in_use(ctx);
+    ctx->pub_buffer_ind += size;
+    return res;
+}
+
+
+static uint8_t* dstc_payload_buffer_empty(dstc_context_t* ctx)
+{
+    ctx->pub_buffer_ind = 0;
+    return 0;
+}
 
 // Retrieve a function pointer by name previously registered with
 // dstc_register_server_function()
@@ -455,6 +486,35 @@ int dstc_process_single_event(int timeout)
     if (!_dstc_initialized)
         dstc_setup();
 
+
+    // If we have pending data, and we are not suspended, queue the
+    // payload with reliable multicast.
+    if (rmc_pub_traffic_suspended(&_dstc_default_context.pub_ctx) == 0 &&
+        // Do we have data that we need to queue?
+        dstc_payload_buffer_in_use(&_dstc_default_context) > 0) {
+        uint8_t* rmc_data = malloc(dstc_payload_buffer_in_use(&_dstc_default_context));
+
+        if (!rmc_data) {
+            RMC_LOG_FATAL("malloc(%d): %s", dstc_payload_buffer_in_use(&_dstc_default_context), strerror(errno));
+            exit(255);
+        }
+
+        memcpy(rmc_data, dstc_payload_buffer(&_dstc_default_context), dstc_payload_buffer_in_use(&_dstc_default_context));
+        // This should never fail since we are not suspended.
+        if (rmc_pub_queue_packet(&_dstc_default_context.pub_ctx,
+                                 rmc_data,
+                                 dstc_payload_buffer_in_use(&_dstc_default_context),
+                                 0) != 0) {
+            RMC_LOG_FATAL("Failed to queue packet.");
+            exit(255);
+        }
+
+        // Was the queueing successful?
+        RMC_LOG_DEBUG("Queued %d bytes from payload buffer.", dstc_payload_buffer_in_use(&_dstc_default_context));
+        // Empty payload buffer.
+        dstc_payload_buffer_empty(&_dstc_default_context);
+    }
+
     struct epoll_event events[dstc_get_socket_count()];
 
     nfds = epoll_wait(_dstc_default_context.epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
@@ -748,6 +808,8 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
     _dstc_default_context.remote_node_ind = 0;
     _dstc_default_context.callback_ind = 0;
 
+    _dstc_default_context.pub_buffer_ind = 0;
+
     rmc_log_set_start_time();
     memset(pub_conn_vec_mem, 0, sizeof(pub_conn_vec_mem));
 
@@ -840,22 +902,28 @@ int dstc_setup(void)
 }
 
 
+
+
+
 static int dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t arg_sz)
 {
     // Will be freed by RMC on confirmed delivery
-    dstc_header_t *call = (dstc_header_t*) malloc(sizeof(dstc_header_t) + strlen((char*) name) + arg_sz) ;
+    dstc_header_t *call = 0;
     uint16_t actual_name_len = name_len?name_len:sizeof(uint64_t);
 
     // FIXME: Stuff multiple calls into a single packet.
     //        Queue packet either at timeout (1-2 msec) or when packet is full (RMC_MAX_PAYLOAD)
-    //
     if (!_dstc_initialized)
         dstc_setup();
 
-    // Do we need to wait for outbound calls to drain?
-    if (rmc_pub_traffic_suspended(&_dstc_default_context.pub_ctx) == EBUSY) {
+    call = (dstc_header_t*) dstc_payload_buffer_alloc(&_dstc_default_context, sizeof(dstc_header_t) + actual_name_len + arg_sz);
+
+    // If alloca failed, then we do not have enough space in the payload buffer to store the new call.
+    // Return EBUSY, telling the calling program to run dstc_process_events() or dstc_process_single_event()
+    // for a bit and try again.
+    if (!call)
         return EBUSY;
-    }
+
 
     // Check the current inflight queue length.
     call->name_len = name_len; // May be zero to indicate thtat this is an address.
@@ -865,14 +933,16 @@ static int dstc_queue(uint8_t* name, uint8_t name_len, uint8_t* arg, uint32_t ar
     memcpy(call->payload, name, actual_name_len);
     memcpy(call->payload + actual_name_len, arg, arg_sz);
 
-    RMC_LOG_DEBUG("DSTC Queue: node_id[%lu] name_len[%d/%d] name[%.*s] payload_len[%d]",
+    RMC_LOG_DEBUG("DSTC Queue: node_id[%lu] name_len[%d/%d] name[%.*s] payload_len[%d] payload_buf_len[%d]",
                   call->node_id,
                   call->name_len, actual_name_len,
                   call->name_len?call->name_len:10,
                   call->name_len?call->payload:((uint8_t*)"[callback]"),
-                  call->payload_len - actual_name_len);
+                  call->payload_len - actual_name_len,
+                  dstc_payload_buffer_in_use(&_dstc_default_context));
 
-    return rmc_pub_queue_packet(&_dstc_default_context.pub_ctx, call, sizeof(dstc_header_t) + actual_name_len + arg_sz, 0);
+
+    return 0;
 }
 
 
