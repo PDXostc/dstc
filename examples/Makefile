@@ -1,23 +1,28 @@
-all:
-	(cd print_name_and_age; make)
-	(cd dynamic_data; make)
-	(cd struct; make)
-	(cd callback; make)
-	(cd callback_dynamic_data; make)
-	(cd chat; make)
 
-clean:
-	(cd print_name_and_age; make clean)
-	(cd dynamic_data; make clean)
-	(cd struct; make clean)
-	(cd callback; make clean)
-	(cd callback_dynamic_data; make clean)
-	(cd chat; make clean)
+SUBDIRS =                 \
+	callback              \
+	callback_dynamic_data \
+	chat                  \
+	dynamic_data          \
+	print_name_and_age    \
+	struct
 
-install:
-	(cd print_name_and_age; make install)
-	(cd dynamic_data; make install)
-	(cd struct; make install)
-	(cd callback; make install)
-	(cd callback_dynamic_data; make install)
-	(cd chat; make install)
+.PHONY: $(SUBDIRS)
+
+all: $(SUBDIRS)
+	@for dir in $(SUBDIRS); \
+	do \
+		$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir $(MAKECMDGOALS); \
+	done
+
+clean: $(SUBDIRS)
+	@for dir in $(SUBDIRS); \
+	do \
+	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir clean; \
+	done
+
+install: $(SUBDIRS)
+	@for dir in $(SUBDIRS); \
+	do \
+	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir install; \
+	done

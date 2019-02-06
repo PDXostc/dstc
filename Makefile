@@ -2,44 +2,46 @@
 # Doodling
 #
 
-.PHONY: all clean build_rmc
+.PHONY: all clean distclean install build_rmc
 
-OBJ=dstc.o
+SRC=dstc.c
 HDR=dstc.h
+OBJ=dstc.o
 
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
+CFLAGS=-fPIC -g -I${CURDIR}/reliable_multicast
 
 
-all: $(LIB_TARGET) $(LIB_SO_TARGET) 
-	(cd examples/; make)
+all: build_rmc $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples
 
-CFLAGS=-fPIC -g -I${CURDIR}/reliable_multicast -Wall
+$(OBJ): $(SRC) $(HDR)
+	$(CC) $(CFLAGS) -c $(SRC)
 
 # Unpack the static reliable_multicast library and repack it with dstc object files
 # into libdstc.a
-$(LIB_TARGET): $(OBJ) 
+$(LIB_TARGET): $(OBJ)
 	ar r $(LIB_TARGET) $(OBJ)
 
-# Build the shared object from librmc.a, which contains libdstc.a 
+# Build the shared object from librmc.a, which contains libdstc.a
 $(LIB_SO_TARGET):  $(OBJ)
 	$(CC) -shared $(OBJ) -o $(LIB_SO_TARGET)
 
 clean:
-	-(cd reliable_multicast; make clean)
-	(cd examples; make clean)
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples clean
 	rm -f $(OBJ) *~ $(LIB_TARGET) $(LIB_SO_TARGET)
 
-$(OBJ): build_rmc $(HDR) Makefile
-
+distclean: clean
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C reliable_multicast clean
 
 install:
-	(cd examples/; make install)
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples install
 
 reliable_multicast/README.md:
 	git submodule init
 	git submodule update
 
 build_rmc: reliable_multicast/README.md
-	(cd reliable_multicast; make)
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C reliable_multicast
