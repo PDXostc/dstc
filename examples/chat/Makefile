@@ -20,7 +20,11 @@ LIBPATH=-L../.. -L../../reliable_multicast
 INCPATH=-I../.. -I../../reliable_multicast
 LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
 
-CFLAGS= -g ${INCPATH} -Wall
+# The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
+# issues. Please note that no code will be executed that translates an integer
+# to a pointer.
+#
+CFLAGS= -g ${INCPATH} -Wno-int-to-pointer-cast
 
 .PHONY: all clean install nomacro uninstall
 
@@ -31,7 +35,7 @@ nomacro:  $(TARGET_NOMACRO)
 #
 # The client is built as a regular binary
 #
-$(TARGET): $(OBJ) ${LIBDEPSS}
+$(TARGET): $(OBJ) ${LIBDEPS}
 	$(CC) -static $(CFLAGS) ${LIBPATH} $^ -ldstc -lrmc -o $@
 
 
