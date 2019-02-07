@@ -1,6 +1,6 @@
 // Copyright (C) 2018, Jaguar Land Rover
 // This program is licensed under the terms and conditions of the
-// Mozilla Public License, version 2.0.  The full text of the 
+// Mozilla Public License, version 2.0.  The full text of the
 // Mozilla Public License is at https://www.mozilla.org/MPL/2.0/
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
@@ -45,6 +45,10 @@ void get_all_elements_callback(dstc_dynamic_data_t dynarg, int elem_count)
     struct name_and_age *elem = (struct name_and_age*) dynarg.data;
 
     printf("Got a callback with %d elements\n", elem_count);
+
+    if (!elem_count)
+        puts("(Add elements using -a.)");
+
     while(elem_count--)
         printf("Name: %s   Age: %d\n",
                elem[elem_count].name,
@@ -61,7 +65,7 @@ int main(int argc, char* argv[])
     char print_flag = 0;
     char *tmp = 0;
     char opt = 0;
-    
+
     while ((opt = getopt(argc, argv, "a:p")) != -1) {
         switch (opt) {
 
@@ -88,14 +92,16 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Wait for function to become available on one or more servers.
-    puts("Waiting for remote functions to become available");
+    if (!name[0] && !print_flag) {
+        fprintf(stderr, "Please provide either -a or -p\n");
+        exit(1);
+    }
 
+    // Wait for function to become available on one or more servers.
     while(!dstc_remote_function_available(dstc_add_name_and_age_element) ||
           !dstc_remote_function_available(dstc_get_all_elements))
         dstc_process_events(500000);
 
-    puts("Remotes are available. ");
 
 
     // Do we need add an element to the remote server?
@@ -109,7 +115,7 @@ int main(int argc, char* argv[])
                elem.name, elem.age);
 
         dstc_add_name_and_age_element(elem);
-    }        
+    }
 
     // Do we need to send a request to the remote server to have it
     // deliver all elements to us via a callback

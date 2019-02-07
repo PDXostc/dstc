@@ -1,11 +1,12 @@
 
 SUBDIRS =                 \
+	print_name_and_age    \
+	dynamic_data          \
+	struct                \
 	callback              \
 	callback_dynamic_data \
+    stress                \
 	chat                  \
-	dynamic_data          \
-	print_name_and_age    \
-	struct
 
 .PHONY: $(SUBDIRS)
 
