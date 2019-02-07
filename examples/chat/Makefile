@@ -22,11 +22,11 @@ LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
 
 CFLAGS= -g ${INCPATH} -Wall
 
-.PHONY: all clean install nomacro
+.PHONY: all clean install nomacro uninstall
 
-all: $(TARGET) 
+all: $(TARGET)
 
-nomacro:  $(TARGET_NOMACRO) 
+nomacro:  $(TARGET_NOMACRO)
 
 #
 # The client is built as a regular binary
@@ -40,12 +40,14 @@ $(TARGET): $(OBJ) ${LIBDEPSS}
 
 clean:
 	rm -f $(TARGET) $(OBJ) *~ \
-	$(TARGET_NOMACRO) $(NOMACRO_SOURCE) $(NOMACRO_OBJ) 
+	$(TARGET_NOMACRO) $(NOMACRO_SOURCE) $(NOMACRO_OBJ)
 
 install:
-	install -d ${DESTDIR}/dstc/${NAME}
-	install -m 0755 ${NAME}_server ${DESTDIR}/dstc/${NAME}/
-	install -m 0755 ${NAME}_client ${DESTDIR}/dstc/${NAME}/
+	install -d ${DESTDIR}/bin
+	install -m 0755 ${TARGET} ${DESTDIR}/bin
+
+uninstall:
+	rm ${DESTDIR}/bin/${TARGET}
 
 #
 # The client is built as a regular binary

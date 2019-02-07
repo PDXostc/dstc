@@ -18,7 +18,7 @@ CLIENT_NOMACRO_SOURCE=$(CLIENT_NOMACRO_OBJ:%.o=%.c)
 
 #
 # Server
-# 
+#
 TARGET_SERVER=${NAME}_server
 TARGET_NOMACRO_SERVER=${TARGET_SERVER}_nomacro
 
@@ -35,18 +35,18 @@ LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
 
 CFLAGS= -g ${INCPATH} -Wall
 
-.PHONY: all clean install nomacro
+.PHONY: all clean install nomacro uninstall
 
-all: $(TARGET_SERVER) $(TARGET_CLIENT) 
+all: $(TARGET_SERVER) $(TARGET_CLIENT)
 
-nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT) 
+nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
 
 $(TARGET_SERVER): $(SERVER_OBJ) $(LIBDEPS)
-	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@  
+	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@
 
 
 $(TARGET_CLIENT): $(CLIENT_OBJ) $(LIBDEPS)
-	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@  
+	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@
 
 
 # Recompile everything if dstc.h changes
@@ -59,18 +59,22 @@ clean:
 	$(CLIENT_NOMACRO_OBJ) $(SERVER_NOMACRO_OBJ)
 
 install:
-	install -d ${DESTDIR}/dstc/${NAME}
-	install -m 0755 ${NAME}_server ${DESTDIR}/dstc/${NAME}/
-	install -m 0755 ${NAME}_client ${DESTDIR}/dstc/${NAME}/
+	install -d ${DESTDIR}/bin
+	install -m 0755 ${TARGET_CLIENT} ${DESTDIR}/bin
+	install -m 0755 ${TARGET_SERVER} ${DESTDIR}/bin
+
+uninstall:
+	rm ${DESTDIR}/bin/${TARGET_CLIENT}
+	rm ${DESTDIR}/bin/${TARGET_SERVER}
 
 #
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@  
+	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@
 
 $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@  
+	$(CC) --static $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h
