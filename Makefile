@@ -15,6 +15,11 @@ INCLUDES=-I. -I${CURDIR}/reliable_multicast
 
 CFLAGS=-fPIC -g $(INCLUDES)
 
+#
+#	Build the entire project.
+#
+all: build_rmc $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples
 
 #
 #	Build the entire project.
