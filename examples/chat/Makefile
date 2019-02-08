@@ -26,9 +26,11 @@ LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
 #
 CFLAGS= -g ${INCPATH} -Wno-int-to-pointer-cast
 
-.PHONY: all clean install nomacro uninstall
+.PHONY: all clean install uninstall nomacro
+
 
 all: $(TARGET)
+
 
 nomacro:  $(TARGET_NOMACRO)
 
@@ -38,20 +40,23 @@ nomacro:  $(TARGET_NOMACRO)
 $(TARGET): $(OBJ) ${LIBDEPS}
 	$(CC) -static $(CFLAGS) ${LIBPATH} $^ -ldstc -lrmc -o $@
 
-
+#
 # Recompile everything if dstc.h changes
+#
 (OBJ): $(INCLUDE)
+
 
 clean:
 	rm -f $(TARGET) $(OBJ) *~ \
 	$(TARGET_NOMACRO) $(NOMACRO_SOURCE) $(NOMACRO_OBJ)
+
 
 install:
 	install -d ${DESTDIR}/bin
 	install -m 0755 ${TARGET} ${DESTDIR}/bin
 
 uninstall:
-	rm ${DESTDIR}/bin/${TARGET}
+	rm -f ${DESTDIR}/bin/${TARGET}
 
 #
 # The client is built as a regular binary
