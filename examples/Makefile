@@ -8,7 +8,8 @@ SUBDIRS =                 \
     stress                \
 	chat                  \
 
-.PHONY: $(SUBDIRS)
+.PHONY: all clean install uninstall
+
 
 all: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
@@ -16,14 +17,23 @@ all: $(SUBDIRS)
 		$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir $(MAKECMDGOALS); \
 	done
 
+
 clean: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
 	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir clean; \
 	done
 
+
 install: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir install; \
+	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C $$dir install; \
+	done
+
+
+uninstall: $(SUBDIRS)
+	@for dir in $(SUBDIRS); \
+	do \
+	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C $$dir uninstall; \
 	done
