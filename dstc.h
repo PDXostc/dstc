@@ -289,7 +289,8 @@ typedef dstc_callback_t CBCK;
   void __attribute__((constructor)) _dstc_register_client_##name()      \
   {                                                                     \
       extern void dstc_register_client_function(char*, void *);         \
-      dstc_register_client_function(#name, (void*)  dstc_##name);       \
+      char name_arr[] = #name;                                          \
+      dstc_register_client_function(name_arr, (void*)  dstc_##name);    \
   }
 
 
@@ -309,7 +310,8 @@ typedef dstc_callback_t CBCK;
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \
         extern void dstc_register_callback_client(char*, void *);       \
-        dstc_register_callback_client(#name, (void*) dstc_##name);      \
+        char name_array[] = #name;                                      \
+        dstc_register_callback_client(name_array, (void*) dstc_##name); \
     }
 
 
@@ -329,7 +331,8 @@ typedef dstc_callback_t CBCK;
     void __attribute__((constructor)) _dstc_register_server_##name()    \
     {                                                                   \
         extern void dstc_register_server_function(char*, void (*)(rmc_node_id_t, uint8_t*)); \
-        dstc_register_server_function(#name, dstc_server_##name);        \
+        char name_array[] = #name;                                      \
+        dstc_register_server_function(name_array, dstc_server_##name);  \
     }
 
 #define DSTC_SERVER(name, ...)                          \

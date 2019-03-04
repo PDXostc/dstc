@@ -78,6 +78,12 @@ for how this can easily be achieved in a mixed-architecture deployment.
 
 
 # BUILDING
+DSTC uses reliable_multicast as its transport layer. Download and build the correct version
+using:
+
+    make depend
+
+Build DSTC and its examples using
 
     make
 
@@ -348,4 +354,3 @@ Note: The "nomacro" feature requires the "clang-format" package.  This can be
 installed on Ubuntu systems with:
 
     sudo apt install -y clang-format
-

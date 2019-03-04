@@ -8,10 +8,13 @@ SRC=dstc.c
 HDR=dstc.h
 OBJ=dstc.o
 
+RMC_VERSION=1.1
+RMC_DIR=reliable_multicast-${RMC_VERSION}
+
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
-INCLUDES=-I. -I${CURDIR}/reliable_multicast
+INCLUDES=-I. -I${CURDIR}/${RMC_DIR}
 
 CFLAGS=-fPIC -g $(INCLUDES)
 
@@ -52,13 +55,13 @@ clean:
 #	Remove all of the generated files including any in the submodules.
 #
 distclean: clean
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C reliable_multicast clean
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C ${RMC_DIR} clean
 
 #
 #	Install the generated files.
 #
 install: all
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C reliable_multicast install; \
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C ${RMC_DIR} install; \
 	install -d ${DESTDIR}/lib; \
 	install -m 0644 ${LIB_TARGET}  ${DESTDIR}/lib; \
 	install -m 0644 ${LIB_SO_TARGET}  ${DESTDIR}/lib; \
@@ -71,17 +74,18 @@ uninstall: all
 	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C examples uninstall; \
 	rm -f ${DESTDIR}/lib/${LIB_TARGET}; \
 	rm -f ${DESTDIR}/lib/${LIB_SO_TARGET}; \
-	$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C reliable_multicast uninstall
+	$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C ${RMC_DIR} uninstall
 
 #
-#	Make sure the reliable_multicast is the latest copy of the submodule.
+# Make sure the reliable_multicast is the latest copy of the submodule.
 #
-reliable_multicast/README.md:
-	git submodule init; \
-	git submodule update
+${RMC_DIR}/README.md:
+	curl -L https://github.com/PDXostc/reliable_multicast/archive/v${RMC_VERSION}.tar.gz | tar xfz -
+	rm -f ./reliable_multicast
+	ln -s ${RMC_DIR} ./reliable_multicast
 
 #
-#	Make sure the reliable_multicast submodule is up to date.
+# Check out the correct RMC release.
 #
-build_rmc: reliable_multicast/README.md
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C reliable_multicast
+depend: ${RMC_DIR}/README.md
+	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C reliable_multicast-${RMC_VERSION}
