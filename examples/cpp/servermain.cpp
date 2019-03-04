@@ -10,11 +10,13 @@ extern "C" {
     DSTC_SERVER(do_string_stuff, char, [128])
 }
 
+// Define DSTC function to be called by the C++ wrapper
 void do_number_stuff(float f, int i)
 {
     callback_vec_number.execute(f,  i);
 }
 
+// Define DSTC function to be called by the C++ wrapper
 void do_string_stuff(char* str) {
     callback_vec_string.execute(str);
 }
@@ -29,7 +31,7 @@ int main() {
         }
     );
 
-    // hook up an object
+    // hook up callbacks via an object (see ExampleServer::ExampleServer())
     ExampleServer obj(callback_vec_number, callback_vec_string);
 
     std::cout << "running for 10 seconds." << std::endl;

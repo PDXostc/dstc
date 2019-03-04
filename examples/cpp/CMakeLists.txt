@@ -8,9 +8,6 @@ add_executable(cpp_client ../../dstc.c cpp_client.cpp)
 
 find_library(RMC rmc HINTS ../../reliable_multicast)
 
-# workaround for void* casting not yet fixed
-#target_compile_options(cpp_client PRIVATE -fpermissive)
-
 target_link_libraries(cpp_server ${RMC})
 target_link_libraries(cpp_client ${RMC})
 target_link_libraries(c_client ${RMC})
