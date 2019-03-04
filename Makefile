@@ -8,7 +8,7 @@ SRC=dstc.c
 HDR=dstc.h
 OBJ=dstc.o
 
-RMC_VERSION=1.0
+RMC_VERSION=1.1
 RMC_DIR=reliable_multicast-${RMC_VERSION}
 
 LIB_TARGET=libdstc.a
@@ -81,6 +81,8 @@ uninstall: all
 #
 ${RMC_DIR}/README.md:
 	curl -L https://github.com/PDXostc/reliable_multicast/archive/v${RMC_VERSION}.tar.gz | tar xfz -
+	rm -f ./reliable_multicast
+	ln -s ${RMC_DIR} ./reliable_multicast
 
 #
 # Check out the correct RMC release.
