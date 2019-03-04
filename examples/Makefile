@@ -7,8 +7,9 @@ SUBDIRS =                 \
 	callback_dynamic_data \
     stress                \
 	chat                  \
+	cpp                   \
 
-.PHONY: all clean install uninstall
+.PHONY: all clean install uninstall cpp
 
 
 all: $(SUBDIRS)
@@ -17,6 +18,8 @@ all: $(SUBDIRS)
 		$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir $(MAKECMDGOALS); \
 	done
 
+cpp:
+	(cd cpp; cmake .; make)
 
 clean: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
