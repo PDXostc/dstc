@@ -1,6 +1,6 @@
 // Copyright (C) 2018, Jaguar Land Rover
 // This program is licensed under the terms and conditions of the
-// Mozilla Public License, version 2.0.  The full text of the 
+// Mozilla Public License, version 2.0.  The full text of the
 // Mozilla Public License is at https://www.mozilla.org/MPL/2.0/
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
     int epoll_fd = 0;
     struct epoll_event stdin_ev = {
         // The stdin event will be the only one with 0 as user data
-        .data.u32 = 0, 
+        .data.u32 = 0,
         .events = EPOLLIN
     };
 
@@ -88,11 +88,11 @@ int main(int argc, char* argv[])
     // in parallel with all sockets managed by DSTC.
     // We do this by creating an epoll file descriptor, add stdin to it,
     // and then ask DSTC to add all its socket descriptors to it
-    // 
+    //
     // When epoll_wait() returns, all events that have the
     // DSTC_EVENT_FLAG bit set should be sent to dstc for processing
-    
-    epoll_fd = epoll_create1(0); 
+
+    epoll_fd = epoll_create1(0);
 
     // Add stdin to epoll vector.
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, 0, &stdin_ev) == -1) {
@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
     }
 
     // Setup dstc with the given epoll descriptor
-    dstc_setup_epoll(epoll_fd); 
+    dstc_setup_epoll(epoll_fd);
 
     // Wait for input and process
     while(1) {
@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
             RMC_LOG_DEBUG("Got timeout in dstc_get_timeout_msec()");
             dstc_process_timeout();
         }
-            
+
 
         // Wait for the given time.
         RMC_LOG_DEBUG("Entering wait with %d msec", timeout);
@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        // 
+        //
         // We have one or more triggered events.
         // Loop through them and process them as keyboard
         // or DSTC events.
@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
                 handle_keyboard();
                 continue;
             }
-            
+
             // Is this a DSTC event?
             if (events[nfds].data.u32 & DSTC_EVENT_FLAG) {
                 dstc_process_epoll_result(&events[nfds]);
@@ -151,5 +151,5 @@ int main(int argc, char* argv[])
             RMC_LOG_FATAL("Unknown event: %u", events[nfds].data.u32);
             exit(255);
         }
-    }    
+    }
 }
