@@ -72,3 +72,6 @@ examples/callback_dynamic_data/callback_dyndata_client_nomacro
 examples/callback_dynamic_data/callback_dyndata_server_nomacro
 examples/stress/stress_client
 examples/stress/stress_server
+
+#reliable_multicast
+reliable_multicast*
