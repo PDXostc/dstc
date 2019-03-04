@@ -22,12 +22,6 @@ all: build_rmc $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
 	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples
 
 #
-#	Build the entire project.
-#
-all: build_rmc $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples
-
-#
 #	Make sure all of the object files are current.
 #
 $(OBJ): $(SRC) $(HDR)
