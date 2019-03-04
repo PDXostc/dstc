@@ -8,22 +8,22 @@ Functions can be registered using the RAII paradigm by holding onto a registrati
 after registering a function (CallbackRegistration).  When this object goes out of scope
 the function is automatically deregistered.
 
+The goal of this example is to illustrate some ways that DSTC can coexist with C++ using modern C++11/14 paradigms.  This example is suggestive, not prescriptive; how you wish to use DSTC in your C++ class is design choice.
+
 What is in this?
 ================
 
-| File(s)             |   Description |
-| ------------------- | ------------- |
-| servermain.cpp      | main() for DSTC server, including DSTC function registration |
-| exampleserver.h/cpp | Actual handlers for an example object with DSTC functionality built in.  Because of how the registration occurs, this ExampleServer object will not receive callbacks after the object has been destroyed. |
+| File(s)             | Description                                                                         |
+| ------------------- | -------------                                                                       |
+| servermain.cpp      | main() for DSTC server, including DSTC function registration                        |
+| exampleserver.h/cpp | Actual handlers for an example object with DSTC functionality built in              |
 | callbackvector.hpp  | Templated object that handles callback registration, deregistration, and invocation |
-| c_client.cpp        | C Client that sends data |
-| cpp_client.cpp      | C++ client that sends data | 
+| c_client.cpp        | C Client that sends data                                                            |
+| cpp_client.cpp      | C++ client that sends data                                                          |
 
 Building / Running
 ========
 Build dstc (follow instructions at top-level readme)
-
-The CMake file assumes that you clone this into the same location as DSTC.  In other wrods, if DSTC is cloned into ```~/repos/dstc```, clone this repo into ```~/repos/dstc-cpp-example```.
 
 ```
 cmake .
@@ -31,10 +31,21 @@ make
 ./cpp_server
 ```
 
-(Above will wait for client)
+(Server will wait for ten seconds then terminate)
 
 In second terminal:
 
 ```
 ./c_client
 ```
+
+and/or
+
+```
+./cpp_client
+```
+
+Notes
+=====
+
+Please note that the C examples rely on an implicit cast to ```void*``` in the dstc_remote_function_available() call.  You must cast to ```void*``` explicitly to compile with g++.  See ```cpp_client.cpp``` for an example.

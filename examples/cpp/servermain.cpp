@@ -25,13 +25,7 @@ int main() {
     // for RAII
     auto reg_obj = callback_vec_number.safeRegisterCallback(
         [](float f, int i) {
-            std::cout << "safe callback called with " << f << " and " << i << std::endl;
-        }
-    );
-
-    auto reg_id = callback_vec_string.unsafeRegisterCallback(
-        [](char* str) {
-            std::cout << "unsafe callback called with " << str << std::endl;
+            std::cout << "function callback called with " << f << " and " << i << std::endl;
         }
     );
 
@@ -40,7 +34,4 @@ int main() {
 
     std::cout << "running for 10 seconds." << std::endl;
     dstc_process_events(10 * 1000 * 1000);
-
-    // explicitly deregister at program exit
-    callback_vec_string.deregisterCallback(reg_id);
 }

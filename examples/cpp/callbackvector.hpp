@@ -64,19 +64,6 @@ public:
     }
 
     /*!
-     * Register a callback
-     *
-     * \param function Function to be called when CallbackVector::execute is called
-     * \returns CallbackID_t ID to deregister
-     *
-     * \warning You must explicitly call deregisterCallback to stop callbacks!
-     */
-    CallbackID_t unsafeRegisterCallback(Callback_t function) {
-        std::lock_guard<std::mutex> lock(_mtx);
-        return _registerAndGetID(function);
-    }
-
-    /*!
      * Deregisters a callback.  If you use the safe version of register, you do not
      * need to call this explicitly
      * \param id ID to deregister
