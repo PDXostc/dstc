@@ -817,6 +817,7 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
                          0, // Random node_id
                          MCAST_GROUP_ADDRESS, MCAST_GROUP_PORT,
                          "0.0.0.0", // Use any NIC address for multicast transmit.
+                         "0.0.0.0", // Use any NIC address for listen control port.
                          0, // Use ephereal tcp port for tcp control
                          user_data,
                          poll_add_pub, poll_modify_pub, poll_remove,
@@ -844,8 +845,8 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
                          // Reuse pub node id to detect and avoid loopback messages
                          rmc_pub_node_id(&_dstc_default_context.pub_ctx),
                          MCAST_GROUP_ADDRESS,
-                         "0.0.0.0", // Any interface for multicast address
                          MCAST_GROUP_PORT,
+                         "0.0.0.0", // Any interface for multicast address
                          user_data,
                          poll_add_sub, poll_modify_sub, poll_remove,
                          sub_conn_vec_mem, MAX_CONNECTIONS,
