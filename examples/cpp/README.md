@@ -16,11 +16,12 @@ What is in this?
 | servermain.cpp      | main() for DSTC server, including DSTC function registration |
 | exampleserver.h/cpp | Actual handlers for an example object with DSTC functionality built in.  Because of how the registration occurs, this ExampleServer object will not receive callbacks after the object has been destroyed. |
 | callbackvector.hpp  | Templated object that handles callback registration, deregistration, and invocation |
-| client.cpp          | C Client that sends data |
+| c_client.cpp        | C Client that sends data |
+| cpp_client.cpp      | C++ client that sends data | 
 
 Building / Running
 ========
-Clone and build dstc + reliable_multicast
+Build dstc (follow instructions at top-level readme)
 
 The CMake file assumes that you clone this into the same location as DSTC.  In other wrods, if DSTC is cloned into ```~/repos/dstc```, clone this repo into ```~/repos/dstc-cpp-example```.
 
