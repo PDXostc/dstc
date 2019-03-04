@@ -289,7 +289,7 @@ typedef dstc_callback_t CBCK;
   void __attribute__((constructor)) _dstc_register_client_##name()      \
   {                                                                     \
       extern void dstc_register_client_function(char*, void *);         \
-      dstc_register_client_function(#name, dstc_##name);                \
+      dstc_register_client_function(#name, (void*)  dstc_##name);       \
   }
 
 
