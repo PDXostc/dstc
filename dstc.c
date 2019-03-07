@@ -175,6 +175,7 @@ static int queue_pending_calls(void)
         // Empty payload buffer.
         dstc_payload_buffer_empty(&_dstc_default_context);
     }
+    return 0;
 }
 
 // Register a function name - pointer relationship.
@@ -618,7 +619,6 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
 
 extern void dstc_process_epoll_result(struct epoll_event* event)
 {
-    int res = 0;
     uint8_t op_res = 0;
     rmc_index_t c_ind = (rmc_index_t) FROM_EPOLL_EVENT_USER_DATA(event->data.u32);
     int is_pub = IS_PUB(event->data.u32);
@@ -632,9 +632,9 @@ extern void dstc_process_epoll_result(struct epoll_event* event)
 
     if (event->events & EPOLLIN) {
         if (is_pub)
-            res = rmc_pub_read(&_dstc_default_context.pub_ctx, c_ind, &op_res);
+            rmc_pub_read(&_dstc_default_context.pub_ctx, c_ind, &op_res);
         else
-            res = rmc_sub_read(&_dstc_default_context.sub_ctx, c_ind, &op_res);
+            rmc_sub_read(&_dstc_default_context.sub_ctx, c_ind, &op_res);
     }
 
     if (event->events & EPOLLOUT) {

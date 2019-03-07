@@ -15,8 +15,7 @@ LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I. -I${CURDIR}/${RMC_DIR}
-
-CFLAGS=-fPIC -g $(INCLUDES)
+CFLAGS=-fPIC -g $(INCLUDES) -Wall
 
 #
 #	Build the entire project.
