@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include "reliable_multicast.h"
+#include <reliable_multicast.h>
 
 // FIXME: Hash table for both local and remote func
 #define SYMTAB_SIZE 128
@@ -55,8 +55,8 @@ typedef struct {
     uint32_t callback_ind ;
 
     int epoll_fd;
-    rmc_sub_context_t sub_ctx;
-    rmc_pub_context_t pub_ctx;
+    rmc_sub_context_t* sub_ctx;
+    rmc_pub_context_t* pub_ctx;
     uint8_t pub_buffer[RMC_MAX_PAYLOAD];
     uint32_t pub_buffer_ind;
 } dstc_context_t;

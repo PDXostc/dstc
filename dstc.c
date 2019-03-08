@@ -21,7 +21,7 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include "dstc.h"
-#include "rmc_log.h"
+#include <rmc_log.h>
 
 #define MAX_CONNECTIONS 16
 #define SUSPEND_TRAFFIC_THRESHOLD 3000
@@ -150,7 +150,7 @@ static int queue_pending_calls(void)
 {
     // If we have pending data, and we are not suspended, queue the
     // payload with reliable multicast.
-    if (rmc_pub_traffic_suspended(&_dstc_default_context.pub_ctx) == 0 &&
+    if (rmc_pub_traffic_suspended(_dstc_default_context.pub_ctx) == 0 &&
         // Do we have data that we need to queue?
         dstc_payload_buffer_in_use(&_dstc_default_context) > 0) {
         uint8_t* rmc_data = malloc(dstc_payload_buffer_in_use(&_dstc_default_context));
@@ -162,7 +162,7 @@ static int queue_pending_calls(void)
 
         memcpy(rmc_data, dstc_payload_buffer(&_dstc_default_context), dstc_payload_buffer_in_use(&_dstc_default_context));
         // This should never fail since we are not suspended.
-        if (rmc_pub_queue_packet(&_dstc_default_context.pub_ctx,
+        if (rmc_pub_queue_packet(_dstc_default_context.pub_ctx,
                                  rmc_data,
                                  dstc_payload_buffer_in_use(&_dstc_default_context),
                                  0) != 0) {
@@ -478,8 +478,8 @@ usec_timestamp_t dstc_get_timeout_timestamp()
     usec_timestamp_t sub_event_tout_ts = 0;
     usec_timestamp_t pub_event_tout_ts = 0;
 
-    rmc_pub_timeout_get_next(&_dstc_default_context.pub_ctx, &pub_event_tout_ts);
-    rmc_sub_timeout_get_next(&_dstc_default_context.sub_ctx, &sub_event_tout_ts);
+    rmc_pub_timeout_get_next(_dstc_default_context.pub_ctx, &pub_event_tout_ts);
+    rmc_sub_timeout_get_next(_dstc_default_context.sub_ctx, &sub_event_tout_ts);
 
     // Figure out the shortest event timeout between pub and sub context
     if (pub_event_tout_ts == -1 && sub_event_tout_ts == -1)
@@ -632,18 +632,18 @@ extern void dstc_process_epoll_result(struct epoll_event* event)
 
     if (event->events & EPOLLIN) {
         if (is_pub)
-            rmc_pub_read(&_dstc_default_context.pub_ctx, c_ind, &op_res);
+            rmc_pub_read(_dstc_default_context.pub_ctx, c_ind, &op_res);
         else
-            rmc_sub_read(&_dstc_default_context.sub_ctx, c_ind, &op_res);
+            rmc_sub_read(_dstc_default_context.sub_ctx, c_ind, &op_res);
     }
 
     if (event->events & EPOLLOUT) {
         if (is_pub) {
-            if (rmc_pub_write(&_dstc_default_context.pub_ctx, c_ind, &op_res) != 0)
-                rmc_pub_close_connection(&_dstc_default_context.pub_ctx, c_ind);
+            if (rmc_pub_write(_dstc_default_context.pub_ctx, c_ind, &op_res) != 0)
+                rmc_pub_close_connection(_dstc_default_context.pub_ctx, c_ind);
         } else {
-            if (rmc_sub_write(&_dstc_default_context.sub_ctx, c_ind, &op_res) != 0)
-                rmc_sub_close_connection(&_dstc_default_context.sub_ctx, c_ind);
+            if (rmc_sub_write(_dstc_default_context.sub_ctx, c_ind, &op_res) != 0)
+                rmc_sub_close_connection(_dstc_default_context.sub_ctx, c_ind);
         }
     }
 }
@@ -655,8 +655,8 @@ extern int dstc_process_timeout(void)
     // queues in rmc.
     // In that case process events until the queues are sent out on the network
     // and are cleared up.
-    if (rmc_pub_timeout_process(&_dstc_default_context.pub_ctx) == EAGAIN ||
-        rmc_sub_timeout_process(&_dstc_default_context.sub_ctx) == EAGAIN)
+    if (rmc_pub_timeout_process(_dstc_default_context.pub_ctx) == EAGAIN ||
+        rmc_sub_timeout_process(_dstc_default_context.sub_ctx) == EAGAIN)
         return EAGAIN;
 
     return 0;
@@ -735,15 +735,16 @@ static void dstc_subscription_complete(rmc_sub_context_t* sub_ctx,
 
 static void dstc_process_incoming(rmc_sub_context_t* sub_ctx)
 {
-    sub_packet_t* pack = 0;
+    rmc_sub_packet_t* pack = 0;
     RMC_LOG_DEBUG("Processing incoming");
     while((pack = rmc_sub_get_next_dispatch_ready(sub_ctx))) {
         uint32_t ind = 0;
 
-        RMC_LOG_DEBUG("Got packet. payload_len[%d]", pack->payload_len);
-        while(ind < pack->payload_len) {
+        RMC_LOG_DEBUG("Got packet. payload_len[%d]", rmc_sub_packet_payload_len(pack));
+        while(ind < rmc_sub_packet_payload_len(pack)) {
             RMC_LOG_DEBUG("Processing function call. ind[%d]", ind);
-            ind += dstc_process_function_call(((uint8_t*) pack->payload) + ind, pack->payload_len - ind);
+            ind += dstc_process_function_call(((uint8_t*) rmc_sub_packet_payload(pack) + ind),
+                                               rmc_sub_packet_payload_len(pack) - ind);
         }
 
         rmc_sub_packet_dispatched(sub_ctx, pack);
@@ -780,8 +781,8 @@ uint32_t dstc_get_socket_count(void)
         return 0;
 
     // Grab the count of all open sockets.
-    return rmc_sub_get_socket_count(&_dstc_default_context.sub_ctx) +
-        rmc_pub_get_socket_count(&_dstc_default_context.pub_ctx);
+    return rmc_sub_get_socket_count(_dstc_default_context.sub_ctx) +
+        rmc_pub_get_socket_count(_dstc_default_context.pub_ctx);
 }
 
 
@@ -797,8 +798,6 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
                                int epoll_fd_arg,
                                user_data_t user_data)
 {
-    static uint8_t pub_conn_vec_mem[sizeof(rmc_connection_t) * MAX_CONNECTIONS];
-    static uint8_t sub_conn_vec_mem[sizeof(rmc_connection_t) * MAX_CONNECTIONS];
 
 
     // Already intialized?
@@ -808,11 +807,11 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
     _dstc_default_context.epoll_fd = epoll_fd_arg;
     _dstc_default_context.remote_node_ind = 0;
     _dstc_default_context.callback_ind = 0;
-
     _dstc_default_context.pub_buffer_ind = 0;
+    _dstc_default_context.pub_ctx = 0;
+    _dstc_default_context.sub_ctx = 0;
 
     rmc_log_set_start_time();
-    memset(pub_conn_vec_mem, 0, sizeof(pub_conn_vec_mem));
 
     rmc_pub_init_context(&_dstc_default_context.pub_ctx,
                          0, // Random node_id
@@ -822,42 +821,40 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
                          0, // Use ephereal tcp port for tcp control
                          user_data,
                          poll_add_pub, poll_modify_pub, poll_remove,
-                         pub_conn_vec_mem, MAX_CONNECTIONS,
+                         MAX_CONNECTIONS,
                          free_published_packets);
 
     // Setup a callback for subscriber disconnect, meaning that remote nodes
     // with functions that we can call can no longer be used.
-    rmc_pub_set_subscriber_disconnect_callback(&_dstc_default_context.pub_ctx,
+    rmc_pub_set_subscriber_disconnect_callback(_dstc_default_context.pub_ctx,
                                                dstc_subscriber_disconnect_cb);
 
     // Setup a subscriber callback, allowing us to know when a subscribe that can
     // execute the function has attached.
-    rmc_pub_set_control_message_callback(&_dstc_default_context.pub_ctx, dstc_subscriber_control_message_cb);
+    rmc_pub_set_control_message_callback(_dstc_default_context.pub_ctx, dstc_subscriber_control_message_cb);
 
-    rmc_pub_throttling(&_dstc_default_context.pub_ctx,
+    rmc_pub_throttling(_dstc_default_context.pub_ctx,
                        SUSPEND_TRAFFIC_THRESHOLD,
                        RESTART_TRAFFIC_THRESHOLD);
 
     // Subscriber init.
 
-    memset(sub_conn_vec_mem, 0, sizeof(sub_conn_vec_mem));
-
     rmc_sub_init_context(&_dstc_default_context.sub_ctx,
                          // Reuse pub node id to detect and avoid loopback messages
-                         rmc_pub_node_id(&_dstc_default_context.pub_ctx),
+                         rmc_pub_node_id(_dstc_default_context.pub_ctx),
                          MCAST_GROUP_ADDRESS,
                          MCAST_GROUP_PORT,
                          "0.0.0.0", // Any interface for multicast address
                          user_data,
                          poll_add_sub, poll_modify_sub, poll_remove,
-                         sub_conn_vec_mem, MAX_CONNECTIONS,
+                         MAX_CONNECTIONS,
                          0,0);
 
-    rmc_sub_set_packet_ready_callback(&_dstc_default_context.sub_ctx, dstc_process_incoming);
-    rmc_sub_set_subscription_complete_callback(&_dstc_default_context.sub_ctx, dstc_subscription_complete);
+    rmc_sub_set_packet_ready_callback(_dstc_default_context.sub_ctx, dstc_process_incoming);
+    rmc_sub_set_subscription_complete_callback(_dstc_default_context.sub_ctx, dstc_subscription_complete);
 
-    rmc_pub_activate_context(&_dstc_default_context.pub_ctx);
-    rmc_sub_activate_context(&_dstc_default_context.sub_ctx);
+    rmc_pub_activate_context(_dstc_default_context.pub_ctx);
+    rmc_sub_activate_context(_dstc_default_context.sub_ctx);
 
     // Start ticking announcements as a client that the server will connect back to.
     // Only do announce if we have client services that requires servers to connect
@@ -865,7 +862,7 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
     if (_dstc_client_func_ind || _dstc_client_callback_count) {
         RMC_LOG_INFO("There are %d DSTC_CLIENT() and %d DSTC_CALLBACK() functions declared. Will send out announce.",
                      _dstc_client_func_ind, _dstc_client_callback_count);
-        rmc_pub_set_announce_interval(&_dstc_default_context.pub_ctx, 200000); // Start ticking announces.
+        rmc_pub_set_announce_interval(_dstc_default_context.pub_ctx, 200000); // Start ticking announces.
     }
     else
         RMC_LOG_INFO("No DSTC_CLIENT() or DSTC_CALLBACK() functions declared. Will not send out announce.");
@@ -880,13 +877,13 @@ rmc_node_id_t dstc_get_node_id(void)
     if (!_dstc_initialized)
         return 0;
 
-    return rmc_pub_node_id(&_dstc_default_context.pub_ctx);
+    return rmc_pub_node_id(_dstc_default_context.pub_ctx);
 }
 
 int dstc_setup_epoll(int epoll_fd_arg)
 {
-    return dstc_setup_internal(&_dstc_default_context.pub_ctx,
-                               &_dstc_default_context.sub_ctx,
+    return dstc_setup_internal(_dstc_default_context.pub_ctx,
+                               _dstc_default_context.sub_ctx,
                                epoll_fd_arg,
                                // user_data to be provided to poll_add, poll_modify, and poll_remove
                                user_data_nil());

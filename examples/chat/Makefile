@@ -16,9 +16,9 @@ SOURCE=$(OBJ:%.o=%.c)
 NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
-LIBPATH=-L../.. -L../../reliable_multicast
-INCPATH=-I../.. -I../../reliable_multicast
-LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
+LIBPATH=-L../..
+INCPATH=-I../..
+LIBDEPS=../../libdstc.a
 
 # The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
 # issues. Please note that no code will be executed that translates an integer
