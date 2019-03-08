@@ -15,28 +15,25 @@ SUBDIRS =                 \
 all: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-		$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir $(MAKECMDGOALS); \
+		$(MAKE) -C $$dir $(MAKECMDGOALS); \
 	done
-
-cpp:
-	(cd cpp; cmake .; make)
 
 clean: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C $$dir clean; \
+	    $(MAKE) -C $$dir clean; \
 	done
 
 
 install: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C $$dir install; \
-	done
+	    $(MAKE) DESTDIR=${DESTDIR} -C $$dir install; \
+	done \
 
 
 uninstall: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-	    $(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C $$dir uninstall; \
+	    $(MAKE) DESTDIR=${DESTDIR} -C $$dir uninstall; \
 	done

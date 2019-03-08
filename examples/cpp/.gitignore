@@ -1,7 +1,3 @@
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
 c_client
 cpp_client
 cpp_server
-Makefile
