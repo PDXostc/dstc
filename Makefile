@@ -14,9 +14,12 @@ RMC_DIR=reliable_multicast-${RMC_VERSION}
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
-INCLUDES=-I. -I${CURDIR}/${RMC_DIR} -I/usr/local/include 
-CFLAGS=-fPIC -g $(INCLUDES) -Wall
+INCLUDES=-I${CURDIR}/${RMC_DIR} -I/usr/local/include
+CFLAGS=-fPIC -g $(INCLUDES) -Wall -m32
 DESTDIR ?= /usr/local
+export CFLAGS
+export DESTDIR
+
 #
 #	Build the entire project.
 #
@@ -39,7 +42,7 @@ $(LIB_TARGET): $(OBJ)
 #	Rebuild the shared object target library.
 #
 $(LIB_SO_TARGET):  $(OBJ)
-	$(CC) -shared $(OBJ) -o $(LIB_SO_TARGET)
+	$(CC) -shared $(CFLAGS) $(OBJ) -o $(LIB_SO_TARGET)
 
 #
 #	Remove all the generated files in this project.  Note that this does NOT

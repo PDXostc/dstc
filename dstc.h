@@ -16,6 +16,12 @@
 // FIXME: Hash table for both local and remote func
 #define SYMTAB_SIZE 128
 
+#if UINTPTR_MAX == 0xffffffff
+typedef uint32_t dstc_callback_int_t;
+#elif UINTPTR_MAX == 0xffffffffffffffff
+typedef uint64_t dstc_callback_int_t;
+#endif
+
 // A local DSTC_SERVER-registered name / func ptr combination
 //
 typedef struct  {
@@ -133,7 +139,7 @@ typedef dstc_dynamic_data_t DSTC;
 #define DSTC_CALLBACK_TAG 0x4B434243
 
 typedef struct {
-    uint64_t func_addr;        // Used to create transient callback map to function pointer.
+    dstc_callback_int_t func_addr;        // Used to create transient callback map to function pointer.
 } dstc_callback_t;
 
 // Setup a simple macro so that we don't need an extra comma
@@ -152,7 +158,7 @@ typedef dstc_callback_t CBCK;
         return;                                                         \
     }                                                                   \
     CBCK callback = {                                                   \
-        .func_addr = (uint64_t) dstc_callback_##_func_ptr               \
+        .func_addr = (dstc_callback_int_t) dstc_callback_##_func_ptr               \
     };                                                                  \
     extern void dstc_register_callback_server(void (*)(rmc_node_id_t node_id, uint8_t*)); \
     dstc_register_callback_server(dstc_callback_##_func_ptr);           \
@@ -248,7 +254,7 @@ typedef dstc_callback_t CBCK;
         break;                                                          \
                                                                         \
     case DSTC_CALLBACK_TAG:                                             \
-        ((dstc_callback_t*) &_a##arg_id)->func_addr = *(uint64_t*) data; \
+        ((dstc_callback_t*) &_a##arg_id)->func_addr = *(dstc_callback_int_t*) data; \
         data += sizeof(uint64_t);                                       \
         break;                                                          \
                                                                         \
@@ -305,7 +311,7 @@ typedef dstc_callback_t CBCK;
         extern int dstc_queue_callback(uint64_t addr, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        return dstc_queue_callback(name.func_addr, arg_buf, arg_sz);    \
+        return dstc_queue_callback((uint64_t) name.func_addr, arg_buf, arg_sz); \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \

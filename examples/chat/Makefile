@@ -16,15 +16,7 @@ SOURCE=$(OBJ:%.o=%.c)
 NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
-LIBPATH=-L../..
-INCPATH=-I../..
-LIBDEPS=../../libdstc.a
-
-# The -Wno-int-to-pointer-cast is needed to avoid some pointer conversion.
-# issues. Please note that no code will be executed that translates an integer
-# to a pointer.
-#
-CFLAGS= -g ${INCPATH} -Wno-int-to-pointer-cast
+CFLAGS+= -I../..
 
 .PHONY: all clean install uninstall nomacro
 
@@ -37,8 +29,8 @@ nomacro:  $(TARGET_NOMACRO)
 #
 # The client is built as a regular binary
 #
-$(TARGET): $(OBJ) ${LIBDEPS}
-	$(CC)  $(CFLAGS) ${LIBPATH} $^ -ldstc -lrmc -o $@
+$(TARGET): $(OBJ)
+	$(CC)  $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@
 
 #
 # Recompile everything if dstc.h changes
@@ -61,8 +53,8 @@ uninstall:
 #
 # The client is built as a regular binary
 #
-$(TARGET_NOMACRO): $(NOMACRO_OBJ)  $(LIBDEPS)
-	$(CC) $(CFLAGS) ${LIBPATH} -ldstc -lrmc $^ -o $@
+$(TARGET_NOMACRO): $(NOMACRO_OBJ)
+	$(CC) $(CFLAGS) -L../.. -ldstc -lrmc $^ -o $@
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h
