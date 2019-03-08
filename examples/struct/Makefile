@@ -28,25 +28,19 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
-
-LIBPATH=-L../..
-INCPATH=-I../..
-LIBDEPS=../../libdstc.a
-
-CFLAGS= -g ${INCPATH} -Wall
+CFLAGS+= -I../..
 
 .PHONY: all clean install nomacro uninstall
 
 all: $(TARGET_SERVER) $(TARGET_CLIENT)
 
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
-$
-(TARGET_SERVER): $(SERVER_OBJ) $(LIBDEPS)
-	$(CC) $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@
+$(TARGET_SERVER): $(SERVER_OBJ)
+	$(CC) $(CFLAGS) $(LIBPATH) $^ -L../.. -ldstc -lrmc -o $@
 
 
-$(TARGET_CLIENT): $(CLIENT_OBJ) $(LIBDEPS)
-	$(CC) $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@
+$(TARGET_CLIENT): $(CLIENT_OBJ)
+	$(CC) $(CFLAGS) $(LIBPATH) $^ -L../.. -ldstc -lrmc -o $@
 
 
 # Recompile everything if dstc.h changes
@@ -71,10 +65,10 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@
+	$(CC) $(CFLAGS) $(LIBPATH) $^ -L../.. -ldstc -lrmc -o $@
 
 $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $(LIBPATH) $^ -ldstc -lrmc -o $@
+	$(CC) $(CFLAGS) $(LIBPATH) $^ -L../.. -ldstc -lrmc -o $@
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h

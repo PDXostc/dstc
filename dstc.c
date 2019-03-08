@@ -50,6 +50,7 @@ static uint32_t _dstc_server_func_ind;
 #define FROM_EPOLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
 #define IS_PUB(_user_data) (((_user_data) & USER_DATA_PUB_FLAG)?1:0)
 
+
 typedef struct {
     rmc_node_id_t node_id;
     uint8_t name_len;
@@ -219,11 +220,11 @@ void dstc_register_client_function(char* name, void *client_func)
 // Retrieve a callback function. Each time it is invoked, it will be deleted.
 // dstc_register_server_function()
 //
-static void (*dstc_find_callback(uint64_t func_addr))(rmc_node_id_t node_id, uint8_t*)
+static void (*dstc_find_callback(dstc_callback_int_t func_addr))(rmc_node_id_t node_id, uint8_t*)
 {
     int i = 0;
     while(i < _dstc_default_context.callback_ind) {
-        if ((uint64_t) _dstc_default_context.local_callback[i] == func_addr) {
+        if ((dstc_callback_int_t) _dstc_default_context.local_callback[i] == func_addr) {
             dstc_internal_callback_t res = _dstc_default_context.local_callback[i];
             // Nill out the callback since it is a one-time shot thing.
             _dstc_default_context.local_callback[i] = 0;
@@ -256,7 +257,7 @@ void dstc_register_callback_server(void (*callback)(rmc_node_id_t node_id, uint8
         exit(255);
     }
     _dstc_default_context.local_callback[_dstc_default_context.callback_ind] = callback;;
-    RMC_LOG_COMMENT("Registered server callback [%lX]", (uint64_t) callback);
+    RMC_LOG_COMMENT("Registered server callback [%lX]", (dstc_callback_int_t) callback);
     _dstc_default_context.callback_ind++;
 }
 
@@ -275,7 +276,7 @@ void dstc_register_callback_client(char* name, void* callback)
 void dstc_cancel_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
 {
     // Will delete the callback.
-    dstc_find_callback((uint64_t) callback);
+    dstc_find_callback((dstc_callback_int_t) callback);
 }
 
 uint8_t dstc_remote_function_available(void* client_func)
@@ -688,7 +689,7 @@ static uint32_t dstc_process_function_call(uint8_t* data, uint32_t data_len)
     if (call->name_len)
         local_func_ptr = dstc_find_server_function((char*) call->payload, call->name_len);
     else
-        local_func_ptr = dstc_find_callback(*(uint64_t*)call->payload);
+        local_func_ptr = dstc_find_callback((dstc_callback_int_t) *(uint64_t*)call->payload);
 
 
     if (!local_func_ptr) {
