@@ -16,12 +16,12 @@ LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I. -I${CURDIR}/${RMC_DIR} -I/usr/local/include
 CFLAGS=-fPIC -g $(INCLUDES) -Wall
-
+DESTDIR ?= /usr/local
 #
 #	Build the entire project.
 #
 all: $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
-	$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples
+	$(MAKE) -C examples
 
 #
 #	Make sure all of the object files are current.
@@ -47,31 +47,31 @@ $(LIB_SO_TARGET):  $(OBJ)
 #	clean up the submodules.
 #
 clean:
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples clean; \
+	@$(MAKE) -C examples clean; \
 	rm -f $(OBJ) *~ $(LIB_TARGET) $(LIB_SO_TARGET)
 
 #
 #	Remove all of the generated files including any in the submodules.
 #
 distclean: clean
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C ${RMC_DIR} clean
+	@$(MAKE) -C ${RMC_DIR} clean
 
 #
 #	Install the generated files.
 #
-install: # all
+install:  all
 	install -d ${DESTDIR}/lib; \
 	install -d ${DESTDIR}/include; \
 	install -m 0644 ${LIB_TARGET}  ${DESTDIR}/lib; \
 	install -m 0644 ${HDR}  ${DESTDIR}/include; \
 	install -m 0644 ${LIB_SO_TARGET}  ${DESTDIR}/lib; \
-	$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C examples install
+	$(MAKE) DESTDIR=${DESTDIR} -C examples install
 
 #
 #	Uninstall the generated files.
 #
-uninstall: # all
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C examples uninstall; \
+uninstall:  all
+	@$(MAKE) DESTDIR=${DESTDIR} -C examples uninstall; \
 	rm -f ${DESTDIR}/lib/${LIB_TARGET}; \
 	rm -f ${DESTDIR}/include/${HDR}; \
 	rm -f ${DESTDIR}/lib/${LIB_SO_TARGET};

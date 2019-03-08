@@ -65,8 +65,8 @@ install:
 
 
 uninstall:
-	rm ${DESTDIR}/bin/${TARGET_CLIENT}
-	rm ${DESTDIR}/bin/${TARGET_SERVER}
+	rm -f ${DESTDIR}/bin/${TARGET_CLIENT}
+	rm -f ${DESTDIR}/bin/${TARGET_SERVER}
 
 #
 # The client is built as a regular binary

@@ -85,9 +85,10 @@ and install RMC from:
 
 Update `Makefile` in this DSTC directory to point to the include and library directories of the installed RMC code.
 
-Build DSTC and its examples using
+Build and DSTC and its examples using
 
     make
+    make DESTDIR=/usr/local install
 
 # SIMPLE CLIENT SERVER EXAMPLE
 The client program invokes a C function on the server that prints the
