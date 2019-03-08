@@ -29,9 +29,9 @@ SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
 
-LIBPATH=-L../.. -L../../reliable_multicast
-INCPATH=-I../.. -I../../reliable_multicast
-LIBDEPS=../../libdstc.a ../../reliable_multicast/librmc.a
+LIBPATH=-L../..
+INCPATH=-I../..
+LIBDEPS=../../libdstc.a
 
 CFLAGS= -g ${INCPATH} -Wall
 

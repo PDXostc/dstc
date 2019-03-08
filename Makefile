@@ -2,7 +2,7 @@
 # Doodling
 #
 
-.PHONY: all clean distclean install uninstall build_rmc
+.PHONY: all clean distclean install uninstall
 
 SRC=dstc.c
 HDR=dstc.h
@@ -14,14 +14,14 @@ RMC_DIR=reliable_multicast-${RMC_VERSION}
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
-INCLUDES=-I. -I${CURDIR}/${RMC_DIR}
+INCLUDES=-I. -I${CURDIR}/${RMC_DIR} -I/usr/local/include
 CFLAGS=-fPIC -g $(INCLUDES) -Wall
 
 #
 #	Build the entire project.
 #
-all: build_rmc $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples
+all: $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
+	$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C examples
 
 #
 #	Make sure all of the object files are current.
@@ -59,32 +59,19 @@ distclean: clean
 #
 #	Install the generated files.
 #
-install: all
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C ${RMC_DIR} install; \
+install: # all
 	install -d ${DESTDIR}/lib; \
+	install -d ${DESTDIR}/include; \
 	install -m 0644 ${LIB_TARGET}  ${DESTDIR}/lib; \
+	install -m 0644 ${HDR}  ${DESTDIR}/include; \
 	install -m 0644 ${LIB_SO_TARGET}  ${DESTDIR}/lib; \
 	$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C examples install
 
 #
 #	Uninstall the generated files.
 #
-uninstall: all
+uninstall: # all
 	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C examples uninstall; \
 	rm -f ${DESTDIR}/lib/${LIB_TARGET}; \
-	rm -f ${DESTDIR}/lib/${LIB_SO_TARGET}; \
-	$(MAKE) MAKEFLAGS=$(MAKEFLAGS) DESTDIR=${DESTDIR} -C ${RMC_DIR} uninstall
-
-#
-# Make sure the reliable_multicast is the latest copy of the submodule.
-#
-${RMC_DIR}/README.md:
-	curl -L https://github.com/PDXostc/reliable_multicast/archive/v${RMC_VERSION}.tar.gz | tar xfz -
-	rm -f ./reliable_multicast
-	ln -s ${RMC_DIR} ./reliable_multicast
-
-#
-# Check out the correct RMC release.
-#
-depend: ${RMC_DIR}/README.md
-	@$(MAKE) MAKEFLAGS=$(MAKEFLAGS) -C reliable_multicast-${RMC_VERSION}
+	rm -f ${DESTDIR}/include/${HDR}; \
+	rm -f ${DESTDIR}/lib/${LIB_SO_TARGET};
