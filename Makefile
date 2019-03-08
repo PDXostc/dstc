@@ -15,7 +15,7 @@ LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I${CURDIR}/${RMC_DIR} -I/usr/local/include
-CFLAGS=-fPIC -g $(INCLUDES) -Wall -m32
+CFLAGS=-fPIC -g $(INCLUDES) -Wall
 DESTDIR ?= /usr/local
 export CFLAGS
 export DESTDIR
