@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
     int age = 0;
     char print_flag = 0;
     char *tmp = 0;
-    char opt = 0;
+    int opt = 0;
 
     while ((opt = getopt(argc, argv, "a:p")) != -1) {
         switch (opt) {
