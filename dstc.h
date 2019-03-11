@@ -81,8 +81,24 @@ dstc_header {
 // the event was supplied by the calling code outside DSTC.
 //
 #define DSTC_EVENT_FLAG      0x80000000
-#define MCAST_GROUP_ADDRESS "239.40.41.42" // Completely made up
-#define MCAST_GROUP_PORT 4723 // Completely made up
+#define DEFAULT_MCAST_GROUP_ADDRESS "239.40.41.42" // Completely made up
+#define DEFAULT_MCAST_GROUP_PORT 4723 // Completely made up
+
+// Environment variables that affect DSTC setup
+#define DSTC_ENV_NODE_ID "DSTC_NODE_ID"
+#define DSTC_ENV_MAX_NODES "DSTC_MAX_NODES"
+#define DSTC_ENV_MCAST_GROUP_ADDR "DSTC_MCAST_GROUP_ADDR"
+#define DSTC_ENV_MCAST_GROUP_PORT "DSTC_MCAST_GROUP_PORT"
+#define DSTC_ENV_MCAST_IFACE_ADDR "DSTC_MCAST_IFACE_ADDR"
+#define DSTC_ENV_CONTROL_LISTEN_IFACE "DSTC_CONTROL_LISTEN_IFACE"
+#define DSTC_ENV_CONTROL_LISTEN_PORT "DSTC_CONTROL_LISTEN_PORT"
+#define DSTC_ENV_LOG_LEVEL "DSTC_LOG_LEVEL"
+
+//
+// Default max number of remote DSTC nodes we will be communicating with.
+// Can be overridden by dstc_setup2.
+//
+#define DEFAULT_MAX_DSTC_NODES 32
 #define USER_DATA_INDEX_MASK 0x00007FFF
 #define USER_DATA_PUB_FLAG   0x00008000
 
@@ -99,6 +115,58 @@ extern int dstc_process_single_event(int timeout);
 extern void dstc_process_epoll_result(struct epoll_event* event);
 extern rmc_node_id_t dstc_get_node_id(void);
 extern uint8_t dstc_remote_function_available(void* func_ptr);
+
+// Please note that the same arguments can be set via
+// environment variables. See DSTC_ENV_xxx above.
+extern int dstc_setup2(
+    // Epoll control file descriptor to use in cases where
+    // the caller wants to run their own epoll event management.
+    // See examples/chat.c for example.
+    // Set to -1 to use DSTC-internal epoll management.
+    int epoll_fd_arg,
+
+    // Specific RMC node ID to use. Set to 0 in order to
+    // get a randomly assigned ID./
+    rmc_node_id_t node_id,
+
+    // Maximum number of DSTC nodes, passed on to pub and
+    // sub context to provision for total number of connected
+    // subscribers and publishers. Each connection takes up 128K of RAM
+    // See rmc_internal.h:rmc_connection_t definition FIXME for details.
+    int max_dstc_nodes,
+
+    // Multicast group to join. Default, if 0-len string, is
+    // MCAST_GROUP_ADDRESS defined below.
+    char *multicast_group_addr,
+
+    // Multicast port to use. Default, if 0, is
+    // MCAST_GROUP_PORT defined in dstc.h
+    int multicast_port,
+    // IP address to listen to for incoming subscription
+    // connection from subscribers receiving multicast packets
+    // Default if 0 ptr: "0.0.0.0" (IFADDR_ANY)
+    char* multicast_iface_addr,
+
+    // IP address to listen to for incoming subscription
+    // connection from subscribers receiving multicast packets
+    // Default if 0 ptr: "0.0.0.0" (IFADDR_ANY)
+    char* control_listen_iface_addr,
+
+    // TCP port to accept incoming calls on.
+    // Set to 0 to have the OS assign an ephereal port.
+    int control_listen_port,
+
+    // Log level to use.
+    // 0 -> RMC_LOG_LEVEL_NONE 0
+    // 1 -> RMC_LOG_LEVEL_FATAL 1
+    // 2 -> RMC_LOG_LEVEL_ERROR 2
+    // 3 -> RMC_LOG_LEVEL_WARNING 3
+    // 4 -> RMC_LOG_LEVEL_INFO 4
+    // 5 -> RMC_LOG_LEVEL_COMMENT 5
+    // 6 -> RMC_LOG_LEVEL_DEBUG 6
+    int log_level
+    );
+
 
 // FIXME: ADD DOCUMENTATION
 typedef struct {

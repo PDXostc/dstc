@@ -193,7 +193,6 @@ void dstc_register_server_function(char* name, void (*server_func)(rmc_node_id_t
         exit(255);
     }
 
-//    printf("Registering local server function [%s] -> %p\n",  name, server_func);
     strcpy(_dstc_server_func[ind].func_name, name);
     _dstc_server_func[ind].server_func = server_func;
     _dstc_server_func_ind++;
@@ -202,8 +201,6 @@ void dstc_register_server_function(char* name, void (*server_func)(rmc_node_id_t
 void dstc_register_client_function(char* name, void *client_func)
 {
     int ind = 0;
-
-//    printf("Registering local client function [%s] -> %p\n",  name, client_func);
 
     ind = _dstc_client_func_ind;
     if (ind == SYMTAB_SIZE - 1) {
@@ -525,7 +522,7 @@ int dstc_process_single_event(int timeout)
     nfds = epoll_wait(_dstc_default_context.epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
 
     if (nfds == -1) {
-        RMC_LOG_FATAL("epoll_wait(): %s", strerror(errno));
+        RMC_LOG_FATAL("epoll_wait(%d): %s", _dstc_default_context.epoll_fd, strerror(errno));
         exit(255);
     }
 
@@ -554,6 +551,7 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
 
     if (!_dstc_initialized)
         dstc_setup();
+
 
     // Is this a one-pass thing where we just want to process all pending
     // epoll events and timeout and then return?
@@ -794,32 +792,35 @@ static void free_published_packets(void* pl, payload_len_t len, user_data_t dt)
 }
 
 
-static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
-                               rmc_sub_context_t* sub_ctx,
+static int dstc_setup_internal(dstc_context_t* ctx,
+                               rmc_node_id_t node_id,
+                               int max_dstc_nodes,
+                               char* multicast_group_addr,
+                               int multicast_port,
+                               char* multicast_iface_addr,
+                               char* control_listen_iface_addr,
+                               int control_listen_port,
                                int epoll_fd_arg,
                                user_data_t user_data)
 {
+    if (!ctx || epoll_fd_arg == -1)
+        return EINVAL;
 
+    ctx->epoll_fd = epoll_fd_arg;
+    ctx->remote_node_ind = 0;
+    ctx->callback_ind = 0;
+    ctx->pub_buffer_ind = 0;
+    ctx->pub_ctx = 0;
+    ctx->sub_ctx = 0;
 
-    // Already intialized?
-    if (_dstc_initialized)
-        return EBUSY;
-
-    _dstc_default_context.epoll_fd = epoll_fd_arg;
-    _dstc_default_context.remote_node_ind = 0;
-    _dstc_default_context.callback_ind = 0;
-    _dstc_default_context.pub_buffer_ind = 0;
-    _dstc_default_context.pub_ctx = 0;
-    _dstc_default_context.sub_ctx = 0;
 
     rmc_log_set_start_time();
-
-    rmc_pub_init_context(&_dstc_default_context.pub_ctx,
-                         0, // Random node_id
-                         MCAST_GROUP_ADDRESS, MCAST_GROUP_PORT,
-                         "0.0.0.0", // Use any NIC address for multicast transmit.
-                         "0.0.0.0", // Use any NIC address for listen control port.
-                         0, // Use ephereal tcp port for tcp control
+    rmc_pub_init_context(&ctx->pub_ctx,
+                         node_id, // Node ID
+                         multicast_group_addr, multicast_port,
+                         multicast_iface_addr,  // Use any NIC address for multicast transmit.
+                         control_listen_iface_addr, // Use any NIC address for listen control port.
+                         control_listen_port, // Use ephereal tcp port for tcp control
                          user_data,
                          poll_add_pub, poll_modify_pub, poll_remove,
                          MAX_CONNECTIONS,
@@ -827,35 +828,40 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
 
     // Setup a callback for subscriber disconnect, meaning that remote nodes
     // with functions that we can call can no longer be used.
-    rmc_pub_set_subscriber_disconnect_callback(_dstc_default_context.pub_ctx,
+    rmc_pub_set_subscriber_disconnect_callback(ctx->pub_ctx,
                                                dstc_subscriber_disconnect_cb);
 
     // Setup a subscriber callback, allowing us to know when a subscribe that can
     // execute the function has attached.
-    rmc_pub_set_control_message_callback(_dstc_default_context.pub_ctx, dstc_subscriber_control_message_cb);
+    rmc_pub_set_control_message_callback(ctx->pub_ctx, dstc_subscriber_control_message_cb);
 
-    rmc_pub_throttling(_dstc_default_context.pub_ctx,
+    rmc_pub_throttling(ctx->pub_ctx,
                        SUSPEND_TRAFFIC_THRESHOLD,
                        RESTART_TRAFFIC_THRESHOLD);
 
     // Subscriber init.
-
-    rmc_sub_init_context(&_dstc_default_context.sub_ctx,
+    rmc_sub_init_context(&ctx->sub_ctx,
                          // Reuse pub node id to detect and avoid loopback messages
-                         rmc_pub_node_id(_dstc_default_context.pub_ctx),
-                         MCAST_GROUP_ADDRESS,
-                         MCAST_GROUP_PORT,
-                         "0.0.0.0", // Any interface for multicast address
+                         rmc_pub_node_id(ctx->pub_ctx),
+                         multicast_group_addr, multicast_port,
+                         multicast_iface_addr,  // Use any NIC address for multicast transmit.
                          user_data,
                          poll_add_sub, poll_modify_sub, poll_remove,
                          MAX_CONNECTIONS,
                          0,0);
 
-    rmc_sub_set_packet_ready_callback(_dstc_default_context.sub_ctx, dstc_process_incoming);
-    rmc_sub_set_subscription_complete_callback(_dstc_default_context.sub_ctx, dstc_subscription_complete);
+    rmc_sub_set_packet_ready_callback(ctx->sub_ctx, dstc_process_incoming);
+    rmc_sub_set_subscription_complete_callback(ctx->sub_ctx, dstc_subscription_complete);
 
-    rmc_pub_activate_context(_dstc_default_context.pub_ctx);
-    rmc_sub_activate_context(_dstc_default_context.sub_ctx);
+    rmc_pub_activate_context(ctx->pub_ctx);
+    rmc_sub_activate_context(ctx->sub_ctx);
+
+    RMC_LOG_COMMENT("sub[%d] pub[%d] node[%d] pub[%p] sub[%p]",
+                    rmc_sub_get_socket_count(_dstc_default_context.sub_ctx),
+                    rmc_pub_get_socket_count(_dstc_default_context.pub_ctx),
+                    max_dstc_nodes,
+                    _dstc_default_context.sub_ctx,
+                    _dstc_default_context.pub_ctx);
 
     // Start ticking announcements as a client that the server will connect back to.
     // Only do announce if we have client services that requires servers to connect
@@ -863,13 +869,12 @@ static int dstc_setup_internal(rmc_pub_context_t* pub_ctx,
     if (_dstc_client_func_ind || _dstc_client_callback_count) {
         RMC_LOG_INFO("There are %d DSTC_CLIENT() and %d DSTC_CALLBACK() functions declared. Will send out announce.",
                      _dstc_client_func_ind, _dstc_client_callback_count);
-        rmc_pub_set_announce_interval(_dstc_default_context.pub_ctx, 200000); // Start ticking announces.
+        rmc_pub_set_announce_interval(ctx->pub_ctx, 200000); // Start ticking announces.
     }
     else
         RMC_LOG_INFO("No DSTC_CLIENT() or DSTC_CALLBACK() functions declared. Will not send out announce.");
 
 
-    _dstc_initialized = 1;
     return 0;
 }
 
@@ -883,8 +888,38 @@ rmc_node_id_t dstc_get_node_id(void)
 
 int dstc_setup_epoll(int epoll_fd_arg)
 {
-    return dstc_setup_internal(_dstc_default_context.pub_ctx,
-                               _dstc_default_context.sub_ctx,
+    char* node_id = getenv(DSTC_ENV_NODE_ID);
+    char* max_dstc_nodes = getenv(DSTC_ENV_MAX_NODES);
+    char *multicast_group_addr = getenv(DSTC_ENV_MCAST_GROUP_ADDR);
+    char *multicast_iface_addr = getenv(DSTC_ENV_MCAST_IFACE_ADDR);
+    char *multicast_port = getenv(DSTC_ENV_MCAST_GROUP_PORT);
+    char *control_listen_iface_addr = getenv(DSTC_ENV_CONTROL_LISTEN_IFACE);
+    char *control_listen_port = getenv(DSTC_ENV_CONTROL_LISTEN_PORT);
+    char *log_level = getenv(DSTC_ENV_LOG_LEVEL);
+
+    if (_dstc_initialized)
+        return EBUSY;
+
+    _dstc_initialized = 1;
+
+    rmc_set_log_level(log_level?atoi(log_level):RMC_LOG_LEVEL_ERROR);
+
+    RMC_LOG_COMMENT("%s: %s", DSTC_ENV_NODE_ID, node_id?node_id:"[not set]");
+    RMC_LOG_COMMENT("%s: %s", DSTC_ENV_MAX_NODES, max_dstc_nodes?max_dstc_nodes:"[not set]");
+    RMC_LOG_COMMENT("%s: %s", DSTC_ENV_MCAST_GROUP_ADDR, multicast_group_addr?multicast_group_addr:"[not set]");
+    RMC_LOG_COMMENT("%s: %s", DSTC_ENV_MCAST_IFACE_ADDR, multicast_iface_addr?multicast_iface_addr:"[not set]");
+    RMC_LOG_COMMENT("%s: %s", DSTC_ENV_MCAST_GROUP_PORT, multicast_port?multicast_port:"[not set]");
+    RMC_LOG_COMMENT("%s: %s", DSTC_ENV_CONTROL_LISTEN_IFACE, control_listen_iface_addr?control_listen_iface_addr:"[not set]");
+    RMC_LOG_COMMENT("%s: %s", DSTC_ENV_CONTROL_LISTEN_PORT, control_listen_port?control_listen_port:"[not set]");
+
+    return dstc_setup_internal(&_dstc_default_context,
+                               (node_id?((rmc_node_id_t) strtoul(node_id, 0, 0)):0),
+                               (max_dstc_nodes?atoi(max_dstc_nodes):DEFAULT_MAX_DSTC_NODES),
+                               multicast_group_addr?multicast_group_addr:DEFAULT_MCAST_GROUP_ADDRESS,
+                               (multicast_port?atoi(multicast_port):DEFAULT_MCAST_GROUP_PORT),
+                               multicast_iface_addr,
+                               control_listen_iface_addr,
+                               (control_listen_port?atoi(control_listen_port):0),
                                epoll_fd_arg,
                                // user_data to be provided to poll_add, poll_modify, and poll_remove
                                user_data_nil());
@@ -896,11 +931,37 @@ int dstc_setup(void)
     if (_dstc_initialized)
         return EBUSY;
 
-    _dstc_default_context.epoll_fd = epoll_create(1);
-
-    return dstc_setup_epoll(_dstc_default_context.epoll_fd);
+    return dstc_setup_epoll(epoll_create(1));
 }
 
+int dstc_setup2(int epoll_fd_arg,
+                rmc_node_id_t node_id,
+                int max_dstc_nodes,
+                char* multicast_group_addr,
+                int multicast_port,
+                char* multicast_iface_addr,
+                char* control_listen_iface_addr,
+                int control_listen_port,
+                int log_level)
+{
+    if (_dstc_initialized)
+        return EBUSY;
+
+    _dstc_initialized = 1;
+    rmc_set_log_level(log_level);
+
+    return dstc_setup_internal(&_dstc_default_context,
+                               node_id,
+                               max_dstc_nodes,
+                               multicast_group_addr,
+                               multicast_port,
+                               multicast_iface_addr,
+                               control_listen_iface_addr,
+                               control_listen_port,
+                               (epoll_fd_arg != -1)?epoll_fd_arg:epoll_create(1),
+                               // user_data to be provided to poll_add, poll_modify, and poll_remove
+                               user_data_nil());
+}
 
 
 

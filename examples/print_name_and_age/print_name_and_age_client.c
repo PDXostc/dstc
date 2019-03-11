@@ -1,6 +1,6 @@
 // Copyright (C) 2018, Jaguar Land Rover
 // This program is licensed under the terms and conditions of the
-// Mozilla Public License, version 2.0.  The full text of the 
+// Mozilla Public License, version 2.0.  The full text of the
 // Mozilla Public License is at https://www.mozilla.org/MPL/2.0/
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
@@ -21,7 +21,7 @@ DSTC_CLIENT(print_name_and_age, char, [32], int,)
 int main(int argc, char* argv[])
 {
     // Wait for function to become available on one or more servers.
-    while(!dstc_remote_function_available(dstc_print_name_and_age)) 
+    while(!dstc_remote_function_available(dstc_print_name_and_age))
         dstc_process_events(500000);
 
     dstc_print_name_and_age("Bob Smith", 25);
