@@ -798,6 +798,7 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                                char* multicast_group_addr,
                                int multicast_port,
                                char* multicast_iface_addr,
+                               int mcast_ttl,
                                char* control_listen_iface_addr,
                                int control_listen_port,
                                int epoll_fd_arg,
@@ -853,8 +854,10 @@ static int dstc_setup_internal(dstc_context_t* ctx,
     rmc_sub_set_packet_ready_callback(ctx->sub_ctx, dstc_process_incoming);
     rmc_sub_set_subscription_complete_callback(ctx->sub_ctx, dstc_subscription_complete);
 
+    rmc_pub_set_multicast_ttl(ctx->pub_ctx, mcast_ttl);
     rmc_pub_activate_context(ctx->pub_ctx);
     rmc_sub_activate_context(ctx->sub_ctx);
+
 
     RMC_LOG_COMMENT("sub[%d] pub[%d] node[%d] pub[%p] sub[%p]",
                     rmc_sub_get_socket_count(_dstc_default_context.sub_ctx),
@@ -895,6 +898,7 @@ int dstc_setup_epoll(int epoll_fd_arg)
     char *multicast_port = getenv(DSTC_ENV_MCAST_GROUP_PORT);
     char *control_listen_iface_addr = getenv(DSTC_ENV_CONTROL_LISTEN_IFACE);
     char *control_listen_port = getenv(DSTC_ENV_CONTROL_LISTEN_PORT);
+    char *mcast_ttl = getenv(DSTC_ENV_MCAST_TTL);
     char *log_level = getenv(DSTC_ENV_LOG_LEVEL);
 
     if (_dstc_initialized)
@@ -909,6 +913,7 @@ int dstc_setup_epoll(int epoll_fd_arg)
     RMC_LOG_COMMENT("%s: %s", DSTC_ENV_MCAST_GROUP_ADDR, multicast_group_addr?multicast_group_addr:"[not set]");
     RMC_LOG_COMMENT("%s: %s", DSTC_ENV_MCAST_IFACE_ADDR, multicast_iface_addr?multicast_iface_addr:"[not set]");
     RMC_LOG_COMMENT("%s: %s", DSTC_ENV_MCAST_GROUP_PORT, multicast_port?multicast_port:"[not set]");
+    RMC_LOG_COMMENT("%s: %s", DSTC_ENV_MCAST_TTL, mcast_ttl?mcast_ttl:"[not set]");
     RMC_LOG_COMMENT("%s: %s", DSTC_ENV_CONTROL_LISTEN_IFACE, control_listen_iface_addr?control_listen_iface_addr:"[not set]");
     RMC_LOG_COMMENT("%s: %s", DSTC_ENV_CONTROL_LISTEN_PORT, control_listen_port?control_listen_port:"[not set]");
 
@@ -918,6 +923,7 @@ int dstc_setup_epoll(int epoll_fd_arg)
                                multicast_group_addr?multicast_group_addr:DEFAULT_MCAST_GROUP_ADDRESS,
                                (multicast_port?atoi(multicast_port):DEFAULT_MCAST_GROUP_PORT),
                                multicast_iface_addr,
+                               (mcast_ttl?atoi(mcast_ttl):DEFAULT_MCAST_TTL),
                                control_listen_iface_addr,
                                (control_listen_port?atoi(control_listen_port):0),
                                epoll_fd_arg,
@@ -940,6 +946,7 @@ int dstc_setup2(int epoll_fd_arg,
                 char* multicast_group_addr,
                 int multicast_port,
                 char* multicast_iface_addr,
+                int mcast_ttl,
                 char* control_listen_iface_addr,
                 int control_listen_port,
                 int log_level)
@@ -956,6 +963,7 @@ int dstc_setup2(int epoll_fd_arg,
                                multicast_group_addr,
                                multicast_port,
                                multicast_iface_addr,
+                               mcast_ttl,
                                control_listen_iface_addr,
                                control_listen_port,
                                (epoll_fd_arg != -1)?epoll_fd_arg:epoll_create(1),
