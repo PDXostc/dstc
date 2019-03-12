@@ -90,6 +90,68 @@ Build and DSTC and its examples using
     make
     make DESTDIR=/usr/local install
 
+
+# ENVIRONMENT VARIABLES
+The following environment variables are recognized and used by DSTC:
+
+* **`DSTC_NODE_ID` [int]**<br>
+Sets the DSTC node ID. Each ID has to be unique across all DSTC
+instances running in a network.<br>
+Default is `0`, which will assign a random number as the node ID.
+
+* **`DSTC_MAX_NODES` [int]**<br>
+Maximum numbrer of DSTC nodes that we will see on the network. Each
+node will require 128KB of ram.  If more than the given number of
+nodes are active on a network, traffic will be lost.<br>
+Default is `32`.
+
+* **`DSTC_MCAST_GROUP_ADDR` [string]**<br>
+Specifies the UDP Multicast group address to use in AAA.BBB.CCC.DDD
+format.  All DSTC nodes that share the same multicast group and port
+will see each other on the network.  In heavy traffic scenarios DSTC
+services should be organized across multiple groups in order to
+minimize traffic to be processed by each node.<br>
+Default is `239.40.41.42`.
+
+* **`DSTC_MCAST_GROUP_PORT` [int]**<br>
+UDP Port to be used for multicast traffic in the given group
+address.<br>
+Default is `4723`.
+
+* **`DSTC_MCAST_IFACE_ADDR` [string]**<br>
+Specify the IP address of the network interface to exclusively use for
+multicast traffic.<br>
+Default is `0.0.0.0`, indiacting that all available interfaces are used.
+
+* **`DSTC_MCAST_TTL` [int]**<br>
+Specify the IP time to live for multicast packets, indicating how many
+router hops they should traverse before being dropped.<br>
+Default is `1`.
+
+* **`DSTC_CONTROL_LISTEN_IFACE` [string]**<br>
+Specify the IP address of the network interface to exclusively use for
+listening to incoming control channel traffic from other DSTC
+nodes.<br>
+Default is `0.0.0.0`, indicating that all available interfaces are to
+be listened on.
+
+* **`DSTC_CONTROL_LISTEN_PORT` [int]**<br>
+TCP Port to be used by the control channel listener.<br>
+Default is `0`, indicating that an ephereal TCP port is to be assigned
+by the operating system.
+
+* **`DSTC_LOG_LEVEL` [int]**<br>
+Specifies the log level on stdout. The following values are available:
+0 - No logging<br>
+1 - Fatal errors<br>
+2 - Errors<br>
+3 - Warnings<br>
+4 - Information<br>
+5 - Comments<br>
+6 - Debug<br>
+Default is `2` - Errors.
+
+
 # SIMPLE CLIENT SERVER EXAMPLE
 The client program invokes a C function on the server that prints the
 name and age provided as arguments by the client.
