@@ -83,6 +83,8 @@ dstc_header {
 #define DSTC_EVENT_FLAG      0x80000000
 #define DEFAULT_MCAST_GROUP_ADDRESS "239.40.41.42" // Completely made up
 #define DEFAULT_MCAST_GROUP_PORT 4723 // Completely made up
+#define DEFAULT_MCAST_TTL 1
+#define DEFAULT_MAX_DSTC_NODES 32
 
 // Environment variables that affect DSTC setup
 #define DSTC_ENV_NODE_ID "DSTC_NODE_ID"
@@ -90,6 +92,7 @@ dstc_header {
 #define DSTC_ENV_MCAST_GROUP_ADDR "DSTC_MCAST_GROUP_ADDR"
 #define DSTC_ENV_MCAST_GROUP_PORT "DSTC_MCAST_GROUP_PORT"
 #define DSTC_ENV_MCAST_IFACE_ADDR "DSTC_MCAST_IFACE_ADDR"
+#define DSTC_ENV_MCAST_TTL "DSTC_MCAST_TTL"
 #define DSTC_ENV_CONTROL_LISTEN_IFACE "DSTC_CONTROL_LISTEN_IFACE"
 #define DSTC_ENV_CONTROL_LISTEN_PORT "DSTC_CONTROL_LISTEN_PORT"
 #define DSTC_ENV_LOG_LEVEL "DSTC_LOG_LEVEL"
@@ -98,7 +101,6 @@ dstc_header {
 // Default max number of remote DSTC nodes we will be communicating with.
 // Can be overridden by dstc_setup2.
 //
-#define DEFAULT_MAX_DSTC_NODES 32
 #define USER_DATA_INDEX_MASK 0x00007FFF
 #define USER_DATA_PUB_FLAG   0x00008000
 
@@ -147,6 +149,10 @@ extern int dstc_setup2(
     // Default if 0 ptr: "0.0.0.0" (IFADDR_ANY)
     char* multicast_iface_addr,
 
+    // Number of TTL hops that a multicast packet should live for.
+    // 0 = within the host only.
+    int multicast_ttl,
+
     // IP address to listen to for incoming subscription
     // connection from subscribers receiving multicast packets
     // Default if 0 ptr: "0.0.0.0" (IFADDR_ANY)
@@ -155,6 +161,7 @@ extern int dstc_setup2(
     // TCP port to accept incoming calls on.
     // Set to 0 to have the OS assign an ephereal port.
     int control_listen_port,
+
 
     // Log level to use.
     // 0 -> RMC_LOG_LEVEL_NONE 0
