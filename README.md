@@ -81,7 +81,7 @@ for how this can easily be achieved in a mixed-architecture deployment.
 DSTC uses reliable_multicast (RMC)as its transport layer. Download, build
 and install RMC from:
 
-[Reliable Multicast v1.2](https://github.com/PDXostc/reliable_multicast/releases/tag/v1.2)
+[Reliable Multicast v1.3](https://github.com/PDXostc/reliable_multicast/releases/tag/v1.3)
 
 Update `Makefile` in this DSTC directory to point to the include and library directories of the installed RMC code.
 
