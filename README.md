@@ -141,14 +141,14 @@ Default is `0`, indicating that an ephereal TCP port is to be assigned
 by the operating system.
 
 * **`DSTC_LOG_LEVEL` [int]**<br>
-Specifies the log level on stdout. The following values are available:
-0 - No logging<br>
-1 - Fatal errors<br>
-2 - Errors<br>
-3 - Warnings<br>
-4 - Information<br>
-5 - Comments<br>
-6 - Debug<br>
+Specifies the log level on stdout. The following values are available:<br>
+`0` - No logging<br>
+`1` - Fatal errors<br>
+`2` - Errors<br>
+`3` - Warnings<br>
+`4` - Information<br>
+`5` - Comments<br>
+`6` - Debug<br>
 Default is `2` - Errors.
 
 

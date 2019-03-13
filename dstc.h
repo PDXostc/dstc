@@ -224,6 +224,11 @@ typedef struct {
 // Define an alias type that matches the magic cookie.
 typedef dstc_callback_t CBCK;
 
+// We are just doing too much pointer punting to be able to
+// fix all alias warnings.
+// For now, we'll just silence the warning.
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+
 #define CLIENT_CALLBACK_ARG(_func_ptr, ...) ({                          \
     void dstc_callback_##_func_ptr(rmc_node_id_t node_id, uint8_t* data) \
     {                                                                   \
@@ -419,5 +424,6 @@ typedef dstc_callback_t CBCK;
 #define DSTC_SERVER(name, ...)                          \
     extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));   \
     static DSTC_SERVER_INTERNAL(name, __VA_ARGS__)      \
+
 
 #endif // __DSTC_H__
