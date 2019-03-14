@@ -291,10 +291,24 @@ void dstc_cancel_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
     dstc_find_callback((dstc_callback_int_t) callback);
 }
 
+uint8_t dstc_remote_function_available_by_name(char* func_name)
+{
+    int ind = 0;
+
+    // Scan all remotely registered nodes and their functions
+    // to see if you can find one with a matching na,e
+    ind = _dstc_default_context.remote_node_ind;
+    while(ind--) {
+        if (!strcmp(func_name, _dstc_default_context.remote_node[ind].func_name))
+            return 1;
+    }
+    RMC_LOG_DEBUG("Could not find a remote node that had registered function %s", func_name);
+    return 0;
+}
+
 uint8_t dstc_remote_function_available(void* client_func)
 {
     int ind = 0;
-    char* name = 0;
 
     // Find the string name for the dstc_[func_name] function
     // pointer provided in client_func
@@ -309,18 +323,7 @@ uint8_t dstc_remote_function_available(void* client_func)
         return 0;
     }
 
-    // We have a string name
-    name = _dstc_client_func[ind].func_name;
-
-    // Scan all remotely registered nodes and their functions
-    // to see if you can find one with a matching na,e
-    ind = _dstc_default_context.remote_node_ind;
-    while(ind--) {
-        if (!strcmp(name, _dstc_default_context.remote_node[ind].func_name))
-            return 1;
-    }
-    RMC_LOG_DEBUG("Could not find a remote node that had registered function %s", name);
-    return 0;
+    return dstc_remote_function_available_by_name(_dstc_client_func[ind].func_name);
 }
 
 // Register a remote function as provided by the remote DSTC server

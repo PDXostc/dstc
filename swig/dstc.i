@@ -3,6 +3,7 @@
 #include <dstc.h>
 extern void dstc_register_client_python_function(char*);
 extern int dstc_queue_func(char* name, char* arg_buf, unsigned int arg_sz);
+extern unsigned char dstc_remote_function_available_by_name(char* func_name);
 typedef long int usec_timestamp_t;
 %}
 
@@ -19,3 +20,6 @@ extern int dstc_queue_func(char* name, char* IN, unsigned int arg_sz);
 
 %rename(register_client_function) dstc_register_client_python_function;
 extern void dstc_register_client_python_function(char* IN);
+
+%rename(remote_function_available) dstc_remote_function_available_by_name;
+extern unsigned char dstc_remote_function_available_by_name(char* func_name);
