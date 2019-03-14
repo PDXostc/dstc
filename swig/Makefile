@@ -2,8 +2,7 @@
 # Makefile to generate python interface code for DSTC
 #
 
-CFLAGS += -fpic -ggdb -I/usr/include/python3.6m
-
+CFLAGS += -ggdb
 
 dstc_swig.o: dstc_swig.c
 	python3 setup.py build_ext --inplace

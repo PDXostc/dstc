@@ -9,7 +9,6 @@ setup (name = 'dstc',
        author      = "SWIG Docs",
        description = """SWIG wrapper around dstc""",
        ext_modules = [
-           Extension('_dstc', sources=['dstc_wrap.c', ],)
-                        #swig_opts=['-L/usr/local/lib', '-ldstc', '-lrmc', ],)
+           Extension('_dstc', sources=['dstc_wrap.c', ],libraries=['dstc', 'rmc'])
        ],
        )
