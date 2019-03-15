@@ -26,7 +26,10 @@ typedef uint64_t dstc_callback_int_t;
 //
 typedef struct  {
     char func_name[256];
-    void (*server_func)(rmc_node_id_t node_id, uint8_t*);
+    void (*server_func)(rmc_node_id_t node_id,
+                        uint8_t *name,
+                        uint8_t name_len,
+                        uint8_t* payload);
 } dstc_server_func_t;
 
 
@@ -37,7 +40,10 @@ typedef struct {
 } dstc_remote_node_t;
 
 // Temporary callback functions
-typedef void (*dstc_internal_callback_t)(rmc_node_id_t node_id, uint8_t*);
+typedef void (*dstc_internal_callback_t)(rmc_node_id_t node_id,
+                                         uint8_t *name,
+                                         uint8_t name_len,
+                                         uint8_t* payload);
 
 // A local DSTC_CLIENT- registered name / func ptr combination.
 //
@@ -225,17 +231,25 @@ typedef struct {
 typedef dstc_callback_t CBCK;
 
 #define CLIENT_CALLBACK_ARG(_func_ptr, ...) ({                          \
-    void dstc_callback_##_func_ptr(rmc_node_id_t node_id, uint8_t* data) \
+    void dstc_callback_##_func_ptr(rmc_node_id_t node_id,               \
+                                   uint8_t *func_name,                  \
+                                   uint8_t func_name_len,               \
+                                   uint8_t* data)                       \
     {                                                                   \
+        (void) func_name;                                               \
+        (void) func_name_len;                                           \
         DECLARE_VARIABLES(__VA_ARGS__);                                 \
         DESERIALIZE_ARGUMENTS(__VA_ARGS__);                             \
         (*_func_ptr)(LIST_ARGUMENTS(__VA_ARGS__));                      \
         return;                                                         \
     }                                                                   \
     CBCK callback = {                                                   \
-        .func_addr = (dstc_callback_int_t) dstc_callback_##_func_ptr               \
+        .func_addr = (dstc_callback_int_t) dstc_callback_##_func_ptr    \
     };                                                                  \
-    extern void dstc_register_callback_server(void (*)(rmc_node_id_t node_id, uint8_t*)); \
+    extern void dstc_register_callback_server(void (*)(rmc_node_id_t node_id, \
+                                                       uint8_t *func_name, \
+                                                       uint8_t func_name_len, \
+                                                       uint8_t*));      \
     dstc_register_callback_server(dstc_callback_##_func_ptr);           \
     callback;                                                           \
     })
@@ -402,8 +416,13 @@ typedef dstc_callback_t CBCK;
 // If the socket has not been setup when the client call is made,
 // it is will be done through dstc_net_client.c:dstc_setup_mcast_sub()
 #define DSTC_SERVER_INTERNAL(name, ...)                                 \
-    void dstc_server_##name(rmc_node_id_t node_id, uint8_t* data)       \
+    void dstc_server_##name(rmc_node_id_t node_id,                      \
+                            uint8_t* func_name,                         \
+                            uint8_t func_name_len,                      \
+                            uint8_t* data)                              \
     {                                                                   \
+        (void) func_name;                                               \
+        (void) func_name_len;                                           \
         DECLARE_VARIABLES(__VA_ARGS__);                                 \
         DESERIALIZE_ARGUMENTS(__VA_ARGS__);                             \
         name(LIST_ARGUMENTS(__VA_ARGS__));                              \
@@ -411,7 +430,10 @@ typedef dstc_callback_t CBCK;
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_server_##name()    \
     {                                                                   \
-        extern void dstc_register_server_function(char*, void (*)(rmc_node_id_t, uint8_t*)); \
+        extern void dstc_register_server_function(char*, void (*)(rmc_node_id_t, \
+                            uint8_t* func_name,                         \
+                            uint8_t func_name_len,                      \
+                            uint8_t*));                                 \
         char name_array[] = #name;                                      \
         dstc_register_server_function(name_array, dstc_server_##name);  \
     }
