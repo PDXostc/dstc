@@ -45,7 +45,7 @@ SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.cpp)
 
 CFLAGS+= -I../..
-CXXFLAGS=${CFLAGS}
+CXXFLAGS=${CFLAGS} -std=c++14
 
 .PHONY: all clean install nomacro uninstall
 
@@ -54,14 +54,14 @@ all: $(TARGET_C_CLIENT) $(TARGET_SERVER) $(TARGET_CLIENT)
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT) $(TARGET_NOMACRO_C_CLIENT)
 
 $(TARGET_SERVER): $(SERVER_OBJ)
-	$(CXX) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@
+	$(CXX) $(CXXFLAGS) $^ -L../.. -ldstc -lrmc -o $@
 
 
 $(TARGET_C_CLIENT): $(C_CLIENT_OBJ)
-	$(CXX) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@
+	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@
 
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@
+	$(CXX) $(CXXFLAGS) $^ -L../.. -ldstc -lrmc -o $@
 
 
 # Recompile everything if dstc.h changes
