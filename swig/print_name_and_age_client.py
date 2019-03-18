@@ -1,4 +1,7 @@
+
 # Test python client to exercise DSTC.
+import dstc
+
 
 if __name__ == "__main__":
     import dstc

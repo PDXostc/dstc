@@ -9,6 +9,6 @@ setup (name = 'dstc',
        author      = "SWIG Docs",
        description = """SWIG wrapper around dstc""",
        ext_modules = [
-           Extension('_dstc', sources=['dstc_wrap.c', ],libraries=['dstc', 'rmc'])
+           Extension('_dstc', sources=['dstc_wrap.cxx',],libraries=['dstc', 'rmc'])
        ],
        )
