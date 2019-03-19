@@ -1,7 +1,4 @@
-%module(directors="1")  dstc
-
-
-
+%module dstc_swig
 %{
 
 extern "C" {
@@ -66,7 +63,6 @@ void set_python_callback(PyObject* cb)
 
 %}
 
-
 %include "typemaps.i"
 %rename(setup) dstc_setup;
 extern int dstc_setup(void);
@@ -84,27 +80,3 @@ extern void dstc_register_client_python_function(char* IN);
 %rename(remote_function_available) dstc_remote_function_available_by_name;
 
 extern unsigned char dstc_remote_function_available_by_name(char* func_name);
-
-/*
-static PyObject *
-swig_dstc_set_callback(PyObject *dummy, PyObject *args)
-{
-    PyObject *result = NULL;
-    PyObject *temp;
-
-   if (PyArg_ParseTuple(args, "O:swig_dstc_set_callback", &temp)) {
-        if (!PyCallable_Check(temp)) {
-            PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-            return NULL;
-        }
-        Py_XINCREF(temp);         // Add ref to temp callback
-        Py_XDECREF(cb_ptr);       // Dec ref to existing callback (if != NULL)
-        cb_ptr = temp;       // Store callback
-
-        // Setup None return.
-        Py_INCREF(Py_None);
-        result = Py_None;
-    }
-    return result;
-}
-*/
