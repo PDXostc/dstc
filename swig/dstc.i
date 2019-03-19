@@ -1,23 +1,6 @@
 %module(directors="1")  dstc
 
 
-%feature("director") DSTCallback;
-%inline %{
-
-class DSTCCallback {
-public:
-    DSTCCallback(void)
-    {
-        puts("DSTCallback: ctor");
-    }
-    virtual void process(unsigned int node_id, char*fname, char*pload) {
-        printf("ERR: Base class invocation of process(%s)\n",fname);
-    };
-    virtual ~DSTCCallback() {};
-};
-
-%}
-
 
 %{
 
@@ -30,30 +13,40 @@ extern "C" {
     extern unsigned char dstc_remote_function_available_by_name(char* func_name);
     extern void swig_dstc_process(unsigned int node_id,
                                   char *func_name,
-                                  int name_len,
-                                  char* payload);
+                                  char* payload,
+                                  unsigned short payload_len);
     extern void register_python_server_function(char* name);
-    extern void dstc_register_server_function(char*, void (*)(unsigned int node_id,
-                                                              char* func_name,
-                                                              int func_name_len,
-                                                              char*));
+    extern void dstc_register_server_function(char*,
+                                              void (*)(unsigned int node_id,
+                                                       char *func_name,
+                                                       char* payload,
+                                                       unsigned short payload_len));
 }
 
-%}
-
-%inline %{
-
-struct DSTCCallback;
-static DSTCCallback *cb_ptr = NULL;
+static PyObject *cb_ptr = NULL;
 
 void swig_dstc_process(unsigned int node_id,
                        char *func_name,
-                       int name_len,
-                       char* payload)
+                       char* payload,
+                       unsigned short payload_len)
 {
-    printf("Got call to %s. cb_ptr[%p]\n", func_name, cb_ptr);
+    PyObject *arglist = 0;
+    PyObject *result = 0;
 
-    cb_ptr->process(node_id, func_name, payload);
+    if (!cb_ptr) {
+        printf("swig_dstc_process(): Please call set_python_callback() prior to calling setup()\n");
+        exit(255);
+    }
+
+    printf("Got call to node_id[%u] fname[%s] plen[%d] cb_ptr[%p]\n",
+           node_id, func_name, payload_len,cb_ptr);
+    // Setup argument
+    arglist = Py_BuildValue("isy#", node_id, func_name, payload, payload_len);
+    result = PyObject_CallObject(cb_ptr, arglist);
+    Py_DECREF(arglist);
+    if (result)
+        Py_DECREF(result);
+    return;
 }
 
 %}
@@ -64,6 +57,13 @@ void register_python_server_function(char* name)
     printf("Registering [%s]\n", name);
     dstc_register_server_function(name, swig_dstc_process);
 }
+
+void set_python_callback(PyObject* cb)
+{
+    printf("Registering callback func [%p]\n", cb);
+    cb_ptr = cb;
+}
+
 %}
 
 
@@ -85,9 +85,26 @@ extern void dstc_register_client_python_function(char* IN);
 
 extern unsigned char dstc_remote_function_available_by_name(char* func_name);
 
-%inline %{
-void swig_dstc_set_callback(DSTCCallback *cb) {
-    cb_ptr = cb;
-    return;
+/*
+static PyObject *
+swig_dstc_set_callback(PyObject *dummy, PyObject *args)
+{
+    PyObject *result = NULL;
+    PyObject *temp;
+
+   if (PyArg_ParseTuple(args, "O:swig_dstc_set_callback", &temp)) {
+        if (!PyCallable_Check(temp)) {
+            PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+            return NULL;
+        }
+        Py_XINCREF(temp);         // Add ref to temp callback
+        Py_XDECREF(cb_ptr);       // Dec ref to existing callback (if != NULL)
+        cb_ptr = temp;       // Store callback
+
+        // Setup None return.
+        Py_INCREF(Py_None);
+        result = Py_None;
+    }
+    return result;
 }
-%}
+*/
