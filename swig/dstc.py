@@ -28,7 +28,7 @@ def register_server_function(name, func):
 
 def dstc_process(*arg):
     print("Got a call toXX {}".format(arg))
-    (node_id, name, payload, payload_len) = arg
+    (node_id, name, payload) = arg
     print("1")
     if not name in server_func:
         print("Server function {} not registered!".format(name))
