@@ -22,14 +22,17 @@ typedef uint32_t dstc_callback_int_t;
 typedef uint64_t dstc_callback_int_t;
 #endif
 
+// Internal callback
+typedef void (*dstc_internal_dispatch_t)(rmc_node_id_t node_id,
+                                         uint8_t *name,
+                                         uint8_t* payload,
+                                         uint16_t payload_len);
+
 // A local DSTC_SERVER-registered name / func ptr combination
 //
 typedef struct  {
     char func_name[256];
-    void (*server_func)(rmc_node_id_t node_id,
-                        uint8_t *name,
-                        uint8_t name_len,
-                        uint8_t* payload);
+    dstc_internal_dispatch_t server_func;
 } dstc_server_func_t;
 
 
@@ -39,11 +42,6 @@ typedef struct {
     char func_name[256];
 } dstc_remote_node_t;
 
-// Temporary callback functions
-typedef void (*dstc_internal_callback_t)(rmc_node_id_t node_id,
-                                         uint8_t *name,
-                                         uint8_t name_len,
-                                         uint8_t* payload);
 
 // A local DSTC_CLIENT- registered name / func ptr combination.
 //
@@ -63,7 +61,7 @@ typedef struct {
     // All currently active local callback functions passed
     // to DSTC_CLIENT-registered call by the application.
     // FIXME: Hash table
-    dstc_internal_callback_t local_callback[SYMTAB_SIZE];
+    dstc_internal_dispatch_t local_callback[SYMTAB_SIZE];
     uint32_t callback_ind ;
 
     int epoll_fd;
@@ -76,10 +74,9 @@ typedef struct {
 
 typedef struct  __attribute__((packed))
 dstc_header {
-    uint16_t payload_len;          // 2 bytes
     rmc_node_id_t node_id;         // 4 bytes  Publisher Node ID
-    uint8_t name_len;              // 1 byte of name length. 0 = callback address
-    uint8_t payload[];             // Function name followed by function args.
+    uint16_t payload_len;          // 2 bytes of the number of bytes in payload
+    uint8_t payload[];             // Function name fllowed by \0 and function args.
 } dstc_header_t;
 
 // DSTC_EVENT_FLAG is used to determine if the user data associated with
@@ -233,11 +230,10 @@ typedef dstc_callback_t CBCK;
 #define CLIENT_CALLBACK_ARG(_func_ptr, ...) ({                          \
     void dstc_callback_##_func_ptr(rmc_node_id_t node_id,               \
                                    uint8_t *func_name,                  \
-                                   uint8_t func_name_len,               \
-                                   uint8_t* data)                       \
+                                   uint8_t* payload,                       \
+                                   uint16_t payload_len)                \
     {                                                                   \
         (void) func_name;                                               \
-        (void) func_name_len;                                           \
         DECLARE_VARIABLES(__VA_ARGS__);                                 \
         DESERIALIZE_ARGUMENTS(__VA_ARGS__);                             \
         (*_func_ptr)(LIST_ARGUMENTS(__VA_ARGS__));                      \
@@ -246,10 +242,7 @@ typedef dstc_callback_t CBCK;
     CBCK callback = {                                                   \
         .func_addr = (dstc_callback_int_t) dstc_callback_##_func_ptr    \
     };                                                                  \
-    extern void dstc_register_callback_server(void (*)(rmc_node_id_t node_id, \
-                                                       uint8_t *func_name, \
-                                                       uint8_t func_name_len, \
-                                                       uint8_t*));      \
+    extern void dstc_register_callback_server(dstc_internal_dispatch_t);   \
     dstc_register_callback_server(dstc_callback_##_func_ptr);           \
     callback;                                                           \
     })
@@ -312,47 +305,47 @@ typedef dstc_callback_t CBCK;
 #define SERIALIZE_ARGUMENT(arg_id, type, size)                          \
     switch(*(uint32_t*) #type) {                                        \
     case DSTC_DYNARG_TAG:                                               \
-        *((uint32_t*) data) = ((dstc_dynamic_data_t*) &_a##arg_id)->length; \
-        data += sizeof(uint32_t);                                       \
-        memcpy((void*) data, ((dstc_dynamic_data_t*) &_a##arg_id)->data, \
+        *((uint32_t*) payload) = ((dstc_dynamic_data_t*) &_a##arg_id)->length; \
+        payload += sizeof(uint32_t);                                       \
+        memcpy((void*) payload, ((dstc_dynamic_data_t*) &_a##arg_id)->data, \
                ((dstc_dynamic_data_t*) & _a##arg_id)->length);          \
-        data += ((dstc_dynamic_data_t*) & _a##arg_id)->length;          \
+        payload += ((dstc_dynamic_data_t*) & _a##arg_id)->length;          \
         break;                                                          \
                                                                         \
     case DSTC_CALLBACK_TAG:                                             \
-        *((uint64_t*) data) = ((dstc_callback_t*) &_a##arg_id)->func_addr; \
-        data += sizeof(uint64_t);                                       \
+        *((uint64_t*) payload) = ((dstc_callback_t*) &_a##arg_id)->func_addr; \
+        payload += sizeof(uint64_t);                                       \
         break;                                                          \
                                                                         \
     default:                                                            \
         if (sizeof(type size ) == sizeof(type))                         \
-            memcpy((void*) data, (void*) &_a##arg_id, sizeof(type size)); \
+            memcpy((void*) payload, (void*) &_a##arg_id, sizeof(type size)); \
         else                                                            \
-            memcpy((void*) data, (void*) *(char**) &_a##arg_id, sizeof(type size)); \
-        data += sizeof(type size);                                      \
+            memcpy((void*) payload, (void*) *(char**) &_a##arg_id, sizeof(type size)); \
+        payload += sizeof(type size);                                      \
     }
 
 
 #define DESERIALIZE_ARGUMENT(arg_id, type, size)                        \
     switch(*(uint32_t*) #type) {                                        \
     case DSTC_DYNARG_TAG:                                               \
-        ((dstc_dynamic_data_t*) &_a##arg_id)->length = *((uint32_t*) data); \
-        data += sizeof(uint32_t);                                       \
-        ((dstc_dynamic_data_t*) &_a##arg_id)->data = data;              \
-        data += ((dstc_dynamic_data_t*) &_a##arg_id)->length;           \
+        ((dstc_dynamic_data_t*) &_a##arg_id)->length = *((uint32_t*) payload); \
+        payload += sizeof(uint32_t);                                       \
+        ((dstc_dynamic_data_t*) &_a##arg_id)->data = payload;              \
+        payload += ((dstc_dynamic_data_t*) &_a##arg_id)->length;           \
         break;                                                          \
                                                                         \
     case DSTC_CALLBACK_TAG:                                             \
-        ((dstc_callback_t*) &_a##arg_id)->func_addr = *(dstc_callback_int_t*) data; \
-        data += sizeof(uint64_t);                                       \
+        ((dstc_callback_t*) &_a##arg_id)->func_addr = *(dstc_callback_int_t*) payload; \
+        payload += sizeof(uint64_t);                                       \
         break;                                                          \
                                                                         \
     default:                                                            \
         if (sizeof(type size) == sizeof(type))                          \
-            memcpy((void*) &_a##arg_id, (void*) data, sizeof(type size)); \
+            memcpy((void*) &_a##arg_id, (void*) payload, sizeof(type size)); \
         else                                                            \
-            memcpy((void*) (uint32_t*) &_a##arg_id, (void*) data, sizeof(type size)); \
-        data += sizeof(type size);                                      \
+            memcpy((void*) (uint32_t*) &_a##arg_id, (void*) payload, sizeof(type size)); \
+        payload += sizeof(type size);                                      \
     }
 
 
@@ -375,11 +368,11 @@ typedef dstc_callback_t CBCK;
     int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                   \
       uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                    \
       uint8_t arg_buf[arg_sz];                                          \
-      uint8_t *data = arg_buf;                                          \
-      extern int dstc_queue_func(uint8_t* name, uint8_t* arg_buf, uint32_t arg_sz); \
+      uint8_t *payload = arg_buf;                                          \
+      extern int dstc_queue_func(char* name, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
       SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
-      return dstc_queue_func((uint8_t*) #name, arg_buf, arg_sz);        \
+      return dstc_queue_func((char*) #name, arg_buf, arg_sz);            \
   }                                                                     \
   void __attribute__((constructor)) _dstc_register_client_##name()      \
   {                                                                     \
@@ -396,7 +389,7 @@ typedef dstc_callback_t CBCK;
     int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                   \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
-        uint8_t *data = arg_buf;                                        \
+        uint8_t *payload = arg_buf;                                        \
         extern int dstc_queue_callback(uint64_t addr, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
@@ -418,11 +411,10 @@ typedef dstc_callback_t CBCK;
 #define DSTC_SERVER_INTERNAL(name, ...)                                 \
     void dstc_server_##name(rmc_node_id_t node_id,                      \
                             uint8_t* func_name,                         \
-                            uint8_t func_name_len,                      \
-                            uint8_t* data)                              \
+                            uint8_t* payload,                           \
+                            uint16_t payload_len)                       \
     {                                                                   \
         (void) func_name;                                               \
-        (void) func_name_len;                                           \
         DECLARE_VARIABLES(__VA_ARGS__);                                 \
         DESERIALIZE_ARGUMENTS(__VA_ARGS__);                             \
         name(LIST_ARGUMENTS(__VA_ARGS__));                              \
@@ -430,10 +422,7 @@ typedef dstc_callback_t CBCK;
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_server_##name()    \
     {                                                                   \
-        extern void dstc_register_server_function(char*, void (*)(rmc_node_id_t, \
-                            uint8_t* func_name,                         \
-                            uint8_t func_name_len,                      \
-                            uint8_t*));                                 \
+        extern void dstc_register_server_function(char*, dstc_internal_dispatch_t); \
         char name_array[] = #name;                                      \
         dstc_register_server_function(name_array, dstc_server_##name);  \
     }
