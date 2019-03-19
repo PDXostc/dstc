@@ -702,7 +702,7 @@ static uint32_t dstc_process_function_call(uint8_t* data,
     RMC_LOG_DEBUG("DSTC Serve: node_id[%lu] name[%s] payload_len[%d]",
                   call->node_id,
                   call->payload,
-                  call->payload_len - strlen((char*) call->payload));
+                  call->payload_len - strlen((char*) call->payload) - 1);
     // If the name is not nil-len, then we have an actual server function we need
     // to find and invoke.
     if (call->payload[0]) {
@@ -716,7 +716,7 @@ static uint32_t dstc_process_function_call(uint8_t* data,
         RMC_LOG_DEBUG("Making local function call node_id[%u] func_name[%s] payload_len[%u]",
                       call->node_id,
                       call->payload,
-                      call->payload_len);
+                      call->payload_len - name_len - 1);
         (*local_func_ptr)(call->node_id,
                           call->payload, // function name
                           call->payload + name_len + 1, // Payload
@@ -1065,7 +1065,6 @@ static int dstc_queue(char* name, dstc_callback_int_t callback_ref, uint8_t* arg
         call->payload_len = 1 + sizeof(uint64_t) + arg_sz;
         memcpy(call->payload + 1 + sizeof(uint64_t), arg, arg_sz);
     }
-
 
     RMC_LOG_DEBUG("DSTC Queue: node_id[%lu] name[%s]/callback_ref[%llu] payload_len[%d] in_use[%d]",
                   call->node_id,
