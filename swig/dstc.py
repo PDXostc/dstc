@@ -18,22 +18,30 @@ def build_arg(payload, payload_len):
     print("Build some kind of payload")
     return ("Hello world sim", 42)
 
-def register_dstc_function(name, func):
+def register_server_function(name, func):
     if name in server_func:
         del server_func[name]
 
     server_func[name] = func
-    dstc.register_python_server_function(name)
+    print("Mapping {} to {}".format(name, func))
+    dstc_swig.register_python_server_function(name)
 
 def dstc_process(*arg):
-    print("Got a call to {}".format(arg))
+    print("Got a call toXX {}".format(arg))
     (node_id, name, payload, payload_len) = arg
+    print("1")
     if not name in server_func:
         print("Server function {} not registered!".format(name))
         sys.exit(255)
 
+    print("2")
     server_arg = build_arg(payload, payload_len)
+    print("Will call function")
     server_func[name](*server_arg)
+
+def process_events(timeout):
+    return dstc_swig.process_events(timeout)
 
 print("Setting up DSTC")
 dstc_swig.setup()
+dstc_swig.set_python_callback(dstc_process)
