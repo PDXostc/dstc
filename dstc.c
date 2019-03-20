@@ -212,21 +212,6 @@ void dstc_register_client_function(char* name, void *client_func)
     _dstc_client_func_ind++;
 }
 
-void dstc_register_client_python_function(char* name)
-{
-    int ind = 0;
-
-    ind = _dstc_client_func_ind;
-    if (ind == SYMTAB_SIZE - 1) {
-        RMC_LOG_FATAL("Out of memory trying to register python client function. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
-        exit(255);
-    }
-
-    strcpy(_dstc_client_func[ind].func_name, name);
-    _dstc_client_func[ind].client_func = 0;
-    _dstc_client_func_ind++;
-}
-
 
 // Retrieve a callback function. Each time it is invoked, it will be deleted.
 // dstc_register_server_function()
