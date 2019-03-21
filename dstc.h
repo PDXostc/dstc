@@ -305,7 +305,7 @@ typedef dstc_callback_t CBCK;
 #define SERIALIZE_ARGUMENT(arg_id, type, size)                          \
     switch(*(uint32_t*) #type) {                                        \
     case DSTC_DYNARG_TAG:                                               \
-        *((uint32_t*) payload) = ((dstc_dynamic_data_t*) &_a##arg_id)->length; \
+        *((uint16_t*) payload) = ((dstc_dynamic_data_t*) &_a##arg_id)->length; \
         payload += sizeof(uint32_t);                                       \
         memcpy((void*) payload, ((dstc_dynamic_data_t*) &_a##arg_id)->data, \
                ((dstc_dynamic_data_t*) & _a##arg_id)->length);          \
@@ -329,7 +329,7 @@ typedef dstc_callback_t CBCK;
 #define DESERIALIZE_ARGUMENT(arg_id, type, size)                        \
     switch(*(uint32_t*) #type) {                                        \
     case DSTC_DYNARG_TAG:                                               \
-        ((dstc_dynamic_data_t*) &_a##arg_id)->length = *((uint32_t*) payload); \
+        ((dstc_dynamic_data_t*) &_a##arg_id)->length = *((uint16_t*) payload); \
         payload += sizeof(uint32_t);                                       \
         ((dstc_dynamic_data_t*) &_a##arg_id)->data = payload;              \
         payload += ((dstc_dynamic_data_t*) &_a##arg_id)->length;           \
@@ -352,7 +352,7 @@ typedef dstc_callback_t CBCK;
 #define DECLARE_ARGUMENT(arg_id, type, size) type _a##arg_id size
 #define LIST_ARGUMENT(arg_id, type, size) _a##arg_id
 #define DECLARE_VARIABLE(arg_id, type, size) type _a##arg_id size ;
-#define SIZE_ARGUMENT(arg_id, type, size) ((* (uint32_t*) #type == DSTC_DYNARG_TAG)?(sizeof(uint32_t) + ((dstc_dynamic_data_t*) &_a##arg_id)->length): sizeof(type size)) +
+#define SIZE_ARGUMENT(arg_id, type, size) ((* (uint32_t*) #type == DSTC_DYNARG_TAG)?(sizeof(uint16_t) + ((dstc_dynamic_data_t*) &_a##arg_id)->length): sizeof(type size)) +
 
 #define SERIALIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SERIALIZE_ARGUMENT, ##__VA_ARGS__)
 #define DESERIALIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(DESERIALIZE_ARGUMENT, ##__VA_ARGS__)
