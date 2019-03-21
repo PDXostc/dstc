@@ -4,21 +4,12 @@ import dstc
 
 
 if __name__ == "__main__":
-    import dstc
-    import dstc_swig
-    import struct
-
-    dstc.register_client_function("print_name_and_age")
+    client_func = dstc.register_client_function("print_name_and_age", "32si")
     dstc.activate()
 
-    print("Waiting for remote func")
-    while not dstc.remote_function_available("print_name_and_age"):
+    print("Waiting for remote function")
+    while not dstc.remote_function_available(client_func):
         dstc.process_events(100000)
 
-    print("Remote func available")
-    # Install 32 byte array as first arg
-    arg = "Test String\0".ljust(32)
-    # Install integer as second arg
-    arg += struct.pack("<I", 4711).decode("ascii")
-    dstc_swig.queue_func("print_name_and_age", arg, len(arg))
+    client_func("Jane Doe", 32)
     dstc.process_events(10000)

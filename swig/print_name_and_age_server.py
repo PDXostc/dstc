@@ -1,6 +1,5 @@
 # Test python client to exercise DSTC.
 import dstc
-import struct
 
 def do_print_name_and_age(func, name, age):
     print("Got server call {}".format(func))

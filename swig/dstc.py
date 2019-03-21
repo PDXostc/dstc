@@ -11,6 +11,8 @@
 #
 
 server_func = {}
+client_func = {}
+client_lambda = {}
 
 import dstc_swig
 import struct
@@ -21,51 +23,97 @@ def decode_string(fixed_width_string):
 
 def register_server_function(name, func, param_format):
     global active
+
     if active:
         print("Please register all client and server functions before calling activate()")
-        sys.exit(255)
+        return False
 
     if name in server_func:
         del server_func[name]
 
     server_func[name] = (func, param_format)
-    dstc_swig.register_python_server_function(name)
+    dstc_swig.register_python_server_function(name.encode("utf-8"))
+    return True
 
-def register_client_function(func_name):
+def register_client_function(func_name, param_format):
     global active
     if active:
         print("Please register all client and server functions before calling activate()")
-        sys.exit(255)
+        return None
 
-    return dstc_swig.register_client_function(func_name)
+    if func_name in server_func:
+        del server_func[func_name]
+
+    client_func[func_name] = param_format
+    dstc_swig.register_client_function(func_name.encode("utf-8"))
+    lam_fun = lambda *arg: client_call(func_name, *arg)
+    # Used by remote_function_available
+    client_lambda[lam_fun] = func_name
+    return lam_fun
 
 def dstc_process(*arg):
     (node_id, name, payload) = arg
-    if not name in server_func:
+    if name not in server_func:
         print("Server function {} not registered!".format(name))
-        sys.exit(255)
+        return False
 
     (func, param_format) = server_func[name]
     arg = struct.unpack(param_format, payload)
     func(name, *arg)
+    return True
 
 def activate():
     global active
-    print("Activating")
     dstc_swig.setup()
     active = True
+    return True
 
 def process_events(timeout):
     global active
     if not active:
         print("Please call activate() before processing events")
-    return dstc_swig.process_events(timeout)
+        return False
 
-def remote_function_available(func_name):
+    dstc_swig.process_events(timeout)
+    return True
+
+def remote_function_available(lambda_func):
     global active
     if not active:
         print("Please call activate() before processing events")
-    return dstc_swig.remote_function_available(func_name)
+        return False
+
+    if lambda_func not in client_lambda:
+        print("Unknown client function: {}".format(client_lambda))
+        return False
+
+    func_name = client_lambda[lambda_func]
+    return dstc_swig.remote_function_available(func_name.encode("utf-8"))
+
+def client_call(func_name, *args):
+    if func_name not in client_func:
+        print("client function {} not registered!".format(func_name))
+        return False
+
+    param_format = client_func[func_name]
+    # Convert all strings to bytes
+    # All other arguments are converted as is.
+
+    cnvt_args = ()
+    for arg in args:
+        if isinstance(arg, str):
+            cnvt_args += (arg.encode("utf-8"),)
+        else:
+            cnvt_args += (arg, )
+
+    arg = struct.pack("<" + param_format, *cnvt_args)
+    res = dstc_swig.queue_func(func_name.encode("utf-8"), arg, len(arg))
+    if res != 0:
+        print("dstc_swig.queue_func failed: {}".format(res))
+        return False
+
+    return True
+
 
 dstc_swig.set_python_callback(dstc_process)
 active = False

@@ -1,4 +1,7 @@
 %module dstc_swig
+%begin %{
+#define SWIG_PYTHON_STRICT_BYTE_CHAR
+%}
 %{
 
 extern "C" {
@@ -6,7 +9,7 @@ extern "C" {
     typedef long int usec_timestamp_t;
 
     extern void dstc_register_client_function(char*, void*);
-    extern int dstc_queue_func(char* name, char* arg_buf, unsigned int arg_sz);
+    extern int dstc_queue_func(char* name, const char* arg_buf, unsigned int arg_sz);
     extern unsigned char dstc_remote_function_available_by_name(char* func_name);
     extern void swig_dstc_process(unsigned int node_id,
                                   char *func_name,
@@ -59,7 +62,6 @@ void set_python_callback(PyObject* cb)
 
 void register_client_function(char* name)
 {
-    printf("Got register_client_function(%s)\n", name);
     dstc_register_client_function(name, 0);
 }
 
@@ -74,7 +76,7 @@ typedef long int usec_timestamp_t;
 extern int dstc_process_events(usec_timestamp_t);
 
 %rename(queue_func) dstc_queue_func;
-extern int dstc_queue_func(char* name, char* IN, unsigned int arg_sz);
+extern int dstc_queue_func(char* name, const char* arg, unsigned int arg_sz);
 
 %rename(remote_function_available) dstc_remote_function_available_by_name;
 
