@@ -2,13 +2,13 @@
 # Doodling
 #
 
-.PHONY: all clean distclean install uninstall
+.PHONY: all clean distclean install uninstall examples install_examples
 
 SRC=dstc.c
 HDR=dstc.h
 OBJ=dstc.o
 
-RMC_VERSION=1.1
+RMC_VERSION=1.3
 RMC_DIR=reliable_multicast-${RMC_VERSION}
 
 LIB_TARGET=libdstc.a
@@ -24,7 +24,6 @@ export DESTDIR
 #	Build the entire project.
 #
 all: $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
-	$(MAKE) -C examples
 
 #
 #	Make sure all of the object files are current.
@@ -67,8 +66,7 @@ install:  all
 	install -d ${DESTDIR}/include; \
 	install -m 0644 ${LIB_TARGET}  ${DESTDIR}/lib; \
 	install -m 0644 ${HDR}  ${DESTDIR}/include; \
-	install -m 0644 ${LIB_SO_TARGET}  ${DESTDIR}/lib; \
-	$(MAKE) DESTDIR=${DESTDIR} -C examples install
+	install -m 0644 ${LIB_SO_TARGET}  ${DESTDIR}/lib;
 
 #
 #	Uninstall the generated files.
@@ -78,3 +76,15 @@ uninstall:  all
 	rm -f ${DESTDIR}/lib/${LIB_TARGET}; \
 	rm -f ${DESTDIR}/include/${HDR}; \
 	rm -f ${DESTDIR}/lib/${LIB_SO_TARGET};
+
+#
+#	Build the examples only.
+#
+examples:
+	$(MAKE) -C examples
+
+#
+#	Install the generated example files.
+#
+install_examples:
+	$(MAKE) DESTDIR=${DESTDIR} -C examples install
