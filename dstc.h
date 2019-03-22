@@ -306,7 +306,7 @@ typedef dstc_callback_t CBCK;
     switch(*(uint32_t*) #type) {                                        \
     case DSTC_DYNARG_TAG:                                               \
         *((uint16_t*) payload) = ((dstc_dynamic_data_t*) &_a##arg_id)->length; \
-        payload += sizeof(uint32_t);                                       \
+        payload += sizeof(uint16_t);                                       \
         memcpy((void*) payload, ((dstc_dynamic_data_t*) &_a##arg_id)->data, \
                ((dstc_dynamic_data_t*) & _a##arg_id)->length);          \
         payload += ((dstc_dynamic_data_t*) & _a##arg_id)->length;          \
@@ -330,7 +330,7 @@ typedef dstc_callback_t CBCK;
     switch(*(uint32_t*) #type) {                                        \
     case DSTC_DYNARG_TAG:                                               \
         ((dstc_dynamic_data_t*) &_a##arg_id)->length = *((uint16_t*) payload); \
-        payload += sizeof(uint32_t);                                       \
+        payload += sizeof(uint16_t);                                       \
         ((dstc_dynamic_data_t*) &_a##arg_id)->data = payload;              \
         payload += ((dstc_dynamic_data_t*) &_a##arg_id)->length;           \
         break;                                                          \
