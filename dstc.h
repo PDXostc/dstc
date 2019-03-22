@@ -342,14 +342,14 @@ typedef dstc_callback_t CBCK;
         if (sizeof(type size) == sizeof(type))                          \
             memcpy((void*) &_a##arg_id, (void*) data, sizeof(type size)); \
         else                                                            \
-            memcpy((void*) (uint32_t*) &_a##arg_id, (void*) data, sizeof(type size)); \
+            memcpy((void*) _a_ptr##arg_id, (void*) data, sizeof(type size)); \
         data += sizeof(type size);                                      \
     }
 
 
 #define DECLARE_ARGUMENT(arg_id, type, size) type _a##arg_id size
 #define LIST_ARGUMENT(arg_id, type, size) _a##arg_id
-#define DECLARE_VARIABLE(arg_id, type, size) type _a##arg_id size ;
+#define DECLARE_VARIABLE(arg_id, type, size) type _a##arg_id size ; type *_a_ptr##arg_id = (type*) &_a##arg_id;
 #define SIZE_ARGUMENT(arg_id, type, size) ((* (uint32_t*) #type == DSTC_DYNARG_TAG)?(sizeof(uint32_t) + ((dstc_dynamic_data_t*) &_a##arg_id)->length): sizeof(type size)) +
 
 #define SERIALIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SERIALIZE_ARGUMENT, ##__VA_ARGS__)
