@@ -349,8 +349,8 @@ typedef dstc_callback_t CBCK;
         if (sizeof(type size) == sizeof(type))                          \
             memcpy((void*) &_a##arg_id, (void*) payload, sizeof(type size)); \
         else                                                            \
-            memcpy((void*) _a_ptr##arg_id, (void*) data, sizeof(type size)); \
-        data += sizeof(type size);                                      \
+            memcpy((void*) _a_ptr##arg_id, (void*) payload, sizeof(type size)); \
+        payload += sizeof(type size);                                      \
     }
 
 
