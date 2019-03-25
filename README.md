@@ -17,16 +17,17 @@ robustly. See https://github.com/PDXostc/reliable_multicast for details
 # FEATURES
 
 ## Lightweight
-The ```dstc.c``` and ```dstc.h``` files currently weigh in at ~750 lines of
-physical code. The sample multi-user chat server is 36 lines of code.
+The ```dstc.c``` and ```dstc.h``` files currently weigh in at ~1000 lines of
+code (according to cloc). The sample multi-user chat server is 36 lines of code.
 
 ## Fast
 The underlying reliable multicast can transmit 25 million signals / second
-between a publisher and subscriber running on an i7 laptop. Our
-intent is to support a similar number of DSTC calls per second.
+between a publisher and subscriber running on two Dell servers with 10Gb Ethernet
+between them, using a single thread.
 
 ## Light dependencies
-You just need gcc and reliable multicast to build and deploy your services.
+You just need gcc and reliable multicast to build and deploy your services. 
+Any Posix-compliant OS is a suitable target environment.
 
 ## Can transmit arbitrary data types
 All scalars, arrays, unions and structs can be transmitted, as long as
