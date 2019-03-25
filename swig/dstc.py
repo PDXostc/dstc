@@ -64,7 +64,7 @@ def dstc_process(*arg):
 
 def activate():
     global active
-    dstc_swig.setup()
+    dstc_swig.dstc_setup()
     active = True
     return True
 
@@ -74,7 +74,7 @@ def process_events(timeout):
         print("Please call activate() before processing events")
         return False
 
-    dstc_swig.process_events(timeout)
+    dstc_swig.dstc_process_events(timeout)
     return True
 
 def remote_function_available(lambda_func):
@@ -88,7 +88,7 @@ def remote_function_available(lambda_func):
         return False
 
     func_name = client_lambda[lambda_func]
-    return dstc_swig.remote_function_available(func_name.encode("utf-8"))
+    return dstc_swig.dstc_remote_function_available_by_name(func_name.encode("utf-8"))
 
 def client_call(func_name, *args):
     if func_name not in client_func:
@@ -107,9 +107,9 @@ def client_call(func_name, *args):
             cnvt_args += (arg, )
 
     arg = struct.pack("<" + param_format, *cnvt_args)
-    res = dstc_swig.queue_func(func_name.encode("utf-8"), arg, len(arg))
+    res = dstc_swig.dstc_queue_func(func_name.encode("utf-8"), arg, len(arg))
     if res != 0:
-        print("dstc_swig.queue_func failed: {}".format(res))
+        print("dstc_swig.dstc_queue_func failed: {}".format(res))
         return False
 
     return True

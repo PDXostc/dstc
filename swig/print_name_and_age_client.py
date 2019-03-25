@@ -1,4 +1,4 @@
-
+#!/usr/bin/python3
 # Test python client to exercise DSTC.
 import dstc
 
