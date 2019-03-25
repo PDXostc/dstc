@@ -1,4 +1,4 @@
-# DISTRIBUTED [DSTC]
+# DISTRIBUTED C [DSTC]
 
 **Remotely executed functions in C with a single extra source and header file.**
 
