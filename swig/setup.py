@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 """
 setup.py file for DSTC SWIG
 """
