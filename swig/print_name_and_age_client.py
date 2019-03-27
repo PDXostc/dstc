@@ -1,7 +1,8 @@
+#! /usr/bin/env python3
 
 # Test python client to exercise DSTC.
-import dstc
 
+import dstc
 
 if __name__ == "__main__":
     client_func = dstc.register_client_function("print_name_and_age", "32si")

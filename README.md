@@ -26,7 +26,7 @@ between a publisher and subscriber running on two Dell servers with 10Gb Etherne
 between them, using a single thread.
 
 ## Light dependencies
-You just need gcc and reliable multicast to build and deploy your services. 
+You just need gcc and reliable multicast to build and deploy your services.
 Any Posix-compliant OS is a suitable target environment.
 
 ## Can transmit arbitrary data types
@@ -433,3 +433,71 @@ Note: The "nomacro" feature requires the "clang-format" package.  This can be
 installed on Ubuntu systems with:
 
     sudo apt install -y clang-format
+
+## Testing Procedure
+
+Here is a sample procedure to build and test the Python DSTC functions.
+
+It is recommended that things be done in this order.
+
+The directories that will be created can be located anywhere, they need not be
+fixed in any particular place.  There is no dependency between the
+subdirectories like relative references e.g. ```cd ../swig```
+
+It is recommended to create a top level directory named according to it's
+intended use such as "dstc-testing".  The rmc and dstc subdirectories can then
+be created under that top level directory resulting in all of the code being
+local to that top level directory.
+
+
+### reliable_multicast
+
+1. ```cd``` to where you want the reliable_multicast subdirectory created.
+
+2. Get the source code: ```git clone git@github.com:PDXostc/reliable_multicast.git```
+
+3. Go to your reliable_multicast directory created in step 2: ```cd reliable_multicast```
+
+4. Make the files by running ```make```.
+
+5. Install the built files with: ```sudo make install```
+
+### DSTC
+
+1. ```cd``` to where you want your DSTC subdirectory created.
+
+2. Get the source code: ```git clone git@github.com:PDXostc/dstc.git```
+
+3. Build the code: ```make```
+
+4. Install the DSTC files: ```sudo make DESTDIR=/usr/local install```
+
+5. Make sure /usr/local/lib is in your LD_LIBRARY_PATH: ```echo $LD_LIBRARY_PATH```
+   If it is not there: ```export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib```
+
+6. Build examples with: ```make examples```
+
+7. Install the examples with: ```sudo make DESTDIR=/usr/local install_examples```
+
+8. If you get an error, run: ```sudo /sbin/ldconfig -v```
+
+
+### Python DSTC examples:
+
+1. Make sure you have swig: ```sudo apt install swig```
+
+2. To run the Python examples: ```cd swig``` (a subdirectory of "dstc")
+
+3. Build the interface files: ```make```
+
+
+#### To test:
+
+   Run the print_name_and_age_* programs in separate windows with python3:
+
+   window 1): python3 print_name_and_age_server.py
+
+   window 2): python3 print_name_and_age_client.py
+
+   Start the server script first then the client.
+

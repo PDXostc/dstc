@@ -1,4 +1,7 @@
+#! /usr/bin/env python3
+
 # Test python client to exercise DSTC.
+
 import dstc
 
 def do_print_name_and_age(func, name, age):
