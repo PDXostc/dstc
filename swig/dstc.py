@@ -21,6 +21,9 @@ import struct
 def decode_string(fixed_width_string):
     return fixed_width_string[:fixed_width_string.index(b'\x00')].decode("utf8")
 
+def setup():
+    return dstc_swig.dstc_setup()
+
 def register_server_function(name, func, param_format):
     global active
 

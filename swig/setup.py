@@ -10,7 +10,7 @@ setup (name = 'dstc',
        version = '0.1',
        author      = "SWIG Docs",
        description = """SWIG wrapper for DSTC.""",
-       py_modules = [ 'dstc' ],
+       py_modules = [ 'dstc', 'dstc_swig' ],
        ext_modules = [
            Extension('_dstc_swig', sources=['dstc_swig_wrap.c',],libraries=['dstc', 'rmc'])
        ],
