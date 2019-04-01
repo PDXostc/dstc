@@ -4,7 +4,6 @@
 %}
 %{
 
-extern "C" {
 #include <dstc.h>
     typedef long int usec_timestamp_t;
 
@@ -21,7 +20,7 @@ extern "C" {
                                                        char *func_name,
                                                        char* payload,
                                                        unsigned short payload_len));
-}
+
 
 static PyObject *cb_ptr = NULL;
 
@@ -68,16 +67,8 @@ void register_client_function(char* name)
 %}
 
 %include "typemaps.i"
-%rename(setup) dstc_setup;
 extern int dstc_setup(void);
-
 typedef long int usec_timestamp_t;
-%rename(process_events) dstc_process_events;
 extern int dstc_process_events(usec_timestamp_t);
-
-%rename(queue_func) dstc_queue_func;
 extern int dstc_queue_func(char* name, const char* arg, unsigned int arg_sz);
-
-%rename(remote_function_available) dstc_remote_function_available_by_name;
-
 extern unsigned char dstc_remote_function_available_by_name(char* func_name);
