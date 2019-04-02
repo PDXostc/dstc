@@ -490,14 +490,18 @@ local to that top level directory.
 
 3. Build the interface files: ```make```
 
+4. Install the dstc PIP package: ```sudo make install```
+
+Note: If you skip step 3 and just execute step 4, it will work, but you will
+wind up with files and directories owned by root in the current directory.
 
 #### To test:
 
    Run the print_name_and_age_* programs in separate windows with python3:
 
-   window 1): python3 print_name_and_age_server.py
+   window 1): ```print_name_and_age_server.py```
 
-   window 2): python3 print_name_and_age_client.py
+   window 2): ```print_name_and_age_client.py```
 
    Start the server script first then the client.
 
