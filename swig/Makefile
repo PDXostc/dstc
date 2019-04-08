@@ -7,18 +7,11 @@
 
 CFLAGS += -ggdb
 
-#
-#	Define the directory that the compiled C files will go into.
-#
-OBJ_DIR = "build/temp.linux-x86_64-3.6"
-
-$(OBJ_DIR)/dstc_swig_wrap.o: dstc_swig_wrap.c
-	python3 setup.py build_ext --inplace
+.PHONY: install uninstall clean
 
 dstc_swig_wrap.c: dstc_swig.i ../dstc.h
-	swig -I/usr/include -python -includeall dstc_swig.i
-
-.PHONY: install uninstall clean
+	swig -I/usr/include -python -includeall dstc_swig.i; \
+	python3 setup.py build_ext --inplace
 
 #
 #	The install option will install the python package that has been built
@@ -27,14 +20,14 @@ dstc_swig_wrap.c: dstc_swig.i ../dstc.h
 #	option should be run with "sudo", e.g. "sudo make install"
 #
 #	After the package has been installed, python users can utilize this
-#	package by merely adding a "import dstc" command to their programs.
+#	package by merely adding an "import dstc" command to their programs.
 #
 #	After installation of the package, the files used to generate the package
 #	can be removed with:
 #
-#      sudo make clean
+#       sudo make uninstall
 #
-install: $(OBJ_DIR)/dstc_swig_wrap.o
+install:
 	python3 setup.py install
 
 #
@@ -50,9 +43,9 @@ install: $(OBJ_DIR)/dstc_swig_wrap.o
 #	"uninstall" option should be run with "sudo", e.g. "sudo make uninstall"
 #
 uninstall:
-	@sudo python setup.py install --record build/files.$$$$; \
-	 cat build/files.$$$$ | xargs sudo rm -rf; \
-	 $(MAKE) clean
+	python setup.py install --record build/files.$$$$; \
+	cat build/files.$$$$ | xargs sudo rm -rf; \
+	$(MAKE) clean
 
 #
 #	This "clean" rule will remove all of the files that were generated to
