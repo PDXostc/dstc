@@ -55,13 +55,76 @@ def register_client_function(func_name, param_format):
     return lam_fun
 
 def dstc_process(*arg):
+
     (node_id, name, payload) = arg
     if name not in server_func:
         print("Server function {} not registered!".format(name))
         return False
 
-    (func, param_format) = server_func[name]
-    arg = struct.unpack(param_format, payload)
+    (func, param_fmt) = server_func[name]
+    arg = ()
+    # Check that we don't have any endianness specs as a first format
+    # param.
+
+    if param_fmt[0] in ['@', '=', '<', '>', '~' ]:
+        param_fmt = param_fmt[1:]
+
+    while len(param_fmt) > 0:
+        # Special case for dynamic data
+        if param_fmt[0] == '#':
+
+            field_len = struct.calcsize("<H")
+
+            if len(payload) < field_len:
+                return False
+
+            (arg_len,) = struct.unpack("<H", payload[:field_len])
+
+            if len(payload) < arg_len:
+                return False
+
+            # Strip front of payload
+            payload = payload[field_len:]
+
+            # Get dynamic data payload
+            arg += struct.unpack("<{}s".format(arg_len), payload[:arg_len])
+
+            # Strip dynamic data from payload
+            payload = payload[arg_len:]
+
+            # Strip the '#' char from parameter format
+            param_fmt = param_fmt[1:]
+            continue
+
+        # Get all digits + format character
+        fmt = '<'  # Always little endian
+        while param_fmt[0].isdigit():
+            fmt += param_fmt[0]
+            param_fmt = param_fmt[1:]
+
+        # Copy the actual field spec
+        fmt += param_fmt[0]
+        param_fmt = param_fmt[1:]
+
+        # Get the length of field that we are about to decode
+        arg_len = struct.calcsize(fmt)
+
+        # Do we have enougn data?
+        if len(payload) < arg_len:
+            return False
+
+        # Get field
+
+        upack = struct.unpack(fmt, payload[:arg_len])
+        if isinstance(upack, tuple):
+            upack=list(upack)
+
+        arg += (upack,)
+
+        # Strip dynamic data from payload
+        payload = payload[arg_len:]
+        continue
+
     func(name, *arg)
     return True
 
@@ -98,7 +161,7 @@ def client_call(func_name, *args):
         print("client function {} not registered!".format(func_name))
         return False
 
-    param_format = client_func[func_name]
+    param_fmt = client_func[func_name]
     # Convert all strings to bytes
     # All other arguments are converted as is.
 
@@ -109,8 +172,47 @@ def client_call(func_name, *args):
         else:
             cnvt_args += (arg, )
 
-    arg = struct.pack("<" + param_format, *cnvt_args)
-    res = dstc_swig.dstc_queue_func(func_name.encode("utf-8"), arg, len(arg))
+    # Skip first byte if they are trying to do endianess.
+    if param_fmt[0] in ['@', '=', '<', '>', '~' ]:
+        param_fmt = param_fmt[1:]
+
+    payload=b''
+    arg_ind = 0
+    while len(param_fmt) > 0:
+        # Special case for dynamic data
+        if param_fmt[0] == '#':
+            # Pack length indicator
+            payload += struct.pack("<H",len(cnvt_args[arg_ind]))
+            # Pack payload
+            payload += struct.pack("<{}s".format(len(cnvt_args[arg_ind])),
+                                   cnvt_args[arg_ind])
+            # Strip the '#' char from parameter format
+            param_fmt = param_fmt[1:]
+            arg_ind += 1
+            continue
+
+        # Get all digits + format character
+        fmt = ''  # Always little endian
+        while param_fmt[0].isdigit():
+            fmt += param_fmt[0]
+            param_fmt = param_fmt[1:]
+
+        # Copy the actual field spec
+        fmt += param_fmt[0]
+        param_fmt = param_fmt[1:]
+
+        # If format has a count specifier, then we need to convert
+        # the received argument array to a tuple and present it
+        # as four separate arguments to struct.pack()
+        if fmt[0].isdigit():
+            payload += struct.pack(fmt, *tuple(cnvt_args[arg_ind]))
+        else:
+            # Just a regular arg.
+            payload += struct.pack(fmt, cnvt_args[arg_ind])
+
+        arg_ind += 1
+
+    res = dstc_swig.dstc_queue_func(func_name.encode("utf-8"), payload, len(payload))
     if res != 0:
         print("dstc_swig.dstc_queue_func failed: {}".format(res))
         return False

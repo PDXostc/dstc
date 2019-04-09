@@ -11,4 +11,4 @@ dstc_swig_wrap.c: dstc_swig.i ../dstc.h
 	swig -I/usr/include -python -includeall dstc_swig.i
 
 clean:
-	rm -rf _dstc*.so build dstc_swig.py dstc_swig_wrap.* __pycache__
+	rm -rf _dstc*.so build dstc_swig.py dstc_swig_wrap.* __pycache__ *~
