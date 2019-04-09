@@ -10,13 +10,15 @@
     extern void dstc_register_client_function(char*, void*);
     extern int dstc_queue_func(char* name, const char* arg_buf, unsigned int arg_sz);
     extern unsigned char dstc_remote_function_available_by_name(char* func_name);
-    extern void swig_dstc_process(unsigned int node_id,
+    extern void swig_dstc_process(unsigned long callback_ref, // Not used.
+                                  unsigned int node_id,
                                   char *func_name,
                                   char* payload,
                                   unsigned short payload_len);
     extern void register_python_server_function(char* name);
     extern void dstc_register_server_function(char*,
-                                              void (*)(unsigned int node_id,
+                                              void (*)(unsigned long callback_ref,
+                                                       unsigned int node_id,
                                                        char *func_name,
                                                        char* payload,
                                                        unsigned short payload_len));
@@ -24,7 +26,8 @@
 
 static PyObject *cb_ptr = NULL;
 
-void swig_dstc_process(unsigned int node_id,
+void swig_dstc_process(unsigned long callback_ref, // Not used.
+                       unsigned int node_id,
                        char *func_name,
                        char* payload,
                        unsigned short payload_len)
@@ -56,6 +59,11 @@ void swig_dstc_process(unsigned int node_id,
 void register_python_server_function(char* name)
 {
     dstc_register_server_function(name, swig_dstc_process);
+}
+
+void register_python_callback_function(unsigned long cb_ref)
+{
+
 }
 
 void set_python_callback(PyObject* cb)

@@ -23,7 +23,11 @@ typedef uint64_t dstc_callback_int_t;
 #endif
 
 // Internal callback
-typedef void (*dstc_internal_dispatch_t)(rmc_node_id_t node_id,
+// callback_ref is not used by DSTC C-implementation, but is there
+// to help python and other languages map the callback reference
+// back to a local callback function.
+typedef void (*dstc_internal_dispatch_t)(uint64_t callback_ref,
+                                         rmc_node_id_t node_id,
                                          uint8_t *name,
                                          uint8_t* payload,
                                          uint16_t payload_len);
@@ -233,9 +237,10 @@ typedef dstc_callback_t CBCK;
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 
 #define CLIENT_CALLBACK_ARG(_func_ptr, ...) ({                          \
-    void dstc_callback_##_func_ptr(rmc_node_id_t node_id,               \
+    void dstc_callback_##_func_ptr(uint64_t callback_ref,               \
+                                   rmc_node_id_t node_id,               \
                                    uint8_t *func_name,                  \
-                                   uint8_t* payload,                       \
+                                   uint8_t* payload,                    \
                                    uint16_t payload_len)                \
     {                                                                   \
         (void) func_name;                                               \
@@ -415,7 +420,8 @@ typedef dstc_callback_t CBCK;
 // If the socket has not been setup when the client call is made,
 // it is will be done through dstc_net_client.c:dstc_setup_mcast_sub()
 #define DSTC_SERVER_INTERNAL(name, ...)                                 \
-    void dstc_server_##name(rmc_node_id_t node_id,                      \
+    void dstc_server_##name(uint64_t unused,                            \
+                            rmc_node_id_t node_id,                      \
                             uint8_t* func_name,                         \
                             uint8_t* payload,                           \
                             uint16_t payload_len)                       \
