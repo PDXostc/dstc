@@ -1,6 +1,6 @@
 // Copyright (C) 2018, Jaguar Land Rover
 // This program is licensed under the terms and conditions of the
-// Mozilla Public License, version 2.0.  The full text of the 
+// Mozilla Public License, version 2.0.  The full text of the
 // Mozilla Public License is at https://www.mozilla.org/MPL/2.0/
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
@@ -35,7 +35,6 @@ void test_dynamic_function(dstc_dynamic_data_t dynarg, int second_arg[4])
     printf("Second Arg[2]: %d\n", second_arg[2]);
     printf("Second Arg[3]: %d\n", second_arg[3]);
 }
-
 
 int main(int argc, char* argv[])
 {

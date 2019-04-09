@@ -32,6 +32,7 @@ void swig_dstc_process(unsigned int node_id,
     PyObject *arglist = 0;
     PyObject *result = 0;
 
+    printf("Local call [%s]\n", func_name);
     if (!cb_ptr) {
         printf("swig_dstc_process(): Please call set_python_callback() prior to calling setup()\n");
         exit(255);
@@ -41,8 +42,11 @@ void swig_dstc_process(unsigned int node_id,
     arglist = Py_BuildValue("isy#", node_id, func_name, payload, payload_len);
     result = PyObject_CallObject(cb_ptr, arglist);
     Py_DECREF(arglist);
-   if (result)
+    if (result)
         Py_DECREF(result);
+    else
+        puts("That didn't work");
+
     return;
 }
 
