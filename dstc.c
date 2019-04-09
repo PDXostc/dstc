@@ -222,7 +222,7 @@ static dstc_internal_dispatch_t dstc_find_callback(dstc_callback_int_t func_addr
     while(i < _dstc_default_context.callback_ind) {
         if ((dstc_callback_int_t) _dstc_default_context.local_callback[i] == func_addr) {
             dstc_internal_dispatch_t res = _dstc_default_context.local_callback[i];
-            // Nill out the callback since it is a one-time shot thing.
+            // Nil out the callback since it is a one-time shot thing.
             _dstc_default_context.local_callback[i] = 0;
             return res;
         }
@@ -702,7 +702,8 @@ static uint32_t dstc_process_function_call(uint8_t* data,
                       call->node_id,
                       call->payload,
                       call->payload_len - name_len - 1);
-        (*local_func_ptr)(call->node_id,
+        (*local_func_ptr)(0, // Callback ref is 0
+                          call->node_id,
                           call->payload, // function name
                           call->payload + name_len + 1, // Payload
                           call->payload_len - name_len - 1);  // Payload len
@@ -719,7 +720,8 @@ static uint32_t dstc_process_function_call(uint8_t* data,
         RMC_LOG_COMMENT("Callback [%llu] not loaded. Ignored", (long long unsigned) callback_ref);
         return sizeof(dstc_header_t) + call->payload_len;
     }
-    (*local_func_ptr)(call->node_id,
+    (*local_func_ptr)(callback_ref,
+                      call->node_id,
                       call->payload, // Funcation name. Always ""
                       call->payload + 1 + sizeof(uint64_t),// Payload after nil name and uint64_t
                       call->payload_len - 1 - sizeof(uint64_t));  // Payload len

@@ -11,6 +11,7 @@
 #
 
 server_func = {}
+callback_func = {}
 client_func = {}
 client_lambda = {}
 
@@ -93,6 +94,25 @@ def dstc_process(*arg):
             payload = payload[arg_len:]
 
             # Strip the '#' char from parameter format
+            param_fmt = param_fmt[1:]
+            continue
+
+        # Callback ref?
+        # Decode as uint64
+        if param_fmt[0] == '&':
+            # Get the length of field that we are about to decode
+            arg_len = struct.calcsize("<Q")
+
+            # Do we have enougn data?
+            if len(payload) < arg_len:
+                return False
+
+            arg += struct.unpack("<Q", payload[:arg_len])
+
+            # Strip callback ref from payload
+            payload = payload[arg_len:]
+            # REGISTER CALLBACK HERE
+            # Strip the '&' char from parameter format
             param_fmt = param_fmt[1:]
             continue
 
@@ -187,6 +207,15 @@ def client_call(func_name, *args):
             payload += struct.pack("<{}s".format(len(cnvt_args[arg_ind])),
                                    cnvt_args[arg_ind])
             # Strip the '#' char from parameter format
+            param_fmt = param_fmt[1:]
+            arg_ind += 1
+            continue
+
+        # Callback ref?
+        # Encode callback as uint64 through the id() function
+        if param_fmt[0] == '&':
+            payload += struct.pack("<Q", id(cnvt_args[arg_ind]))
+            # Strip the '&' char from parameter format
             param_fmt = param_fmt[1:]
             arg_ind += 1
             continue
