@@ -5,6 +5,7 @@ setup.py file for DSTC SWIG
 """
 
 import setuptools
+import os
 from distutils.core import setup, Extension
 
 setup (name = 'jlr-dstc',
