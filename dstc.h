@@ -15,15 +15,20 @@
 
 // FIXME: Hash table for both local and remote func
 #define SYMTAB_SIZE 128
-
 #if UINTPTR_MAX == 0xffffffff
 typedef uint32_t dstc_callback_int_t;
 #elif UINTPTR_MAX == 0xffffffffffffffff
 typedef uint64_t dstc_callback_int_t;
 #endif
 
+typedef uint64_t dstc_callback_t;
+
 // Internal callback
-typedef void (*dstc_internal_dispatch_t)(rmc_node_id_t node_id,
+// callback_ref is not used by DSTC C-implementation, but is there
+// to help python and other languages map the callback reference
+// back to a local callback function.
+typedef void (*dstc_internal_dispatch_t)(dstc_callback_t callback_ref,
+                                         rmc_node_id_t node_id,
                                          uint8_t *name,
                                          uint8_t* payload,
                                          uint16_t payload_len);
@@ -61,7 +66,11 @@ typedef struct {
     // All currently active local callback functions passed
     // to DSTC_CLIENT-registered call by the application.
     // FIXME: Hash table
-    dstc_internal_dispatch_t local_callback[SYMTAB_SIZE];
+    struct {
+        dstc_internal_dispatch_t callback;
+        dstc_callback_t callback_ref;
+    } local_callback[SYMTAB_SIZE];
+
     uint32_t callback_ind ;
 
     int epoll_fd;
@@ -216,10 +225,6 @@ typedef dstc_dynamic_data_t DSTC;
 //
 #define DSTC_CALLBACK_TAG 0x4B434243
 
-typedef struct {
-    dstc_callback_int_t func_addr;        // Used to create transient callback map to function pointer.
-} dstc_callback_t;
-
 // Setup a simple macro so that we don't need an extra comma
 // when we use DECL_CALLBACK_ARG in DSTC_CLIENT and DSTC_SERVER lines.
 #define DECL_CALLBACK_ARG CBCK,
@@ -233,9 +238,10 @@ typedef dstc_callback_t CBCK;
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 
 #define CLIENT_CALLBACK_ARG(_func_ptr, ...) ({                          \
-    void dstc_callback_##_func_ptr(rmc_node_id_t node_id,               \
+    void dstc_callback_##_func_ptr(dstc_callback_t callback_ref,    \
+                                   rmc_node_id_t node_id,               \
                                    uint8_t *func_name,                  \
-                                   uint8_t* payload,                       \
+                                   uint8_t* payload,                    \
                                    uint16_t payload_len)                \
     {                                                                   \
         (void) func_name;                                               \
@@ -244,11 +250,15 @@ typedef dstc_callback_t CBCK;
         (*_func_ptr)(LIST_ARGUMENTS(__VA_ARGS__));                      \
         return;                                                         \
     }                                                                   \
-    CBCK callback = {                                                   \
-        .func_addr = (dstc_callback_int_t) dstc_callback_##_func_ptr    \
-    };                                                                  \
-    extern void dstc_register_callback_server(dstc_internal_dispatch_t);   \
-    dstc_register_callback_server(dstc_callback_##_func_ptr);           \
+    CBCK callback =                                                     \
+        (dstc_callback_t) (dstc_callback_int_t)                     \
+        dstc_callback_##_func_ptr;                                      \
+                                                                        \
+    extern void dstc_register_callback_server(dstc_callback_t,      \
+                                              dstc_internal_dispatch_t);\
+    dstc_register_callback_server(                                      \
+        (dstc_callback_t) (dstc_callback_int_t) dstc_callback_##_func_ptr, \
+        dstc_callback_##_func_ptr);                                     \
     callback;                                                           \
     })
 
@@ -318,7 +328,7 @@ typedef dstc_callback_t CBCK;
         break;                                                          \
                                                                         \
     case DSTC_CALLBACK_TAG:                                             \
-        *((uint64_t*) payload) = ((dstc_callback_t*) &_a##arg_id)->func_addr; \
+        *((dstc_callback_t*) payload) = *((dstc_callback_t*) &_a##arg_id); \
         payload += sizeof(uint64_t);                                       \
         break;                                                          \
                                                                         \
@@ -341,7 +351,7 @@ typedef dstc_callback_t CBCK;
         break;                                                          \
                                                                         \
     case DSTC_CALLBACK_TAG:                                             \
-        ((dstc_callback_t*) &_a##arg_id)->func_addr = *(dstc_callback_int_t*) payload; \
+        *((dstc_callback_t*) &_a##arg_id) = *(dstc_callback_t*) payload; \
         payload += sizeof(uint64_t);                                       \
         break;                                                          \
                                                                         \
@@ -395,11 +405,13 @@ typedef dstc_callback_t CBCK;
     int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                   \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
-        uint8_t *payload = arg_buf;                                        \
-        extern int dstc_queue_callback(uint64_t addr, uint8_t* arg_buf, uint32_t arg_sz); \
+        uint8_t *payload = arg_buf;                                     \
+        extern int dstc_queue_callback(dstc_callback_t addr,            \
+                                       uint8_t* arg_buf,                \
+                                       uint32_t arg_sz);                \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        return dstc_queue_callback((uint64_t) name.func_addr, arg_buf, arg_sz); \
+        return dstc_queue_callback(name, arg_buf, arg_sz); \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \
@@ -415,7 +427,8 @@ typedef dstc_callback_t CBCK;
 // If the socket has not been setup when the client call is made,
 // it is will be done through dstc_net_client.c:dstc_setup_mcast_sub()
 #define DSTC_SERVER_INTERNAL(name, ...)                                 \
-    void dstc_server_##name(rmc_node_id_t node_id,                      \
+    void dstc_server_##name(uint64_t unused,                            \
+                            rmc_node_id_t node_id,                      \
                             uint8_t* func_name,                         \
                             uint8_t* payload,                           \
                             uint16_t payload_len)                       \
