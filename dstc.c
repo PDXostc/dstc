@@ -216,19 +216,37 @@ void dstc_register_client_function(char* name, void *client_func)
 // Retrieve a callback function. Each time it is invoked, it will be deleted.
 // dstc_register_server_function()
 //
-static dstc_internal_dispatch_t dstc_find_callback(dstc_callback_int_t func_addr)
+static dstc_internal_dispatch_t dstc_find_callback_by_func(dstc_internal_dispatch_t func)
 {
     int i = 0;
     while(i < _dstc_default_context.callback_ind) {
-        if ((dstc_callback_int_t) _dstc_default_context.local_callback[i] == func_addr) {
-            dstc_internal_dispatch_t res = _dstc_default_context.local_callback[i];
+        if (_dstc_default_context.local_callback[i].callback == func) {
+            dstc_internal_dispatch_t res = _dstc_default_context.local_callback[i].callback;
             // Nil out the callback since it is a one-time shot thing.
-            _dstc_default_context.local_callback[i] = 0;
+            _dstc_default_context.local_callback[i].callback = 0;
+            _dstc_default_context.local_callback[i].callback_ref = 0;
             return res;
         }
         ++i;
     }
-    RMC_LOG_COMMENT("Did not find callback [%lX]\n", func_addr);
+    RMC_LOG_COMMENT("Did not find callback [%p]\n", func);
+    return (dstc_internal_dispatch_t) 0;
+}
+
+static dstc_internal_dispatch_t dstc_find_callback_by_ref(dstc_callback_t callback_ref)
+{
+    int i = 0;
+    while(i < _dstc_default_context.callback_ind) {
+        if (_dstc_default_context.local_callback[i].callback_ref == callback_ref) {
+            dstc_internal_dispatch_t res = _dstc_default_context.local_callback[i].callback;
+            // Nil out the callback since it is a one-time shot thing.
+            _dstc_default_context.local_callback[i].callback = 0;
+            _dstc_default_context.local_callback[i].callback_ref = 0;
+            return res;
+        }
+        ++i;
+    }
+    RMC_LOG_COMMENT("Did not find callback [%lX]", callback_ref);
     return (dstc_internal_dispatch_t) 0;
 }
 
@@ -237,12 +255,12 @@ static dstc_internal_dispatch_t dstc_find_callback(dstc_callback_int_t func_addr
 // Called by  function dstc_callback_xxx that is declared
 // as a part of the CLIENT_CALLBACK_ARG macro.
 //
-void dstc_register_callback_server(dstc_internal_dispatch_t callback)
+void dstc_register_callback_server(dstc_callback_t callback_ref, dstc_internal_dispatch_t callback)
 {
     int ind = 0;
     // Find a previously freed slot, or allocate a new one
     while(ind < _dstc_default_context.callback_ind) {
-        if (!_dstc_default_context.local_callback[ind])
+        if (!_dstc_default_context.local_callback[ind].callback)
             break;
         ++ind;
     }
@@ -252,8 +270,9 @@ void dstc_register_callback_server(dstc_internal_dispatch_t callback)
         RMC_LOG_FATAL("Out of memory trying to register callback. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
-    _dstc_default_context.local_callback[_dstc_default_context.callback_ind] = callback;
-    RMC_LOG_COMMENT("Registered server callback [%lX]", (dstc_callback_int_t) callback);
+    _dstc_default_context.local_callback[_dstc_default_context.callback_ind].callback_ref = callback_ref;
+    _dstc_default_context.local_callback[_dstc_default_context.callback_ind].callback = callback;
+    RMC_LOG_COMMENT("Registered server callback [%llX] to %p",  callback_ref, callback);
     _dstc_default_context.callback_ind++;
 }
 
@@ -269,10 +288,10 @@ void dstc_register_callback_client(char* name, void* callback)
 }
 
 
-void dstc_cancel_callback(void (*callback)(rmc_node_id_t node_id, uint8_t*))
+void dstc_cancel_callback(dstc_internal_dispatch_t callback)
 {
     // Will delete the callback.
-    dstc_find_callback((dstc_callback_int_t) callback);
+    dstc_find_callback_by_func( callback);
 }
 
 uint8_t dstc_remote_function_available_by_name(char* func_name)
@@ -668,7 +687,7 @@ static uint32_t dstc_process_function_call(uint8_t* data,
 {
     dstc_header_t* call = (dstc_header_t*) data;
     dstc_internal_dispatch_t local_func_ptr = 0;
-    uint64_t callback_ref = 0;
+    dstc_callback_t callback_ref = 0;
 
     if (data_len < sizeof(dstc_header_t)) {
         RMC_LOG_WARNING("Packet header too short! Wanted %ld bytes, got %d",
@@ -713,8 +732,8 @@ static uint32_t dstc_process_function_call(uint8_t* data,
 
     // If name is nil-len, then the eight bytes after the initial \0 is
     // the callback reference value
-    callback_ref = *((uint64_t*)(call->payload + 1));
-    local_func_ptr = dstc_find_callback((dstc_callback_int_t) callback_ref);
+    callback_ref = *((dstc_callback_t*)(call->payload + 1));
+    local_func_ptr = dstc_find_callback_by_ref(callback_ref);
 
     if (!local_func_ptr) {
         RMC_LOG_COMMENT("Callback [%llu] not loaded. Ignored", (long long unsigned) callback_ref);
@@ -1003,7 +1022,7 @@ int dstc_setup2(int epoll_fd_arg,
 
 
 
-static int dstc_queue(char* name, dstc_callback_int_t callback_ref, uint8_t* arg, uint32_t arg_sz)
+static int dstc_queue(char* name, dstc_callback_t callback_ref, uint8_t* arg, uint32_t arg_sz)
 {
     // Will be freed by RMC on confirmed delivery
     dstc_header_t *call = 0;
@@ -1076,10 +1095,11 @@ static int dstc_queue(char* name, dstc_callback_int_t callback_ref, uint8_t* arg
 
 
 // Returns EBUSY if outbound queues are full
-int dstc_queue_callback(uint64_t addr, uint8_t* arg, uint32_t arg_sz)
+int dstc_queue_callback(dstc_callback_t addr, uint8_t* arg, uint32_t arg_sz)
 {
     // Call with zero namelen to treat name as a 64bit integer.
-    // This integer will be mapped by the received through the _dstc_default_context.local_callback
+    // This integer will be mapped by the received through the
+    // _dstc_default_context.local_callback
     // table to a pending callback function.
     return dstc_queue(0, addr, arg, arg_sz);
 }
