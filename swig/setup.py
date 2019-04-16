@@ -9,7 +9,7 @@ import os
 from distutils.core import setup, Extension
 
 setup (name = 'jlr-dstc',
-       version=os.environ['VERSION'],
+       version=0.2,
        author      = "SWIG Docs",
        author_email = "ecoffey1@jaguarlandrover.com",
        url = "https://github.com/PDXostc/dstc",
