@@ -14,7 +14,7 @@ RMC_DIR=reliable_multicast-${RMC_VERSION}
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
-INCLUDES=-I${CURDIR}/${RMC_DIR} -I/usr/local/include
+INCLUDES=-I${CURDIR}/${RMC_DIR} -I. -I/usr/local/include
 CFLAGS=-fPIC -g $(INCLUDES) -Wall
 DESTDIR ?= /usr/local
 export CFLAGS
