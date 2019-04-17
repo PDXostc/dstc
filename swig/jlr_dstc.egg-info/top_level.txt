@@ -1,3 +1,0 @@
-_dstc_swig
-dstc
-dstc_swig
