@@ -1,9 +1,0 @@
-README
-dstc.py
-dstc_swig.py
-dstc_swig_wrap.c
-setup.py
-jlr_dstc.egg-info/PKG-INFO
-jlr_dstc.egg-info/SOURCES.txt
-jlr_dstc.egg-info/dependency_links.txt
-jlr_dstc.egg-info/top_level.txt
