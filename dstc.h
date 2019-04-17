@@ -129,6 +129,12 @@ extern int dstc_process_single_event(int timeout);
 extern void dstc_process_epoll_result(struct epoll_event* event);
 extern rmc_node_id_t dstc_get_node_id(void);
 extern uint8_t dstc_remote_function_available(void* func_ptr);
+extern void dstc_register_callback_server(dstc_callback_t, dstc_internal_dispatch_t);
+extern int dstc_queue_func(char* name, uint8_t* arg_buf, uint32_t arg_sz);
+extern void dstc_register_client_function(char*, void *);
+extern int dstc_queue_callback(dstc_callback_t addr, uint8_t* arg_buf, uint32_t arg_sz);
+extern void dstc_register_callback_client(char*, void *);
+extern void dstc_register_server_function(char*, dstc_internal_dispatch_t);
 
 // Please note that the same arguments can be set via
 // environment variables. See DSTC_ENV_xxx above.
@@ -254,8 +260,6 @@ typedef dstc_callback_t CBCK;
         (dstc_callback_t) (dstc_callback_int_t)                     \
         dstc_callback_##_func_ptr;                                      \
                                                                         \
-    extern void dstc_register_callback_server(dstc_callback_t,      \
-                                              dstc_internal_dispatch_t);\
     dstc_register_callback_server(                                      \
         (dstc_callback_t) (dstc_callback_int_t) dstc_callback_##_func_ptr, \
         dstc_callback_##_func_ptr);                                     \
@@ -385,18 +389,15 @@ typedef dstc_callback_t CBCK;
       uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                    \
       uint8_t arg_buf[arg_sz];                                          \
       uint8_t *payload = arg_buf;                                          \
-      extern int dstc_queue_func(char* name, uint8_t* arg_buf, uint32_t arg_sz); \
                                                                         \
       SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
       return dstc_queue_func((char*) #name, arg_buf, arg_sz);            \
   }                                                                     \
   void __attribute__((constructor)) _dstc_register_client_##name()      \
   {                                                                     \
-      extern void dstc_register_client_function(char*, void *);         \
       char name_arr[] = #name;                                          \
       dstc_register_client_function(name_arr, (void*)  dstc_##name);    \
   }
-
 
 // Create callback function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
@@ -406,16 +407,12 @@ typedef dstc_callback_t CBCK;
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
         uint8_t *payload = arg_buf;                                     \
-        extern int dstc_queue_callback(dstc_callback_t addr,            \
-                                       uint8_t* arg_buf,                \
-                                       uint32_t arg_sz);                \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
         return dstc_queue_callback(name, arg_buf, arg_sz); \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \
-        extern void dstc_register_callback_client(char*, void *);       \
         char name_array[] = #name;                                      \
         dstc_register_callback_client(name_array, (void*) dstc_##name); \
     }
@@ -441,7 +438,6 @@ typedef dstc_callback_t CBCK;
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_server_##name()    \
     {                                                                   \
-        extern void dstc_register_server_function(char*, dstc_internal_dispatch_t); \
         char name_array[] = #name;                                      \
         dstc_register_server_function(name_array, dstc_server_##name);  \
     }
