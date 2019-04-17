@@ -132,6 +132,7 @@ extern uint8_t dstc_remote_function_available(void* func_ptr);
 extern void dstc_register_callback_server(dstc_callback_t, dstc_internal_dispatch_t);
 extern int dstc_queue_func(char* name, uint8_t* arg_buf, uint32_t arg_sz);
 extern void dstc_register_client_function(char*, void *);
+extern int dstc_queue_callback(dstc_callback_t addr, uint8_t* arg_buf, uint32_t arg_sz);
 extern void dstc_register_callback_client(char*, void *);
 extern void dstc_register_server_function(char*, dstc_internal_dispatch_t);
 
@@ -398,7 +399,6 @@ typedef dstc_callback_t CBCK;
       dstc_register_client_function(name_arr, (void*)  dstc_##name);    \
   }
 
-int dstc_queue_callback(dstc_callback_t addr, uint8_t* arg_buf, uint32_t arg_sz);
 // Create callback function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
