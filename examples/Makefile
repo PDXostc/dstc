@@ -5,7 +5,8 @@ SUBDIRS =                 \
 	struct                \
 	callback              \
 	callback_dynamic_data \
-    stress                \
+	stress                \
+	loopback              \
 	chat                  \
 	cpp                   \
 
@@ -30,6 +31,7 @@ install: $(SUBDIRS)
 	do \
 	    $(MAKE) DESTDIR=${DESTDIR} -C $$dir install; \
 	done \
+
 
 
 uninstall: $(SUBDIRS)
