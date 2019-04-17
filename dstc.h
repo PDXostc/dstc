@@ -135,6 +135,7 @@ extern void dstc_register_client_function(char*, void *);
 extern int dstc_queue_callback(dstc_callback_t addr, uint8_t* arg_buf, uint32_t arg_sz);
 extern void dstc_register_callback_client(char*, void *);
 extern void dstc_register_server_function(char*, dstc_internal_dispatch_t);
+extern uint8_t dstc_remote_function_available_by_name(char* func_name);
 
 // Please note that the same arguments can be set via
 // environment variables. See DSTC_ENV_xxx above.
