@@ -397,7 +397,7 @@ typedef dstc_callback_t CBCK;
       dstc_register_client_function(name_arr, (void*)  dstc_##name);    \
   }
 
-
+int dstc_queue_callback(dstc_callback_t addr, uint8_t* arg_buf, uint32_t arg_sz);
 // Create callback function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
@@ -406,9 +406,6 @@ typedef dstc_callback_t CBCK;
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
         uint8_t *payload = arg_buf;                                     \
-        extern int dstc_queue_callback(dstc_callback_t addr,            \
-                                       uint8_t* arg_buf,                \
-                                       uint32_t arg_sz);                \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
         return dstc_queue_callback(name, arg_buf, arg_sz); \
