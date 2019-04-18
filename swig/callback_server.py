@@ -6,7 +6,6 @@ import dstc
 
 def double_value_and_invoke_callback(func_name, value, callback):
     print("Will double value: {}".format(value))
-    print("CB: {}".format(callback))
     # Invoke the callback in order to deliver the result.
     # The parameter signature ("i") specifies that an integer
     # is the single argument to be delivered.
