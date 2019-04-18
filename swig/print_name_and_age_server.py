@@ -5,7 +5,6 @@
 import dstc
 
 def do_print_name_and_age(func_name, name, age):
-    print("Function name: {}".format(func_name))
     print("Name: {}".format(name))
     print("Age: {}".format(age))
 

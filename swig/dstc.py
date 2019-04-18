@@ -158,7 +158,6 @@ def payload_to_arguments(payload, param_fmt):
 
             # Setup a lambda function that can be invoked
             # by the server when it wants to make its callback function
-            print("Adding callback invocation for {}".format(cb_ref))
             arg += (lambda *arg: process_callback_invocation(cb_ref, *arg),)
 
             # Strip the '&' char from parameter format
@@ -186,7 +185,6 @@ def payload_to_arguments(payload, param_fmt):
 
         # Get field
         upack = struct.unpack(fmt, payload[:arg_len])
-        print("Format: {} Result: {}".format(fmt, upack))
 
         if isinstance(upack, tuple):
             upack=list(upack)
@@ -214,7 +212,6 @@ def dstc_process_incoming(*arg):
             print("Callback reference {} not registered!".format(callback_ref))
             return False
         (func, param_fmt) = server_callback_func[callback_ref]
-        print("CALLBACK?? {} {}".format(func, param_fmt))
         del server_callback_func[callback_ref]
 
     if callback_ref == 0:
@@ -284,7 +281,7 @@ def arguments_to_payload(arguments, param_fmt):
 
             # Register the callback function.
             dstc_swig.register_python_callback_server(cb_ref)
-            print("Callback ref id: {}".format(cb_ref))
+
 
             # Strip the '&' char from parameter format
             param_fmt = param_fmt[1:]
@@ -328,7 +325,7 @@ def process_client_call(func_name, *args):
     # All other arguments are converted as is.
     payload = arguments_to_payload(args, param_fmt)
 
-    res = dstc_swig.dstc_queue_func(func_name.encode("utf-8"), payload, len(payload))
+    res = dstc_swig.swig_dstc_queue_func(func_name.encode("utf-8"), payload, len(payload))
     if res != 0:
         print("dstc_swig.dstc_queue_func failed: {}".format(res))
         return False
@@ -338,12 +335,10 @@ def process_client_call(func_name, *args):
 def process_callback_invocation(callback_ref, param_fmt, *args):
     # Convert all strings to bytes
     # All other arguments are converted as is.
-    print("callback_ref: {}  param_fmt: {}  args: {}".format(callback_ref, param_fmt, args))
+
 
     payload = arguments_to_payload(args, param_fmt)
-    print("ref: {}".format(callback_ref))
-    print("payload: {} len: {}".format(payload, len(payload)))
-    res = dstc_swig.dstc_queue_callback(callback_ref, payload, len(payload))
+    res = dstc_swig.swig_dstc_queue_callback(callback_ref, payload, len(payload))
     if res != 0:
         print("dstc_swig.dstc_queue_func failed: {}".format(res))
         return False
