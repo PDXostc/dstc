@@ -1,6 +1,0 @@
-# jlr-dstc pip pypy Package
-
-This is the jlr dstc python modules package.
-
-To install and import the dstc python module, you need to
-sudo apt install jlr-dstc-dev
