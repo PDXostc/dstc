@@ -270,10 +270,15 @@ void dstc_register_callback_server(dstc_callback_t callback_ref, dstc_internal_d
         RMC_LOG_FATAL("Out of memory trying to register callback. SYMTAB_SIZE=%d\n", SYMTAB_SIZE);
         exit(255);
     }
-    _dstc_default_context.local_callback[_dstc_default_context.callback_ind].callback_ref = callback_ref;
-    _dstc_default_context.local_callback[_dstc_default_context.callback_ind].callback = callback;
-    RMC_LOG_COMMENT("Registered server callback [%llX] to %p",  callback_ref, callback);
-    _dstc_default_context.callback_ind++;
+    _dstc_default_context.local_callback[ind].callback_ref = callback_ref;
+    _dstc_default_context.local_callback[ind].callback = callback;
+    RMC_LOG_COMMENT("Registered server callback [%llX] to %p. Index[%d]",
+                    callback_ref, callback, ind);
+
+    // If we are allocating a new slot (not reusing an earlier one).
+    // then bump callback_ind to the new max index in use.
+    if (ind == _dstc_default_context.callback_ind)
+        _dstc_default_context.callback_ind++;
 }
 
 // Register a callback function name - pointer relationship.
