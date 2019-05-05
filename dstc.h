@@ -197,7 +197,7 @@ extern int dstc_setup2(
 // FIXME: ADD DOCUMENTATION
 typedef struct {
     uint32_t length;
-    void* data;
+    const void* data;
 } dstc_dynamic_data_t;
 
 // Setup a simple macro so that we don't need an extra comma
