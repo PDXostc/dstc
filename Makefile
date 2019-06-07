@@ -12,7 +12,7 @@ LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I/usr/local/include
-CFLAGSLIST=-fPIC -g $(INCLUDES) -Wall $(CFLAGS) $(CPPFLAGS)
+CFLAGSLIST=-pthread -fPIC -g $(INCLUDES) -Wall $(CFLAGS) $(CPPFLAGS)
 DESTDIR ?= /usr/local
 export CFLAGSLIST
 export DESTDIR
