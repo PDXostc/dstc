@@ -447,7 +447,7 @@ typedef dstc_callback_t CBCK;
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \
         char name_array[] = #name;                                      \
-        dstc_register_callback_client(name_array, (void*) dstc_##name); \
+        dstc_register_callback_client(0, name_array, (void*) dstc_##name); \
     }
 
 
