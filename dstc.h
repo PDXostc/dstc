@@ -15,13 +15,8 @@
 
 // FIXME: Hash table for both local and remote func
 #define SYMTAB_SIZE 128
-#if UINTPTR_MAX == 0xffffffff
-typedef uint32_t dstc_callback_int_t;
-#elif UINTPTR_MAX == 0xffffffffffffffff
-typedef uint64_t dstc_callback_int_t;
-#endif
 
-typedef uint64_t dstc_callback_t;
+typedef intptr_t dstc_callback_t;
 
 // Internal callback
 // callback_ref is not used by DSTC C-implementation, but is there
@@ -129,13 +124,14 @@ extern int dstc_process_single_event(int timeout);
 extern void dstc_process_epoll_result(struct epoll_event* event);
 extern rmc_node_id_t dstc_get_node_id(void);
 extern uint8_t dstc_remote_function_available(void* func_ptr);
-extern void dstc_register_callback_server(dstc_callback_t, dstc_internal_dispatch_t);
+extern dstc_callback_t dstc_activate_callback(dstc_callback_t, dstc_internal_dispatch_t);
 extern int dstc_queue_func(char* name, uint8_t* arg_buf, uint32_t arg_sz);
 extern void dstc_register_client_function(char*, void *);
 extern int dstc_queue_callback(dstc_callback_t addr, uint8_t* arg_buf, uint32_t arg_sz);
 extern void dstc_register_callback_client(char*, void *);
 extern void dstc_register_server_function(char*, dstc_internal_dispatch_t);
 extern uint8_t dstc_remote_function_available_by_name(char* func_name);
+extern void dstc_invoke_callback(dstc_callback_t, ...);
 
 // Please note that the same arguments can be set via
 // environment variables. See DSTC_ENV_xxx above.
@@ -243,7 +239,7 @@ typedef dstc_callback_t CBCK;
 // fix all alias warnings.
 // For now, we'll just silence the warning.
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
-
+/*
 #define CLIENT_CALLBACK_ARG(_func_ptr, ...) ({                          \
     void dstc_callback_##_func_ptr(dstc_callback_t callback_ref,    \
                                    rmc_node_id_t node_id,               \
@@ -266,13 +262,28 @@ typedef dstc_callback_t CBCK;
         dstc_callback_##_func_ptr);                                     \
     callback;                                                           \
     })
+*/
 
-#define SERVER_CALLBACK_ARG(_func_ptr, ...) ({        \
-    CBCK callback = {                             \
-        .func_addr = (uint64_t) _func_ptr         \
-    };                                            \
-    callback;                                     \
-})
+#define CLIENT_CALLBACK(_func, ...)                                     \
+    static void _dstc_cb_##_func(dstc_callback_t callback_ref,          \
+                                 rmc_node_id_t node_id,                 \
+                                 uint8_t *func_name,                    \
+                                 uint8_t* payload,                      \
+                                 uint16_t payload_len)                  \
+    {                                                                   \
+        (void) func_name;                                               \
+        (void) callback_ref;                                            \
+        (void) node_id;                                                 \
+        DECLARE_VARIABLES(__VA_ARGS__);                                 \
+        DESERIALIZE_ARGUMENTS(__VA_ARGS__);                             \
+        (*_func)(LIST_ARGUMENTS(__VA_ARGS__));                          \
+        return;                                                         \
+    }                                                                   \
+
+#define CLIENT_CALLBACK_ARG(_func)              \
+    dstc_activate_callback(                     \
+        (dstc_callback_t) _func,                \
+        _dstc_cb_##_func)                       \
 
 
 // Thanks to https://codecraft.co/2014/11/25/variadic-macros-tricks for
@@ -386,19 +397,20 @@ typedef dstc_callback_t CBCK;
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
 #define DSTC_CLIENT(name, ...)                                          \
-    int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                   \
-      uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                    \
-      uint8_t arg_buf[arg_sz];                                          \
-      uint8_t *payload = arg_buf;                                          \
+    int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__))                     \
+    {                                                                   \
+        uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
+        uint8_t arg_buf[arg_sz];                                        \
+        uint8_t *payload = arg_buf;                                     \
                                                                         \
-      SERIALIZE_ARGUMENTS(__VA_ARGS__);                                 \
-      return dstc_queue_func((char*) #name, arg_buf, arg_sz);            \
-  }                                                                     \
-  void __attribute__((constructor)) _dstc_register_client_##name()      \
-  {                                                                     \
-      char name_arr[] = #name;                                          \
-      dstc_register_client_function(name_arr, (void*)  dstc_##name);    \
-  }
+        SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
+        return dstc_queue_func((char*) #name, arg_buf, arg_sz);         \
+    }                                                                   \
+    void __attribute__((constructor)) _dstc_register_client_##name()    \
+    {                                                                   \
+        char name_arr[] = #name;                                        \
+        dstc_register_client_function(name_arr, (void*)  dstc_##name);  \
+    }
 
 // Create callback function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
@@ -410,7 +422,7 @@ typedef dstc_callback_t CBCK;
         uint8_t *payload = arg_buf;                                     \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        return dstc_queue_callback(name, arg_buf, arg_sz); \
+        return dstc_queue_callback(name, arg_buf, arg_sz);              \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \
@@ -425,13 +437,14 @@ typedef dstc_callback_t CBCK;
 // If the socket has not been setup when the client call is made,
 // it is will be done through dstc_net_client.c:dstc_setup_mcast_sub()
 #define DSTC_SERVER_INTERNAL(name, ...)                                 \
-    void dstc_server_##name(uint64_t unused,                            \
+    void dstc_server_##name(intptr_t unused,                            \
                             rmc_node_id_t node_id,                      \
                             uint8_t* func_name,                         \
                             uint8_t* payload,                           \
                             uint16_t payload_len)                       \
     {                                                                   \
         (void) func_name;                                               \
+        (void) unused;                                                  \
         DECLARE_VARIABLES(__VA_ARGS__);                                 \
         DESERIALIZE_ARGUMENTS(__VA_ARGS__);                             \
         name(LIST_ARGUMENTS(__VA_ARGS__));                              \

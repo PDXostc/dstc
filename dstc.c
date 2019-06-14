@@ -251,11 +251,25 @@ static dstc_internal_dispatch_t dstc_find_callback_by_ref(dstc_callback_t callba
 }
 
 
-// Register a function name - pointer relationship.
-// Called by  function dstc_callback_xxx that is declared
-// as a part of the CLIENT_CALLBACK_ARG macro.
+// Activate a client-side callback that can be invoked from a remote
+// DSTC function called from the client.  Called by the
+// CLIENT_CALLBACK_ARG() macro to register a relationship between a
+// callback reference integer and a pointer to the dispatch function
+// that handles the incoming callback from the remote DSTC function.
+// callback_ref is a pointer to the callback function, but can be any
+// unique uint64_t. This integer is passed as a reference to the
+// remote DSTC function, which will send it back to the client
+// in order to invoke the local callback.
 //
-void dstc_register_callback_server(dstc_callback_t callback_ref, dstc_internal_dispatch_t callback)
+// client-side dstc_process_function_call() will detect that
+// a callback is being invoked and will use dstc_find_callback_by_ref()
+// to map the provided reference callback integer to a dispatch function,
+// which is then called.
+// dstc_find_callback_by_ref() will also de-activate the callback,
+// stopping it from being invoked multiple time.
+//
+dstc_callback_t dstc_activate_callback(dstc_callback_t callback_ref,
+                                       dstc_internal_dispatch_t callback)
 {
     int ind = 0;
     // Find a previously freed slot, or allocate a new one
@@ -279,6 +293,8 @@ void dstc_register_callback_server(dstc_callback_t callback_ref, dstc_internal_d
     // then bump callback_ind to the new max index in use.
     if (ind == _dstc_default_context.callback_ind)
         _dstc_default_context.callback_ind++;
+
+    return callback_ref;
 }
 
 // Register a callback function name - pointer relationship.
