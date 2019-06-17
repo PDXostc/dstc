@@ -22,7 +22,7 @@ void get_value_callback(int value);
 // and a callback function pointer as indicated by DECL_CALLBACK_ARG
 //
 
-DSTC_CLIENT(double_value_server, int,, DECL_CALLBACK_ARG);
+DSTC_CLIENT(double_value_server, int,, DSTC_DECL_CALLBACK_ARG);
 
 //
 // Callback invoked by the remotely executed double_value_server() function.

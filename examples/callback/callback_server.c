@@ -19,7 +19,7 @@
 // The deserializer decodes the incoming data and calls the
 // print_name_and_age() function in this file.
 //
-DSTC_SERVER(double_value_server, int,, DECL_CALLBACK_ARG)
+DSTC_SERVER(double_value_server, int,, DSTC_DECL_CALLBACK_ARG)
 
 //
 // Print out name and age.

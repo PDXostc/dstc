@@ -198,7 +198,7 @@ typedef struct {
 
 // Setup a simple macro so that we don't need an extra comma
 // when we use DECL_DYNAMIC_ARG in DSTC_CLIENT and DSTC_SERVER lines.
-#define DECL_DYNAMIC_ARG DSTC,
+#define DSTC_DECL_DYNAMIC_ARG DSTC,
 
 // Tag for dynamic data magic cookie: "DSTC" = 0x44535443
 // Used by DESERIALIZE_ARGUMENT and SERIALIZE_ARGUMENT
@@ -211,7 +211,7 @@ typedef dstc_dynamic_data_t DSTC;
 
 // Use dynamic arguments as:
 // dstc_send_variable_len(DYNARG("Hello world", 11))
-#define DYNAMIC_ARG(_data, _length) ({ DSTC d = { .length = _length, .data = _data }; d; })
+#define DSTC_DYNAMIC_ARG(_data, _length) ({ DSTC d = { .length = _length, .data = _data }; d; })
 
 
 //
@@ -230,7 +230,7 @@ typedef dstc_dynamic_data_t DSTC;
 
 // Setup a simple macro so that we don't need an extra comma
 // when we use DECL_CALLBACK_ARG in DSTC_CLIENT and DSTC_SERVER lines.
-#define DECL_CALLBACK_ARG CBCK,
+#define DSTC_DECL_CALLBACK_ARG CBCK,
 
 // Define an alias type that matches the magic cookie.
 typedef dstc_callback_t CBCK;

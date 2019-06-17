@@ -19,7 +19,7 @@
 // is a dynamic, variable length argument.
 //
 // The second argument is a regular array of four integers.
-DSTC_SERVER(test_dynamic_function, DECL_DYNAMIC_ARG, int, [4])
+DSTC_SERVER(test_dynamic_function, DSTC_DECL_DYNAMIC_ARG, int, [4])
 
 //
 // Receive and print out dynamic data and a static array of four integers.

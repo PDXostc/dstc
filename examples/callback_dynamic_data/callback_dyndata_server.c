@@ -27,7 +27,7 @@ DSTC_SERVER(add_name_and_age_element, struct name_and_age, )
 // Generate a deserializer that retrieves all elements,
 // added with remote calls to add_name_and_age_element(),
 // and send them back using a callback
-DSTC_SERVER(get_all_elements, DECL_CALLBACK_ARG)
+DSTC_SERVER(get_all_elements, DSTC_DECL_CALLBACK_ARG)
 
 void add_name_and_age_element(struct name_and_age new_elem)
 {
@@ -46,7 +46,7 @@ void get_all_elements(dstc_callback_t remote_callback)
 {
     // The callback takes one dynamic arg and the number of elements
     // stored in that argument.
-    DSTC_SERVER_CALLBACK(remote_callback, DECL_DYNAMIC_ARG, int,);
+    DSTC_SERVER_CALLBACK(remote_callback, DSTC_DECL_DYNAMIC_ARG, int,);
 
     // Send back all populated elements of the 'elems' array.
     // Second argument contains the number of elements sent.
@@ -55,7 +55,7 @@ void get_all_elements(dstc_callback_t remote_callback)
     // same info via dstc_dynamic_data_t:length, but it serves as a tutorial)
     //
     printf("Sending back %d elements\n", elem_index);
-    dstc_remote_callback(DYNAMIC_ARG(elems, sizeof(struct name_and_age) * elem_index), elem_index);
+    dstc_remote_callback(DSTC_DYNAMIC_ARG(elems, sizeof(struct name_and_age) * elem_index), elem_index);
 }
 
 

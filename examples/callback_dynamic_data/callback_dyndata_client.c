@@ -29,7 +29,7 @@ DSTC_CLIENT(add_name_and_age_element, struct name_and_age,)
 
 
 // Have server return all stored strings via a callback
-DSTC_CLIENT(get_all_elements, DECL_CALLBACK_ARG)
+DSTC_CLIENT(get_all_elements, DSTC_DECL_CALLBACK_ARG)
 
 
 // Callback that is sent to remote server by dstc_add_name_and_age_element()
@@ -58,7 +58,7 @@ void get_all_elements_callback(dstc_dynamic_data_t dynarg, int elem_count)
 }
 
 
-CLIENT_CALLBACK(get_all_elements_callback, DECL_DYNAMIC_ARG, int, )
+DSTC_CLIENT_CALLBACK(get_all_elements_callback, DSTC_DECL_DYNAMIC_ARG, int, )
 
 int main(int argc, char* argv[])
 {
@@ -123,7 +123,7 @@ int main(int argc, char* argv[])
     // deliver all elements to us via a callback
     if (print_flag) {
         puts("Retrieving all elements from remote server");
-        dstc_get_all_elements(CLIENT_CALLBACK_ARG(get_all_elements_callback));
+        dstc_get_all_elements(DSTC_CLIENT_CALLBACK_ARG(get_all_elements_callback));
     }
 
     // Process events for another 100 msec to ensure that the call gets out.
