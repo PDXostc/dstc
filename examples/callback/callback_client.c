@@ -39,7 +39,7 @@ void double_value_callback(int value)
     printf("Callback received: %d\n", value);
 }
 
-CLIENT_CALLBACK(double_value_callback, int,);
+DSTC_CLIENT_CALLBACK(double_value_callback, int,);
 
 
 int main(int argc, char* argv[])
@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
         // The arguments must match the actual arguments of the callback function implemented
         // above.
 //        dstc_double_value_server(i, CLIENT_CALLBACK_ARG(double_value_callback,int,));
-        dstc_double_value_server(i, CLIENT_CALLBACK_ARG(double_value_callback));
+        dstc_double_value_server(i, DSTC_CLIENT_CALLBACK_ARG(double_value_callback));
 
         // Process events for another 100 msec, which will also process
         // the received callback from callback_server.

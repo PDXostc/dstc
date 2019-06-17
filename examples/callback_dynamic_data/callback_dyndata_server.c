@@ -46,7 +46,7 @@ void get_all_elements(dstc_callback_t remote_callback)
 {
     // The callback takes one dynamic arg and the number of elements
     // stored in that argument.
-    DSTC_CALLBACK(remote_callback, DECL_DYNAMIC_ARG, int,);
+    DSTC_SERVER_CALLBACK(remote_callback, DECL_DYNAMIC_ARG, int,);
 
     // Send back all populated elements of the 'elems' array.
     // Second argument contains the number of elements sent.

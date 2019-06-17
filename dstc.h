@@ -238,33 +238,9 @@ typedef dstc_callback_t CBCK;
 // We are just doing too much pointer punting to be able to
 // fix all alias warnings.
 // For now, we'll just silence the warning.
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-/*
-#define CLIENT_CALLBACK_ARG(_func_ptr, ...) ({                          \
-    void dstc_callback_##_func_ptr(dstc_callback_t callback_ref,    \
-                                   rmc_node_id_t node_id,               \
-                                   uint8_t *func_name,                  \
-                                   uint8_t* payload,                    \
-                                   uint16_t payload_len)                \
-    {                                                                   \
-        (void) func_name;                                               \
-        DECLARE_VARIABLES(__VA_ARGS__);                                 \
-        DESERIALIZE_ARGUMENTS(__VA_ARGS__);                             \
-        (*_func_ptr)(LIST_ARGUMENTS(__VA_ARGS__));                      \
-        return;                                                         \
-    }                                                                   \
-    CBCK callback =                                                     \
-        (dstc_callback_t) (dstc_callback_int_t)                     \
-        dstc_callback_##_func_ptr;                                      \
-                                                                        \
-    dstc_register_callback_server(                                      \
-        (dstc_callback_t) (dstc_callback_int_t) dstc_callback_##_func_ptr, \
-        dstc_callback_##_func_ptr);                                     \
-    callback;                                                           \
-    })
-*/
 
-#define CLIENT_CALLBACK(_func, ...)                                     \
+
+#define DSTC_CLIENT_CALLBACK(_func, ...)                                \
     static void _dstc_cb_##_func(dstc_callback_t callback_ref,          \
                                  rmc_node_id_t node_id,                 \
                                  uint8_t *func_name,                    \
@@ -280,7 +256,7 @@ typedef dstc_callback_t CBCK;
         return;                                                         \
     }                                                                   \
 
-#define CLIENT_CALLBACK_ARG(_func)              \
+#define DSTC_CLIENT_CALLBACK_ARG(_func)              \
     dstc_activate_callback(                     \
         (dstc_callback_t) _func,                \
         _dstc_cb_##_func)                       \
@@ -415,7 +391,7 @@ typedef dstc_callback_t CBCK;
 // Create callback function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
-#define DSTC_CALLBACK(name, ...)                                        \
+#define DSTC_SERVER_CALLBACK(name, ...)                                 \
     int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                   \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
