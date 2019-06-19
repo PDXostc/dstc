@@ -343,7 +343,6 @@ dstc_callback_t dstc_activate_callback(dstc_context_t* ctx,
     return callback_ref;
 }
 
-
 // Register a remote function as provided by the remote DSTC server
 // through a control message call processed by
 // dstc_subscriber_control_message_cb()
@@ -826,8 +825,6 @@ static int dstc_queue(dstc_context_t* ctx,
     // for a bit and try again.
     if (!call)
         return EBUSY;
-
-
     call->node_id = dstc_get_node_id();
 
     // If this is a regular function call, then copy in the function
@@ -1050,7 +1047,6 @@ void dstc_cancel_callback(dstc_internal_dispatch_t callback)
 
     dstc_find_callback_by_func(ctx, callback);
     dstc_unlock_context(ctx);
-
 }
 
 uint8_t dstc_remote_function_available_by_name(char* func_name)
@@ -1270,6 +1266,7 @@ int dstc_process_events(usec_timestamp_t timeout_arg)
 }
 
 void dstc_process_epoll_result(struct epoll_event* event)
+
 {
 
     // Prep for future, caller-provided contexct.

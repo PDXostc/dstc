@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <reliable_multicast.h>
+#include <pthread.h>
 
 typedef intptr_t dstc_callback_t;
 
