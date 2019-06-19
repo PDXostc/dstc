@@ -20,7 +20,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
-#include "dstc.h"
+#include "dstc_internal.h"
+#ifdef DSTC_PTHREAD_DEBUG
+#include <stdio.h>
+#endif
 #include <rmc_log.h>
 
 #define MAX_CONNECTIONS 16
@@ -29,8 +32,9 @@
 
 // Default context to use if caller does not supply one.
 //
+
 dstc_context_t _dstc_default_context = {
-    .lock = PTHREAD_MUTEX_INITIALIZER,
+    .lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP,
     .remote_node = { { 0, { 0 } } },
     .remote_node_ind = 0,
     .local_callback = { {0,0 } },
@@ -115,16 +119,36 @@ static int dstc_context_initialized(dstc_context_t* ctx)
     return 1;
 }
 
+#ifdef DSTC_PTHREAD_DEBUG
+static int _mutex_stack[1024] = { 0 };
+static int _mutex_stack_ptr = 0;
+#endif
 
-static void dstc_lock_context(dstc_context_t* ctx)
+static void _dstc_lock_context(dstc_context_t* ctx, int line)
 {
+#ifdef DSTC_PTHREAD_DEBUG
+    if (_mutex_stack_ptr < sizeof(_mutex_stack) / sizeof(_mutex_stack[0]))
+        _mutex_stack[_mutex_stack_ptr++] = line;
+    printf("Locking mutex at line %d\n", line);
+#endif
+
     pthread_mutex_lock(&ctx->lock);
 }
 
-static void dstc_unlock_context(dstc_context_t* ctx)
+#define dstc_lock_context(ctx) _dstc_lock_context(ctx, __LINE__)
+
+static void _dstc_unlock_context(dstc_context_t* ctx, int line)
 {
+#ifdef DSTC_PTHREAD_DEBUG
+    if (_mutex_stack_ptr > 0)
+        _mutex_stack_ptr--;
+    printf("Unlocking mutex at line %d\n", line);
+#endif
+
     pthread_mutex_unlock(&ctx->lock);
 }
+
+#define dstc_unlock_context(ctx) _dstc_unlock_context(ctx, __LINE__)
 
 static void dstc_lock_and_init_context(dstc_context_t* ctx)
 {

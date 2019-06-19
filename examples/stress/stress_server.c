@@ -50,8 +50,15 @@ void set_value(int value)
 }
 
 
+
+void process(void)
+{
+    dstc_process_events(-1);
+}
+
 int main(int argc, char* argv[])
 {
+    int thread_count = 0;
     // Process incoming events forever
     dstc_process_events(-1);
 }
