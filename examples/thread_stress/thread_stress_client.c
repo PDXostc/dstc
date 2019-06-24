@@ -28,6 +28,7 @@ void *t_exec(void* arg)
 {
     int val = 0;
     uint64_t ind = (uint64_t) arg;
+    int b = 0;
     //
     // Pump as many calls as we can through the server.
     // If we choke on EBUSY, process events until we have cleared
@@ -57,8 +58,15 @@ void *t_exec(void* arg)
         }
 
         if (res == EBUSY) {
+            if (b == 0)
+                puts("BUSY");
             dstc_process_single_event(1000);
+            b = 1;
             continue;
+        }
+        if (b == 1) {
+            puts("UNBUSY");
+            b = 0;
         }
 
         dstc_process_single_event(0);
@@ -90,14 +98,14 @@ int main(int argc, char* argv[])
 
 
     pthread_create(&t1, 0, t_exec, (void*) 1);
-    pthread_create(&t2, 0, t_exec, (void*) 2);
-    pthread_create(&t3, 0, t_exec, (void*) 3);
-    pthread_create(&t4, 0, t_exec, (void*) 4);
+//    pthread_create(&t2, 0, t_exec, (void*) 2);
+//    pthread_create(&t3, 0, t_exec, (void*) 3);
+//    pthread_create(&t4, 0, t_exec, (void*) 4);
 
     pthread_join(t1, 0);
-    pthread_join(t2, 0);
-    pthread_join(t3, 0);
-    pthread_join(t4, 0);
+//    pthread_join(t2, 0);
+//    pthread_join(t3, 0);
+//    pthread_join(t4, 0);
 
 
     // Process events for another 100 msec to ensure that all calls gets out.

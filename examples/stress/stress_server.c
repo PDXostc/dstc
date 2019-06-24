@@ -32,7 +32,7 @@ void set_value(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-    if (now - last_ts > 1000000) {
+    if (now - last_ts > 1000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
         printf("Value: %d - %.2f calls per sec\n", value, cps);
@@ -49,12 +49,6 @@ void set_value(int value)
     integrity_check_val = value;
 }
 
-
-
-void process(void)
-{
-    dstc_process_events(-1);
-}
 
 int main(int argc, char* argv[])
 {

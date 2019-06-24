@@ -45,6 +45,7 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        dstc_process_single_event(0);
         if (val % 1000000 == 0)
             printf("Value: %d\n", val);
 

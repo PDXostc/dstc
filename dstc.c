@@ -175,7 +175,7 @@ static int _dstc_lock_context(dstc_context_t* ctx, int timeout_ms, int line)
         }
 
 #ifdef DSTC_PTHREAD_DEBUG
-        printf("%*c%s[%lX] lock line[%d] tout[%.4d] - %sblocked%s\n",
+        printf("%*c%s[%lX] line[%d] tout[%.4d] - %sblocked%s\n",
                _depth*2, ' ',
                (*_color)(),
                pthread_self(),
@@ -200,7 +200,7 @@ static int _dstc_lock_context(dstc_context_t* ctx, int timeout_ms, int line)
             return ETIME;
         }
 #ifdef DSTC_PTHREAD_DEBUG
-        printf("%*c%s[%lX] lock line[%d] tout[%d] - %slocked%s\n",
+        printf("%*c%s[%lX] line[%d] tout[%d] - %slocked%s\n",
                _depth*2, ' ',
                (*_color)(),
                pthread_self(),
@@ -212,7 +212,7 @@ static int _dstc_lock_context(dstc_context_t* ctx, int timeout_ms, int line)
     }
     else {
 #ifdef DSTC_PTHREAD_DEBUG
-        printf("%*c%s[%lX] lock line[%d] tout[n/a] - %sblocked%s\n",
+        printf("%*c%s[%lX] line[%d] tout[n/a] - %sblocked%s\n",
                _depth*2, ' ',
                (*_color)(),
                pthread_self(),
@@ -223,7 +223,7 @@ static int _dstc_lock_context(dstc_context_t* ctx, int timeout_ms, int line)
 #endif
         pthread_mutex_lock(&ctx->lock);
 #ifdef DSTC_PTHREAD_DEBUG
-        printf("%*c%s[%lX] lock line[%d] tout[n/a] - %slocked%s\n",
+        printf("%*c%s[%lX] line[%d] tout[n/a] - %slocked%s\n",
                _depth*2, ' ',
                (*_color)(),
                pthread_self(),
@@ -246,7 +246,7 @@ static void _dstc_unlock_context(dstc_context_t* ctx, int line)
 {
 #ifdef DSTC_PTHREAD_DEBUG
     _depth--;
-    printf("%*c%s[%lX] line [%d]               - %sunlocked%s\n",
+    printf("%*c%s[%lX] line [%d]          - %sunlocked%s\n",
            _depth*2, ' ',
             (*_color)(),
            pthread_self(),
@@ -1431,7 +1431,6 @@ int dstc_process_timeout(void)
     dstc_context_t* ctx = &_dstc_default_context;
 
     dstc_lock_and_init_context(ctx);
-
 
     // If either of the timeout processor fails in with EAGAIN, then they
     // tried resending un-acknolwedged packets but encountered full transmissions
