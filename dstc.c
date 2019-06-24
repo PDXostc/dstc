@@ -1067,8 +1067,11 @@ static int dstc_queue(char* name, dstc_callback_t callback_ref, uint8_t* arg, ui
     // If alloca failed, then we do not have enough space in the payload buffer to store the new call.
     // Return EBUSY, telling the calling program to run dstc_process_events() or dstc_process_single_event()
     // for a bit and try again.
-    if (!call)
+    if (!call) {
+        // Try to queue data.
+        queue_pending_calls();
         return EBUSY;
+    }
 
 
     call->node_id = dstc_get_node_id();
