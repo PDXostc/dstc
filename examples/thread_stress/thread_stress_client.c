@@ -38,27 +38,19 @@ void *t_exec(void* arg)
 
         switch(ind) {
         case 1:
-            puts("s1");
             res = dstc_set_value1(val);
-            puts("s1-done");
             break;
 
         case 2:
-            puts("s2");
             res = dstc_set_value2(val);
-            puts("s2-done");
             break;
 
         case 3:
-            puts("s3");
             res = dstc_set_value3(val);
-            puts("s3-done");
             break;
 
         case 4:
-            puts("s4");
             res = dstc_set_value4(val);
-            puts("s4-done");
             break;
         default:
             printf("WUT %lu\n", ind);
@@ -69,7 +61,9 @@ void *t_exec(void* arg)
             continue;
         }
 
-        if (val % 1000000 == 0)
+        dstc_process_single_event(0);
+
+        if (val % 10000 == 0)
             printf("Thread[%lu] Value: %d\n", ind, val);
 
         ++val;

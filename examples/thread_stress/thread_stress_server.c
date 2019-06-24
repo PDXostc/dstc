@@ -36,7 +36,6 @@ void set_value1(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-     printf("Thr1: %d\n", value);
     if (now - last_ts > 100000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
@@ -60,8 +59,6 @@ void set_value2(int value)
     static int last_value = 0;
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
-
-    printf("Thr2: %d\n", value);
 
     if (now - last_ts > 100000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
@@ -87,7 +84,6 @@ void set_value3(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-    printf("Thr3: %d\n", value);
     if (now - last_ts > 100000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
@@ -112,7 +108,6 @@ void set_value4(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-    printf("Thr4: %d\n", value);
     if (now - last_ts > 100000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
@@ -132,9 +127,9 @@ void set_value4(int value)
 
 void *t_exec(void* arg)
 {
-    uint64_t ind = (uint64_t) arg;
+    //uint64_t ind = (uint64_t) arg;
 
-    printf("Processing events in thread %lu\n", ind);
+    //printf("Processing events in thread %lu\n", ind);
     dstc_process_events(-1);
     return 0;
 }
@@ -177,5 +172,4 @@ int main(int argc, char* argv[])
     pthread_join(t2, 0);
     pthread_join(t3, 0);
     pthread_join(t4, 0);
-
 }
