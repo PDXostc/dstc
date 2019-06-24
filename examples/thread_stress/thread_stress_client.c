@@ -98,14 +98,14 @@ int main(int argc, char* argv[])
 
 
     pthread_create(&t1, 0, t_exec, (void*) 1);
-//    pthread_create(&t2, 0, t_exec, (void*) 2);
-//    pthread_create(&t3, 0, t_exec, (void*) 3);
-//    pthread_create(&t4, 0, t_exec, (void*) 4);
+    pthread_create(&t2, 0, t_exec, (void*) 2);
+    pthread_create(&t3, 0, t_exec, (void*) 3);
+    pthread_create(&t4, 0, t_exec, (void*) 4);
 
     pthread_join(t1, 0);
-//    pthread_join(t2, 0);
-//    pthread_join(t3, 0);
-//    pthread_join(t4, 0);
+    pthread_join(t2, 0);
+    pthread_join(t3, 0);
+    pthread_join(t4, 0);
 
 
     // Process events for another 100 msec to ensure that all calls gets out.

@@ -942,11 +942,16 @@ static int dstc_queue(dstc_context_t* ctx,
     call = (dstc_header_t*) dstc_payload_buffer_alloc(ctx,
                                                       sizeof(dstc_header_t) + id_len + arg_sz);
 
-    // If alloca failed, then we do not have enough space in the payload buffer to store the new call.
-    // Return EBUSY, telling the calling program to run dstc_process_events() or dstc_process_single_event()
-    // for a bit and try again.
-    if (!call)
+    // If alloc failed, then we do not have enough space in the
+    // payload buffer to store the new call.  Return EBUSY, telling
+    // the calling program to run dstc_process_events() or
+    // dstc_process_single_event() for a bit and try again.
+    if (!call) {
+        // Try to empty buffer.
+        queue_pending_calls(ctx);
         return EBUSY;
+    }
+
     call->node_id = dstc_get_node_id();
 
     // If this is a regular function call, then copy in the function

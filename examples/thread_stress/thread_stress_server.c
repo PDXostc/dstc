@@ -36,9 +36,7 @@ void set_value1(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-    //printf("now[%lu] - last_ts[%lu] -> %lu\n", now, last_ts, now - last_ts);
-    putchar('.'); fflush(stdout);
-    if (now - last_ts > 100000) {
+    if (now - last_ts > 1000000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
         printf("Thread 1: Value: %d - %.2f calls per sec\n", value, cps);
@@ -62,7 +60,7 @@ void set_value2(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-    if (now - last_ts > 100000) {
+    if (now - last_ts > 1000000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
         printf("Thread 2: Value: %d - %.2f calls per sec\n", value, cps);
@@ -86,7 +84,7 @@ void set_value3(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-    if (now - last_ts > 100000) {
+    if (now - last_ts > 1000000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
         printf("Thread 3: Value: %d - %.2f calls per sec\n", value, cps);
@@ -110,7 +108,7 @@ void set_value4(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-    if (now - last_ts > 100000) {
+    if (now - last_ts > 1000000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
         printf("Thread 4: Value: %d - %.2f calls per sec\n", value, cps);
@@ -149,25 +147,23 @@ int main(int argc, char* argv[])
         perror("thr1");
         exit(255);
     }
-/*
+
     res = pthread_create(&t2, 0, t_exec, (void*) 2);
     if (res) {
-        perror("thr1");
+        perror("thr2");
         exit(255);
     }
     res = pthread_create(&t3, 0, t_exec, (void*) 3);
     if (res) {
-        perror("thr1");
+        perror("thr3");
         exit(255);
     }
     res = pthread_create(&t4, 0, t_exec, (void*) 4);
     if (res) {
-        perror("thr1");
+        perror("thr4");
         exit(255);
     }
 
-
-*/
     while(1)
         sleep(3600);
     puts("join");
