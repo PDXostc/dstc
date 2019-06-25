@@ -13,6 +13,7 @@
 #include "dstc.h"
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h>
 
 // Generate deserializer for multicast packets sent by the client
 // The deserializer decodes the incoming data and calls the
@@ -35,6 +36,15 @@ void set_value1(int value)
     static int last_value = 0;
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
+
+    if (value == -1) {
+        int ret = 0;
+        puts("Got exit trigger from client.");
+        while((ret = dstc_process_single_event(0)) != ETIME)
+            ;
+        printf("Exiting: %s\n", strerror(errno));
+        exit(0);
+    }
 
     if (now - last_ts > 1000000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);

@@ -28,7 +28,7 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
-CFLAGS+= -I../.. -Wall -pthread
+CFLAGS+= -I../.. -Wall -pthread -O
 
 .PHONY: all clean install nomacro uninstall
 

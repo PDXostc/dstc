@@ -62,7 +62,8 @@ dstc_context_t _dstc_default_context = {
     .sub_ctx = 0,
     .pub_ctx = 0,
     .pub_buffer = { 0 },
-    .pub_buffer_ind = 0
+    .pub_buffer_ind = 0,
+    .pub_is_buffering= 0
 };
 
 
@@ -946,6 +947,10 @@ static int dstc_queue(dstc_context_t* ctx,
     // payload buffer to store the new call.  Return EBUSY, telling
     // the calling program to run dstc_process_events() or
     // dstc_process_single_event() for a bit and try again.
+    //
+    // We will ignore buffer mode here and send the data out via RMC
+    // since we need to get our buffer space back.
+    // t
     if (!call) {
         // Try to empty buffer.
         queue_pending_calls(ctx);
@@ -986,11 +991,13 @@ static int dstc_queue(dstc_context_t* ctx,
     // queue them with RMC.  This may fail if we are currently
     // suspended from sending traffic over RMC due to congestion.
     //
-    // The bottom line is that we will get low latency on single
-    // calls, which will generate an RMC packet immediately, while
-    // traffic suspension due to congestion leads to call bundling
-    // into fewer but larger packets to increase efficiency.
-    queue_pending_calls(ctx);
+    // If we are in buffered mode, trying to collect as many calls
+    // as possible into a single RMC (UDP multicast) packet,
+    // then we will not try to queue the call for now.
+    // Please see above for queueing calls when our DSTC outbound
+    // buffer is full.
+    if (!ctx->pub_is_buffering)
+        queue_pending_calls(ctx);
 
     return 0;
 }
@@ -1290,7 +1297,10 @@ int dstc_process_single_event(int timeout)
 
     struct epoll_event events[dstc_get_socket_count()];
 
-    nfds = epoll_wait(ctx->epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
+    do {
+        errno = 0;
+        nfds = epoll_wait(ctx->epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
+    } while(nfds == -1 && errno == EINTR);
 
     if (nfds == -1) {
         RMC_LOG_FATAL("epoll_wait(%d): %s", ctx->epoll_fd, strerror(errno));
@@ -1452,7 +1462,26 @@ int dstc_process_timeout(void)
     return 0;
 }
 
+void dstc_buffer_call_sequence(void)
+{
+    // Prep for future, caller-provided contexct.
+    dstc_context_t* ctx = &_dstc_default_context;
+    dstc_lock_and_init_context(ctx);
+    ctx->pub_is_buffering = 1;
+    dstc_unlock_context(ctx);
+}
 
+void dstc_unbuffer_call_sequence(void)
+{
+    // Prep for future, caller-provided contexct.
+    dstc_context_t* ctx = &_dstc_default_context;
+
+    dstc_lock_and_init_context(ctx);
+    ctx->pub_is_buffering = 0;
+    // Dump buffer into RMC
+    queue_pending_calls(ctx);
+    dstc_unlock_context(ctx);
+}
 
 uint32_t dstc_get_socket_count(void)
 {

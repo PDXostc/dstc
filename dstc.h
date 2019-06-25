@@ -40,6 +40,23 @@ extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
 extern int dstc_setup(void);
 extern int dstc_setup_epoll(int epollfd);
 
+// Start buffering outbound calls into larger packets.
+// Packets will be sent either when the outbound buffer is full (63KB), or
+// when dstc_unbuffer_call_sequence() is invoked.
+//
+// Once dstc_transmit_call_sequence() has been called, another call to
+// dstc_init_call_sequence() has to be made to re-enable colleciton
+// mode.
+// Using call sequences will create larger multicast packets, which will greatly speed
+// up your code.
+//
+// It is totally ok to only call dstc_buffer_call_sequence() without ever
+// calling dstc_unbuffer_call_sequence(). Please note however, that calls will
+// be bufferted indefinitely until the buffer is full.
+//
+extern void dstc_buffer_call_sequence(void);
+extern void dstc_unbuffer_call_sequence(void);
+
 // DSTC_EVENT_FLAG is used to determine if the .data returned with
 // a returned (epoll) event is to be processed by DSTC, or if
 // the event was supplied by the calling code outside DSTC.
@@ -57,6 +74,7 @@ extern rmc_node_id_t dstc_get_node_id(void);
 extern uint8_t dstc_remote_function_available(void* func_ptr);
 extern uint8_t dstc_remote_function_available_by_name(char* func_name);
 extern void dstc_cancel_callback(dstc_internal_dispatch_t callback);
+
 
 //
 // Functions used by DSTC_ macros

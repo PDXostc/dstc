@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "dstc.h"
-
+#include <errno.h>
 
 // Generate deserializer for multicast packets sent by the client
 // The deserializer decodes the incoming data and calls the
@@ -32,7 +32,16 @@ void set_value(int value)
     static usec_timestamp_t last_ts = 0;
     usec_timestamp_t now = rmc_usec_monotonic_timestamp();
 
-    if (now - last_ts > 1000) {
+    if (value == -1) {
+        int ret = 0;
+        puts("Got exit trigger from client.");
+        while((ret = dstc_process_single_event(0)) != ETIME)
+            ;
+        printf("Exiting: %s\n", strerror(errno));
+        exit(0);
+    }
+
+    if (now - last_ts > 1000000) {
         float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
 
         printf("Value: %d - %.2f calls per sec\n", value, cps);

@@ -13,7 +13,7 @@
 #include <errno.h>
 #include "rmc_log.h"
 #include <pthread.h>
-
+#include <stdlib.h>
 
 // Generate serializer functionality and the callable client function
 // dstc_set_value(), which will invoke the remote server process'
@@ -28,13 +28,13 @@ void *t_exec(void* arg)
 {
     int val = 0;
     uint64_t ind = (uint64_t) arg;
-    int b = 0;
+
     //
     // Pump as many calls as we can through the server.
     // If we choke on EBUSY, process events until we have cleared
     // the output queue enough to continue.
     //
-    while(1) {
+    while(val < 1000000) {
         int res = 0;
 
         switch(ind) {
@@ -58,20 +58,14 @@ void *t_exec(void* arg)
         }
 
         if (res == EBUSY) {
-            if (b == 0)
-                puts("BUSY");
-            dstc_process_single_event(1000);
-            b = 1;
+            while(dstc_process_single_event(0) != ETIME)
+                ;
             continue;
-        }
-        if (b == 1) {
-            puts("UNBUSY");
-            b = 0;
         }
 
         dstc_process_single_event(0);
 
-        if (val % 10000 == 0)
+        if (val % 100000 == 0)
             printf("Thread[%lu] Value: %d\n", ind, val);
 
         ++val;
@@ -95,7 +89,7 @@ int main(int argc, char* argv[])
           !dstc_remote_function_available(dstc_set_value4))
         dstc_process_events(500000);
 
-
+    dstc_buffer_call_sequence();
 
     pthread_create(&t1, 0, t_exec, (void*) 1);
     pthread_create(&t2, 0, t_exec, (void*) 2);
@@ -107,7 +101,15 @@ int main(int argc, char* argv[])
     pthread_join(t3, 0);
     pthread_join(t4, 0);
 
+    // Unbuffer the send in order to ensure that all call goes out.
+    dstc_unbuffer_call_sequence();
 
+    // Send terminating call
+    dstc_set_value1(-1);
+    dstc_set_value2(-1);
+    dstc_set_value3(-1);
+    dstc_set_value4(-1);
     // Process events for another 100 msec to ensure that all calls gets out.
-    dstc_process_events(100000);
+    while (dstc_process_single_event(0) != ETIME);
+    exit(0);
 }

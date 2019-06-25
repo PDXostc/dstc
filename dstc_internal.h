@@ -80,6 +80,7 @@ typedef struct dstc_context {
     rmc_pub_context_t* pub_ctx;
     uint8_t pub_buffer[RMC_MAX_PAYLOAD];
     uint32_t pub_buffer_ind;
+    uint8_t pub_is_buffering;
 } dstc_context_t;
 
 
