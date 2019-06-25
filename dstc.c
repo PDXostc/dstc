@@ -1462,7 +1462,7 @@ int dstc_process_timeout(void)
     return 0;
 }
 
-void dstc_buffer_call_sequence(void)
+void dstc_buffer_client_calls(void)
 {
     // Prep for future, caller-provided contexct.
     dstc_context_t* ctx = &_dstc_default_context;
@@ -1471,7 +1471,19 @@ void dstc_buffer_call_sequence(void)
     dstc_unlock_context(ctx);
 }
 
-void dstc_unbuffer_call_sequence(void)
+void dstc_flush_client_calls(void)
+{
+    // Prep for future, caller-provided contexct.
+    dstc_context_t* ctx = &_dstc_default_context;
+
+    dstc_lock_and_init_context(ctx);
+
+    // Dump buffer into RMC
+    queue_pending_calls(ctx);
+    dstc_unlock_context(ctx);
+}
+
+void dstc_unbuffer_client_calls(void)
 {
     // Prep for future, caller-provided contexct.
     dstc_context_t* ctx = &_dstc_default_context;

@@ -42,20 +42,26 @@ extern int dstc_setup_epoll(int epollfd);
 
 // Start buffering outbound calls into larger packets.
 // Packets will be sent either when the outbound buffer is full (63KB), or
-// when dstc_unbuffer_call_sequence() is invoked.
+// when dstc_unbuffer_client_calls() is invoked.
 //
-// Once dstc_transmit_call_sequence() has been called, another call to
-// dstc_init_call_sequence() has to be made to re-enable colleciton
+// Once dstc_unbuffer_client_calls() has been called, another call to
+// dstc_buffer_call_sequence() to be made to re-enable colleciton
 // mode.
 // Using call sequences will create larger multicast packets, which will greatly speed
 // up your code.
 //
-// It is totally ok to only call dstc_buffer_call_sequence() without ever
-// calling dstc_unbuffer_call_sequence(). Please note however, that calls will
-// be bufferted indefinitely until the buffer is full.
+// It is totally ok to only call dstc_buffer_client_calls() without
+// ever calling dstc_unbuffer_client_calls_sequence(). Please note
+// however, that calls will be bufferted indefinitely until the buffer
+// is full, or dstc_flush_client_calls() is invoked to manually send
+// out pending cliet calls.
 //
-extern void dstc_buffer_call_sequence(void);
-extern void dstc_unbuffer_call_sequence(void);
+// Invoke dstc_flush_client_calls() to transmit buffered client calls
+// without disabling buffered mode.
+//
+extern void dstc_buffer_client_calls(void);
+extern void dstc_flush_client_calls(void);
+extern void dstc_unbuffer_client_calls(void);
 
 // DSTC_EVENT_FLAG is used to determine if the .data returned with
 // a returned (epoll) event is to be processed by DSTC, or if

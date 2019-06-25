@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
 
 
     // Move into buffered mode to transmit 63K UDP packets.
-    dstc_buffer_call_sequence();
+    dstc_buffer_client_calls();
     //
     // Pump as many calls as we can through the server.
     // If we choke on EBUSY, process events until we have cleared
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
     // Unbuffer call sequences to ensure that we get
     // all final calls go out.
 
-    dstc_unbuffer_call_sequence();
+    dstc_unbuffer_client_calls();
     puts("Telling server to exit");
     int ret = 0;
     while ((ret = dstc_set_value(-1)) == EBUSY) {
