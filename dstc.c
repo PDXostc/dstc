@@ -1309,8 +1309,7 @@ int dstc_process_single_event(int timeout)
 
     // Timeout
     if (nfds == 0) {
-        if (!dstc_get_timeout_msec())
-            dstc_process_timeout();
+        dstc_process_timeout();
 
         retval = ETIME;
     }
@@ -1318,9 +1317,6 @@ int dstc_process_single_event(int timeout)
     // Process all pending events.
     while(nfds--)
         dstc_process_epoll_result(&events[nfds]);
-
-    if (!dstc_get_timeout_msec())
-        dstc_process_timeout();
 
     dstc_unlock_context(ctx);
     return retval;
