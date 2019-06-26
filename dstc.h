@@ -72,7 +72,9 @@ extern void dstc_unbuffer_client_calls(void);
 
 extern int dstc_process_events(usec_timestamp_t timeout);
 extern int dstc_process_timeout(void);
+extern int dstc_process_pending_events(void);
 extern int dstc_get_timeout_msec(void);
+
 extern usec_timestamp_t dstc_get_timeout_timestamp(void);
 extern int dstc_process_single_event(int timeout);
 extern void dstc_process_epoll_result(struct epoll_event* event);

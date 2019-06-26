@@ -1284,6 +1284,13 @@ int dstc_get_timeout_msec(void)
 }
 
 
+int dstc_process_pending_events(void)
+{
+    while(dstc_process_single_event(0) != ETIME)
+        ;
+    return 0;
+}
+
 int dstc_process_single_event(int timeout)
 {
     int nfds = 0;
