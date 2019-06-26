@@ -89,7 +89,8 @@ int main(int argc, char* argv[])
           !dstc_remote_function_available(dstc_set_value4))
         dstc_process_events(500000);
 
-    dstc_buffer_call_sequence();
+    dstc_buffer_client_calls();
+
 
     pthread_create(&t1, 0, t_exec, (void*) 1);
     pthread_create(&t2, 0, t_exec, (void*) 2);
@@ -102,7 +103,7 @@ int main(int argc, char* argv[])
     pthread_join(t4, 0);
 
     // Unbuffer the send in order to ensure that all call goes out.
-    dstc_unbuffer_call_sequence();
+    dstc_unbuffer_client_calls();
 
     // Send terminating call
     dstc_set_value1(-1);
