@@ -37,6 +37,11 @@ DSTC_CLIENT(double_value_server, int,, DSTC_DECL_CALLBACK_ARG);
 void double_value_callback(int value)
 {
     printf("Callback received: %d\n", value);
+    if (value != 446688) {
+        puts("Error: doubled value received is not 446688");
+        exit(255);
+    }
+    exit(0);
 }
 
 DSTC_CLIENT_CALLBACK(double_value_callback, int,);
@@ -44,23 +49,21 @@ DSTC_CLIENT_CALLBACK(double_value_callback, int,);
 
 int main(int argc, char* argv[])
 {
-    int i = 0;
     // Wait for function to become available on one or more servers.
     while(!dstc_remote_function_available(dstc_double_value_server))
-        dstc_process_events(500000);
+        dstc_process_events(-1);
 
-    while(1) {
-        // Make the call
-        // CLIENT_CALLBACK_ARG specifies which function to send off as a callback
-        // and what the argumetns are for that function (a single integer in this case).
-        // The arguments must match the actual arguments of the callback function implemented
-        // above.
-//        dstc_double_value_server(i, CLIENT_CALLBACK_ARG(double_value_callback,int,));
-        dstc_double_value_server(i, DSTC_CLIENT_CALLBACK_ARG(double_value_callback));
+    // Make the call
+    // CLIENT_CALLBACK_ARG specifies which function to send off as a callback
+    // and what the argumetns are for that function (a single integer in this case).
+    // The arguments must match the actual arguments of the callback function implemented
+    // above.
+    puts("Asking servr to double 223344");
+    dstc_double_value_server(223344, DSTC_CLIENT_CALLBACK_ARG(double_value_callback));
 
-        // Process events for another 100 msec, which will also process
-        // the received callback from callback_server.
-        dstc_process_events(100000);
-        ++i;
-    }
+    // Process events until callback, which will exit process, is made.
+    while(1)
+        dstc_process_events(-1);
+
+    exit(0);
 }

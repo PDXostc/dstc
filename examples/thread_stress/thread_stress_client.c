@@ -58,12 +58,11 @@ void *t_exec(void* arg)
         }
 
         if (res == EBUSY) {
-            while(dstc_process_single_event(0) != ETIME)
-                ;
+            dstc_process_pending_events();
             continue;
         }
 
-        dstc_process_single_event(0);
+        dstc_process_pending_events();
 
         if (val % 100000 == 0)
             printf("Thread[%lu] Value: %d\n", ind, val);
@@ -87,7 +86,7 @@ int main(int argc, char* argv[])
           !dstc_remote_function_available(dstc_set_value2) ||
           !dstc_remote_function_available(dstc_set_value3) ||
           !dstc_remote_function_available(dstc_set_value4))
-        dstc_process_events(500000);
+        dstc_process_events(-1);
 
     dstc_buffer_client_calls();
 
@@ -111,6 +110,6 @@ int main(int argc, char* argv[])
     dstc_set_value3(-1);
     dstc_set_value4(-1);
     // Process events for another 100 msec to ensure that all calls gets out.
-    while (dstc_process_single_event(0) != ETIME);
+    dstc_process_pending_events();
     exit(0);
 }

@@ -29,10 +29,20 @@ DSTC_SERVER(add_name_and_age_element, struct name_and_age, )
 // and send them back using a callback
 DSTC_SERVER(get_all_elements, DSTC_DECL_CALLBACK_ARG)
 
+// Exit function called by client to terminate server.
+DSTC_SERVER(do_exit, int, )
+
+
 void add_name_and_age_element(struct name_and_age new_elem)
 {
     printf("Adding Name: %s   Age %d\n", new_elem.name, new_elem.age);
     elems[elem_index++] = new_elem;
+}
+
+void do_exit(int status)
+{
+    printf("Exiting with status: %d\n", status);
+    exit(status);
 }
 
 
@@ -62,5 +72,6 @@ void get_all_elements(dstc_callback_t remote_callback)
 int main(int argc, char* argv[])
 {
     // Process incoming events forever
-    dstc_process_events(-1);
+    while(1)
+        dstc_process_events(-1);
 }

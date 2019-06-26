@@ -28,12 +28,14 @@ void print_struct(struct name_and_age arg)
 {
     printf("Name: %s\n", arg.name);
     printf("Age:  %d\n", arg.age);
+    exit(0);
 }
 
 int main(int argc, char* argv[])
 {
     // Process incoming events forever
-    dstc_process_events(-1);
+    while(1)
+        dstc_process_events(-1);
 
     exit(0);
 }

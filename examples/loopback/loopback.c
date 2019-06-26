@@ -27,6 +27,7 @@ void loopback(char name[32], int age)
 {
     printf("Name: %s\n", name);
     printf("Age:  %d\n", age);
+    exit(0);
 }
 
 int main(int argc, char* argv[])
@@ -35,14 +36,15 @@ int main(int argc, char* argv[])
     // Wait for function to become available on one or more servers.
 
     while(!dstc_remote_function_available(dstc_loopback))
-        dstc_process_events(500000);
-    puts("Have loopback");
-    dstc_process_events(100000);
+        dstc_process_events(-1);
+
     strcpy(name, "Bob Smith");
 
     // Send out a loopback call to ourselves.
     dstc_loopback(name, 25);
+
     // Process events for another 100 msec to ensure that the call gets out.
     // This loop will also pick up the call and execute it.
-    dstc_process_events(-1);
+    while(1)
+        dstc_process_events(-1);
 }

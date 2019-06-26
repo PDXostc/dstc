@@ -37,10 +37,9 @@ void _set_value(int value, int *last_value, usec_timestamp_t* start_ts)
                *last_value,
                (stop_ts - *start_ts) / 1000000.0,
                *last_value / ((stop_ts - *start_ts) / 1000000.0));
-        while((ret = dstc_process_single_event(0)) != ETIME)
-            ;
+        dstc_process_pending_events();
         printf("Thread[1] Exiting: %s\n", strerror(errno));
-        exit(0);
+        pthread_exit(0);
     }
 
     if (value % 100000 == 0)
@@ -98,7 +97,8 @@ void *t_exec(void* arg)
     //uint64_t ind = (uint64_t) arg;
 
     //printf("Processing events in thread %lu\n", ind);
-    dstc_process_events(-1);
+    while(1)
+        dstc_process_events(-1);
     return 0;
 }
 
@@ -139,4 +139,5 @@ int main(int argc, char* argv[])
     pthread_join(t2, 0);
     pthread_join(t3, 0);
     pthread_join(t4, 0);
+    exit(0);
 }

@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     int val = 0;
     // Wait for function to become available on one or more servers.
     while(!dstc_remote_function_available(dstc_set_value))
-        dstc_process_events(500000);
+        dstc_process_events(-1);
 
 
     // Move into buffered mode to transmit 63K UDP packets.
@@ -40,16 +40,16 @@ int main(int argc, char* argv[])
         // to unblock our client call.
         //
         // We can have a 1000 msec timeout since
-        // dstc_process_single_event() will return as soon as it has
+        // dstc_process_events() will return as soon as it has
         // completed one cycle, which will be carried out as soon as
         // system resources allows it.
         //
         while (dstc_set_value(val) == EBUSY) {
-            dstc_process_single_event(1000);
+            dstc_process_events(100);
             continue;
         }
 
-        dstc_process_single_event(0);
+        dstc_process_pending_events();
         if (val % 10000 == 0)
             printf("Value: %d\n", val);
 
@@ -63,13 +63,11 @@ int main(int argc, char* argv[])
     puts("Telling server to exit");
     int ret = 0;
     while ((ret = dstc_set_value(-1)) == EBUSY) {
-        dstc_process_single_event(1000);
+        dstc_process_events(100);
         continue;
     }
-    printf("ret1: %s\n", strerror(ret));
-    // Process events until there are no more.
-    while((ret = dstc_process_single_event(0)) != ETIME)
-        ;
 
-    printf("ret2: %s\n", strerror(ret));
+    // Process events until there are no more.
+    dstc_process_pending_events();
+    exit(0);
 }

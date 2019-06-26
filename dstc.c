@@ -946,7 +946,7 @@ static int dstc_queue(dstc_context_t* ctx,
     // If alloc failed, then we do not have enough space in the
     // payload buffer to store the new call.  Return EBUSY, telling
     // the calling program to run dstc_process_events() or
-    // dstc_process_single_event() for a bit and try again.
+    // dstc_process_events() for a bit and try again.
     //
     // We will ignore buffer mode here and send the data out via RMC
     // since we need to get our buffer space back.
@@ -1267,6 +1267,14 @@ usec_timestamp_t dstc_get_timeout_timestamp(void)
         pub_event_tout_ts:sub_event_tout_ts;
 }
 
+msec_timestamp_t dstc_msec_monotonic_timestamp(void)
+{
+    struct timespec res;
+
+    clock_gettime(CLOCK_BOOTTIME, &res);
+
+    return (msec_timestamp_t) res.tv_sec * 1000 + res.tv_nsec / 1000000;
+}
 
 int dstc_get_timeout_msec(void)
 {
@@ -1286,12 +1294,12 @@ int dstc_get_timeout_msec(void)
 
 int dstc_process_pending_events(void)
 {
-    while(dstc_process_single_event(0) != ETIME)
+    while(dstc_process_events(0) != ETIME)
         ;
     return 0;
 }
 
-int dstc_process_single_event(int timeout)
+int dstc_process_events(int timeout)
 {
     int nfds = 0;
     int retval = 0;
@@ -1327,82 +1335,6 @@ int dstc_process_single_event(int timeout)
 
     dstc_unlock_context(ctx);
     return retval;
-}
-
-int dstc_process_events(usec_timestamp_t timeout_arg)
-{
-    // Prep for future, caller-provided contexct.
-    dstc_context_t* ctx = &_dstc_default_context;
-
-    usec_timestamp_t timeout_arg_ts = 0;
-    usec_timestamp_t now = 0;
-
-
-    // Is this a one-pass thing where we just want to process all pending
-    // epoll events and timeout and then return?
-    if (!timeout_arg)
-        return dstc_process_single_event(0);
-
-
-    // Calculate an absolute timeout timestamp based on relative
-    // timestamp provided in argument.
-    //
-    timeout_arg_ts = (timeout_arg == -1)?-1:(rmc_usec_monotonic_timestamp() + timeout_arg);
-
-    // Process evdents until we reach the timeout therhold.
-    while((now = rmc_usec_monotonic_timestamp()) < timeout_arg_ts ||
-          timeout_arg_ts == -1) {
-
-        usec_timestamp_t timeout = 0;
-        char is_arg_timeout = 0;
-        usec_timestamp_t event_tout_rel = 0;
-        usec_timestamp_t timeout_arg_rel = (timeout_arg_ts == -1)?-1:(timeout_arg_ts - now) / 1000 + 1 ;
-
-        dstc_lock_and_init_context(ctx);
-        event_tout_rel = dstc_get_timeout_msec();
-
-        // Figure out the shortest timeout between argument and event timeout
-        if (timeout_arg_rel == -1 && event_tout_rel == -1) {
-            RMC_LOG_DEBUG("Both argument and event timeout are -1 -> -1");
-            timeout = -1;
-        }
-
-        if (timeout_arg_rel == -1 && event_tout_rel != -1) {
-            timeout = event_tout_rel; // Will never be less than 0
-            RMC_LOG_DEBUG("arg timeout == -1. Event timeout != -1 -> %ld", timeout);
-        }
-
-        if (timeout_arg_rel != -1 && event_tout_rel == -1) {
-            is_arg_timeout = 1;
-            timeout = timeout_arg_rel; // Will never be less than 0
-            RMC_LOG_DEBUG("arg timeout != -1. Event timeout == -1 -> %ld", timeout);
-        }
-
-        if (timeout_arg_rel != -1 && event_tout_rel != -1) {
-            if (event_tout_rel < timeout_arg_rel) {
-                timeout = event_tout_rel;
-                RMC_LOG_DEBUG("event timeout is less than arg timeout -> %ld", timeout);
-            } else {
-                timeout = timeout_arg_rel;
-                RMC_LOG_DEBUG("arg timeout is less than event timeout -> %ld", timeout);
-                is_arg_timeout = 1;
-            }
-        }
-
-        if (dstc_process_single_event((int) timeout) == ETIME) {
-            // Did we time out on an RMC event to be processed, or did
-            // we time out on the argument provided to
-            // dstc_process_events()?
-            if (is_arg_timeout) {
-                RMC_LOG_DEBUG("Timed out on argument. returning" );
-                dstc_unlock_context(ctx);
-                return ETIME;
-            }
-        }
-        dstc_unlock_context(ctx);
-    }
-
-    return 0;
 }
 
 void dstc_process_epoll_result(struct epoll_event* event)

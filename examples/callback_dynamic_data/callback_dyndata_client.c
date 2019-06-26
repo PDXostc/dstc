@@ -18,9 +18,10 @@
 
 void usage(char* prog)
 {
-    fprintf(stderr, "Usage: [RMC_LOG_LEVEL=<1-6>] %s -a name:age  -p\n", prog);
+    fprintf(stderr, "Usage: [RMC_LOG_LEVEL=<1-6>] %s -a name:age | -p | -e\n", prog);
     fprintf(stderr, "       -a Add name and age element to server\n");
     fprintf(stderr, "       -p Print all stored elements on server. Default\n");
+    fprintf(stderr, "       -e Instuct the server to exit successfully.\n");
 }
 
 
@@ -30,6 +31,9 @@ DSTC_CLIENT(add_name_and_age_element, struct name_and_age,)
 
 // Have server return all stored strings via a callback
 DSTC_CLIENT(get_all_elements, DSTC_DECL_CALLBACK_ARG)
+
+// Explicit exit command to tell the serveri to exit successfully
+DSTC_CLIENT(do_exit, int,)
 
 
 // Callback that is sent to remote server by dstc_add_name_and_age_element()
@@ -65,11 +69,16 @@ int main(int argc, char* argv[])
     char name[128] = {0};
     int age = 0;
     char print_flag = 0;
+    char exit_server = 0;
     char *tmp = 0;
     int opt = 0;
 
-    while ((opt = getopt(argc, argv, "a:p")) != -1) {
+    while ((opt = getopt(argc, argv, "a:pe")) != -1) {
         switch (opt) {
+
+        case 'e':
+            exit_server = 1;
+            break;
 
         case 'p':
             print_flag = 1;
@@ -94,16 +103,22 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (!name[0] && !print_flag) {
-        fprintf(stderr, "Please provide either -a or -p\n");
+    if (!name[0] && !print_flag && !exit_server) {
+        fprintf(stderr, "\nPlease provide either -a or -p\n\n");
+        usage(argv[0]);
         exit(1);
     }
 
     // Wait for function to become available on one or more servers.
     while(!dstc_remote_function_available(dstc_add_name_and_age_element) ||
           !dstc_remote_function_available(dstc_get_all_elements))
-        dstc_process_events(500000);
+        dstc_process_events(-1);
 
+    if (exit_server) {
+        dstc_do_exit(0);
+        dstc_process_pending_events();
+        exit(0);
+    }
 
 
     // Do we need add an element to the remote server?
@@ -117,6 +132,10 @@ int main(int argc, char* argv[])
                elem.name, elem.age);
 
         dstc_add_name_and_age_element(elem);
+
+        // Process all pending events to ensure the data goes out
+        dstc_process_pending_events();
+        exit(0);
     }
 
     // Do we need to send a request to the remote server to have it
@@ -124,8 +143,11 @@ int main(int argc, char* argv[])
     if (print_flag) {
         puts("Retrieving all elements from remote server");
         dstc_get_all_elements(DSTC_CLIENT_CALLBACK_ARG(get_all_elements_callback));
+        // Process events until callback is invoked. Callback will exit
+        while(1)
+            dstc_process_events(-1);
     }
 
-    // Process events for another 100 msec to ensure that the call gets out.
-    dstc_process_events(100000);
+    puts("Reached dead code");
+    exit(255);
 }

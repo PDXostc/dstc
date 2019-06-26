@@ -1,6 +1,6 @@
 // Copyright (C) 2018, Jaguar Land Rover
 // This program is licensed under the terms and conditions of the
-// Mozilla Public License, version 2.0.  The full text of the 
+// Mozilla Public License, version 2.0.  The full text of the
 // Mozilla Public License is at https://www.mozilla.org/MPL/2.0/
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
@@ -9,6 +9,7 @@
 //
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "dstc.h"
 
 
@@ -28,10 +29,12 @@ void print_name_and_age(char name[32], int age)
 {
     printf("Name: %s\n", name);
     printf("Age:  %d\n", age);
+    exit(0);
 }
 
 int main(int argc, char* argv[])
 {
     // Process incoming events forever
-    dstc_process_events(-1);
+    while(1)
+        dstc_process_events(-1);
 }

@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
 
     // Wait for function to become available on one or more servers.
     while(!dstc_remote_function_available(dstc_test_dynamic_function))
-        dstc_process_events(500000);
+        dstc_process_events(-1);
 
     // Make the call.
     // The DYNAMIC_ARG() macro takes a pointer to data and the length
@@ -43,5 +43,5 @@ int main(int argc, char* argv[])
     dstc_test_dynamic_function(DSTC_DYNAMIC_ARG(argv[1], strlen(argv[1])+1), second_array_arg);
 
     // Process events for another 100 msec to ensure that the call gets out.
-    dstc_process_events(100000);
+    dstc_process_pending_events();
 }
