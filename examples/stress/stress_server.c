@@ -38,9 +38,9 @@ void set_value(int value)
 
     if (value == -1) {
         usec_timestamp_t stop_ts = rmc_usec_monotonic_timestamp();
-        printf("Processed %d calls in %luu usec -> %f calls/sec\n",
+        printf("Processed %d calls in %.2f sec -> %.2f calls/sec\n",
                last_value,
-               stop_ts - start_ts,
+               (stop_ts - start_ts) / 1000000.0,
                last_value / ((stop_ts - start_ts) / 1000000.0));
 
         while((ret = dstc_process_single_event(0)) != ETIME)

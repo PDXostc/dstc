@@ -28,7 +28,7 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
-CFLAGS+= -I../.. -Wall -pthread -O
+CFLAGS+= -I../.. -g -Wall -pthread -D_GNU_SOURCE
 
 .PHONY: all clean install nomacro uninstall
 
@@ -36,12 +36,30 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
 
+RMC_SRC=pub.c \
+	time.c \
+	sub.c \
+	circular_buffer.c \
+	rmc_connection.c \
+	rmc_protocol.c \
+	rmc_sub_packet.c \
+	rmc_pub_packet.c \
+	rmc_sub_context.c \
+	rmc_pub_context.c \
+	rmc_sub_read.c \
+	rmc_pub_read.c \
+	rmc_sub_write.c \
+	rmc_pub_write.c \
+	rmc_pub_timeout.c \
+	rmc_sub_timeout.c \
+	rmc_log.c
+
 $(TARGET_SERVER): $(SERVER_OBJ)
-	$(CC) $(CFLAGS) $(SERVER_OBJ) -L../.. -ldstc -lrmc -o $@
+	$(CC) $(CFLAGS) $(SERVER_OBJ) -L../.. ../../dstc.c ${RMC_SRC:%=../../../reliable_multicast/% } -o $@
 
 
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	$(CC) $(CFLAGS) $(CLIENT_OBJ) -L../.. -ldstc -lrmc -o $@
+	$(CC) $(CFLAGS) $(CLIENT_OBJ) -L../.. ../../dstc.c ${RMC_SRC:%=../../../reliable_multicast/% } -o $@
 
 
 # Recompile everything if dstc.h changes
