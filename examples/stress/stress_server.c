@@ -11,13 +11,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "dstc.h"
-
+#include <errno.h>
 
 // Generate deserializer for multicast packets sent by the client
 // The deserializer decodes the incoming data and calls the
 // set_value() function in this file.
 //
 DSTC_SERVER(set_value, int,)
+
+usec_timestamp_t start_ts = 0;
 
 //
 // Receive a value and check its integrity
@@ -27,26 +29,37 @@ DSTC_SERVER(set_value, int,)
 //
 void set_value(int value)
 {
-    static int integrity_check_val = -1;
-    static int last_value = 0;
-    static usec_timestamp_t last_ts = 0;
-    usec_timestamp_t now = rmc_usec_monotonic_timestamp();
+    static int last_value = -1;
+    int ret;
 
-    if (now - last_ts > 1000000) {
-        float cps = (value - last_value) / ((now - last_ts) / 1000000.0);
+    if (start_ts == 0)
+        start_ts = rmc_usec_monotonic_timestamp();
 
-        printf("Value: %d - %.2f calls per sec\n", value, cps);
-        last_ts = now;
-        last_value = value;
+
+    if (value == -1) {
+        usec_timestamp_t stop_ts = rmc_usec_monotonic_timestamp();
+        printf("Processed %d calls in %.2f sec -> %.2f calls/sec\n",
+               last_value,
+               (stop_ts - start_ts) / 1000000.0,
+               last_value / ((stop_ts - start_ts) / 1000000.0));
+
+        while((ret = dstc_process_single_event(0)) != ETIME)
+            ;
+        printf("Exiting: %s\n", strerror(errno));
+        exit(0);
     }
+
+    if (value % 100000 == 0)
+        printf("Value: %d\n", value);
+
 
     // Check that we got the expected value.
-    if (integrity_check_val != -1 && value != integrity_check_val + 1 ) {
+    if (last_value != -1 && value != last_value + 1 ) {
         printf("Integrity failure!  Want value %d Got value %d\n",
-               integrity_check_val +1 , value);
+               last_value +1 , value);
         exit(255);
     }
-    integrity_check_val = value;
+    last_value = value;
 }
 
 

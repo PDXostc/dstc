@@ -5,14 +5,14 @@
 .PHONY: all clean distclean install uninstall examples install_examples
 
 SRC=dstc.c
-HDR=dstc.h
+HDR=dstc.h dstc_internal.h
 OBJ=dstc.o
 
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I/usr/local/include
-CFLAGSLIST=-fPIC -g $(INCLUDES) -Wall $(CFLAGS) $(CPPFLAGS)
+CFLAGSLIST=-pthread -fPIC -O $(INCLUDES) -Wall $(CFLAGS) $(CPPFLAGS) -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
 DESTDIR ?= /usr/local
 export CFLAGSLIST
 export DESTDIR
@@ -35,7 +35,7 @@ $(LIB_TARGET): $(OBJ)
 	ar r $(LIB_TARGET) $(OBJ)
 
 #
-#	Rebuild the shared object target library.
+#	Rebuild the shared object target library.b
 #
 $(LIB_SO_TARGET):  $(OBJ)
 	$(CC) -shared $(CFLAGSLIST) $(OBJ) -o $(LIB_SO_TARGET)

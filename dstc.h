@@ -10,11 +10,8 @@
 #define __DSTC_H__
 #include <stdint.h>
 #include <string.h>
-#include <unistd.h>
 #include <reliable_multicast.h>
-
-// FIXME: Hash table for both local and remote func
-#define SYMTAB_SIZE 128
+#include <pthread.h>
 
 typedef intptr_t dstc_callback_t;
 
@@ -28,110 +25,93 @@ typedef void (*dstc_internal_dispatch_t)(dstc_callback_t callback_ref,
                                          uint8_t* payload,
                                          uint16_t payload_len);
 
-// A local DSTC_SERVER-registered name / func ptr combination
-//
-typedef struct  {
-    char func_name[256];
-    dstc_internal_dispatch_t server_func;
-} dstc_server_func_t;
-
-
-// Remote nodes and their registered functions
-typedef struct {
-    rmc_node_id_t node_id;
-    char func_name[256];
-} dstc_remote_node_t;
-
-
-// A local DSTC_CLIENT- registered name / func ptr combination.
-//
-typedef struct {
-    char func_name[256];
-    void *client_func;
-} dstc_client_func_t;
 
 // Single context
-typedef struct {
-    // All remote nodes and their functions that can be called
-    // through DSTC_CLIENT-registered functions
-    // FIXME: Hash table
-    dstc_remote_node_t remote_node[SYMTAB_SIZE];
-    uint32_t remote_node_ind;
+struct dstc_context;
 
-    // All currently active local callback functions passed
-    // to DSTC_CLIENT-registered call by the application.
-    // FIXME: Hash table
-    struct {
-        dstc_internal_dispatch_t callback;
-        dstc_callback_t callback_ref;
-    } local_callback[SYMTAB_SIZE];
-
-    uint32_t callback_ind ;
-
-    int epoll_fd;
-    rmc_sub_context_t* sub_ctx;
-    rmc_pub_context_t* pub_ctx;
-    uint8_t pub_buffer[RMC_MAX_PAYLOAD];
-    uint32_t pub_buffer_ind;
-} dstc_context_t;
-
-
-typedef struct  __attribute__((packed))
-dstc_header {
-    rmc_node_id_t node_id;         // 4 bytes  Publisher Node ID
-    uint16_t payload_len;          // 2 bytes of the number of bytes in payload
-    uint8_t payload[];             // Function name fllowed by \0 and function args.
-} dstc_header_t;
-
-// DSTC_EVENT_FLAG is used to determine if the user data associated with
-// a returned (epoll) event is to be processed by DSTC, or if
-// the event was supplied by the calling code outside DSTC.
-//
-#define DSTC_EVENT_FLAG      0x80000000
-#define DEFAULT_MCAST_GROUP_ADDRESS "239.40.41.42" // Completely made up
-#define DEFAULT_MCAST_GROUP_PORT 4723 // Completely made up
-#define DEFAULT_MCAST_TTL 1
-#define DEFAULT_MAX_DSTC_NODES 32
-
-// Environment variables that affect DSTC setup
-#define DSTC_ENV_NODE_ID "DSTC_NODE_ID"
-#define DSTC_ENV_MAX_NODES "DSTC_MAX_NODES"
-#define DSTC_ENV_MCAST_GROUP_ADDR "DSTC_MCAST_GROUP_ADDR"
-#define DSTC_ENV_MCAST_GROUP_PORT "DSTC_MCAST_GROUP_PORT"
-#define DSTC_ENV_MCAST_IFACE_ADDR "DSTC_MCAST_IFACE_ADDR"
-#define DSTC_ENV_MCAST_TTL "DSTC_MCAST_TTL"
-#define DSTC_ENV_CONTROL_LISTEN_IFACE "DSTC_CONTROL_LISTEN_IFACE"
-#define DSTC_ENV_CONTROL_LISTEN_PORT "DSTC_CONTROL_LISTEN_PORT"
-#define DSTC_ENV_LOG_LEVEL "DSTC_LOG_LEVEL"
+// An epoll event.
+struct epoll_event;
 
 //
-// Default max number of remote DSTC nodes we will be communicating with.
-// Can be overridden by dstc_setup2.
+// Functions available to DSTC apps.
 //
-#define USER_DATA_INDEX_MASK 0x00007FFF
-#define USER_DATA_PUB_FLAG   0x00008000
-
 extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
 extern int dstc_setup(void);
 extern int dstc_setup_epoll(int epollfd);
+
+// Start buffering outbound calls into larger packets.
+// Packets will be sent either when the outbound buffer is full (63KB), or
+// when dstc_unbuffer_client_calls() is invoked.
+//
+// Once dstc_unbuffer_client_calls() has been called, another call to
+// dstc_buffer_call_sequence() to be made to re-enable colleciton
+// mode.
+// Using call sequences will create larger multicast packets, which will greatly speed
+// up your code.
+//
+// It is totally ok to only call dstc_buffer_client_calls() without
+// ever calling dstc_unbuffer_client_calls_sequence(). Please note
+// however, that calls will be bufferted indefinitely until the buffer
+// is full, or dstc_flush_client_calls() is invoked to manually send
+// out pending cliet calls.
+//
+// Invoke dstc_flush_client_calls() to transmit buffered client calls
+// without disabling buffered mode.
+//
+extern void dstc_buffer_client_calls(void);
+extern void dstc_flush_client_calls(void);
+extern void dstc_unbuffer_client_calls(void);
+
+// DSTC_EVENT_FLAG is used to determine if the .data returned with
+// a returned (epoll) event is to be processed by DSTC, or if
+// the event was supplied by the calling code outside DSTC.
+// See chat.c for example.
+//
+#define DSTC_EVENT_FLAG      0x80000000
+
 extern int dstc_process_events(usec_timestamp_t timeout);
 extern int dstc_process_timeout(void);
 extern int dstc_get_timeout_msec(void);
 extern usec_timestamp_t dstc_get_timeout_timestamp(void);
-struct epoll_event;
 extern int dstc_process_single_event(int timeout);
 extern void dstc_process_epoll_result(struct epoll_event* event);
 extern rmc_node_id_t dstc_get_node_id(void);
 extern uint8_t dstc_remote_function_available(void* func_ptr);
-extern dstc_callback_t dstc_activate_callback(dstc_callback_t, dstc_internal_dispatch_t);
-extern int dstc_queue_func(char* name, uint8_t* arg_buf, uint32_t arg_sz);
-extern void dstc_register_client_function(char*, void *);
-extern int dstc_queue_callback(dstc_callback_t addr, uint8_t* arg_buf, uint32_t arg_sz);
-extern void dstc_register_callback_client(char*, void *);
-extern void dstc_register_server_function(char*, dstc_internal_dispatch_t);
 extern uint8_t dstc_remote_function_available_by_name(char* func_name);
-extern void dstc_invoke_callback(dstc_callback_t, ...);
+extern void dstc_cancel_callback(dstc_internal_dispatch_t callback);
+
+
+//
+// Functions used by DSTC_ macros
+//
+extern dstc_callback_t dstc_activate_callback(struct dstc_context*,
+                                              dstc_callback_t,
+                                              dstc_internal_dispatch_t);
+
+extern void dstc_register_callback_client(struct dstc_context*,
+                                          char*,
+                                          void *);
+
+extern void dstc_register_callback_server(struct dstc_context*,
+                                          dstc_callback_t,
+                                          dstc_internal_dispatch_t);
+
+extern void dstc_register_client_function(struct dstc_context*, char*, void *);
+
+extern void dstc_register_server_function(struct dstc_context*,
+                                          char*,
+                                          dstc_internal_dispatch_t);
+
+extern int dstc_queue_func(struct dstc_context*  ctx,
+                           char* name,
+                           uint8_t* arg_buf,
+                           uint32_t arg_sz);
+
+extern int dstc_queue_callback(struct dstc_context*  ctx,
+                               dstc_callback_t addr,
+                               uint8_t* arg_buf,
+                               uint32_t arg_sz);
 
 // Please note that the same arguments can be set via
 // environment variables. See DSTC_ENV_xxx above.
@@ -256,8 +236,9 @@ typedef dstc_callback_t CBCK;
         return;                                                         \
     }                                                                   \
 
-#define DSTC_CLIENT_CALLBACK_ARG(_func)              \
+#define DSTC_CLIENT_CALLBACK_ARG(_func)         \
     dstc_activate_callback(                     \
+        0,                                      \
         (dstc_callback_t) _func,                \
         _dstc_cb_##_func)                       \
 
@@ -380,12 +361,12 @@ typedef dstc_callback_t CBCK;
         uint8_t *payload = arg_buf;                                     \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        return dstc_queue_func((char*) #name, arg_buf, arg_sz);         \
+        return dstc_queue_func(0, (char*) #name, arg_buf, arg_sz);      \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_client_##name()    \
     {                                                                   \
         char name_arr[] = #name;                                        \
-        dstc_register_client_function(name_arr, (void*)  dstc_##name);  \
+        dstc_register_client_function(0, name_arr, (void*)  dstc_##name); \
     }
 
 // Create callback function that serializes and writes to descriptor.
@@ -398,12 +379,12 @@ typedef dstc_callback_t CBCK;
         uint8_t *payload = arg_buf;                                     \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        return dstc_queue_callback(name, arg_buf, arg_sz);              \
+        return dstc_queue_callback(0, name, arg_buf, arg_sz);            \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \
         char name_array[] = #name;                                      \
-        dstc_register_callback_client(name_array, (void*) dstc_##name); \
+        dstc_register_callback_client(0, name_array, (void*) dstc_##name); \
     }
 
 
@@ -429,7 +410,7 @@ typedef dstc_callback_t CBCK;
     void __attribute__((constructor)) _dstc_register_server_##name()    \
     {                                                                   \
         char name_array[] = #name;                                      \
-        dstc_register_server_function(name_array, dstc_server_##name);  \
+        dstc_register_server_function(0, name_array, dstc_server_##name); \
     }
 
 #define DSTC_SERVER(name, ...)                          \

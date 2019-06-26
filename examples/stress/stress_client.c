@@ -11,6 +11,7 @@
 #include "dstc.h"
 #include <stdio.h>
 #include <errno.h>
+#include <stdlib.h>
 #include "rmc_log.h"
 
 // Generate serializer functionality and the callable client function
@@ -26,12 +27,15 @@ int main(int argc, char* argv[])
     while(!dstc_remote_function_available(dstc_set_value))
         dstc_process_events(500000);
 
+
+    // Move into buffered mode to transmit 63K UDP packets.
+    dstc_buffer_client_calls();
     //
     // Pump as many calls as we can through the server.
     // If we choke on EBUSY, process events until we have cleared
     // the output queue enough to continue.
     //
-    while(1) {
+    while(val < 1000000) {
         // Process a single event for as many times as necessary
         // to unblock our client call.
         //
@@ -46,13 +50,26 @@ int main(int argc, char* argv[])
         }
 
         dstc_process_single_event(0);
-
-        if (val % 1000000 == 0)
+        if (val % 10000 == 0)
             printf("Value: %d\n", val);
 
         ++val;
     }
 
-    // Process events for another 100 msec to ensure that all calls gets out.
-    dstc_process_events(100000);
+    // Unbuffer call sequences to ensure that we get
+    // all final calls go out.
+
+    dstc_unbuffer_client_calls();
+    puts("Telling server to exit");
+    int ret = 0;
+    while ((ret = dstc_set_value(-1)) == EBUSY) {
+        dstc_process_single_event(1000);
+        continue;
+    }
+    printf("ret1: %s\n", strerror(ret));
+    // Process events until there are no more.
+    while((ret = dstc_process_single_event(0)) != ETIME)
+        ;
+
+    printf("ret2: %s\n", strerror(ret));
 }

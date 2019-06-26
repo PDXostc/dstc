@@ -2,7 +2,7 @@
 # Executable example code from the README.md file
 #
 
-NAME=stress
+NAME=thread_stress
 
 # FIXME variable substitution is a thing
 INCLUDE=../../dstc.h
