@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
         }
 
         dstc_process_single_event(0);
-        if (val % 100000 == 0)
+        if (val % 10000 == 0)
             printf("Value: %d\n", val);
 
         ++val;
