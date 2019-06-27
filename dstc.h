@@ -73,13 +73,13 @@ extern void dstc_unbuffer_client_calls(void);
 extern int dstc_process_events(int timeout);
 extern int dstc_process_timeout(void);
 extern int dstc_process_pending_events(void);
+extern void dstc_process_epoll_result(struct epoll_event* event);
 
 typedef usec_timestamp_t msec_timestamp_t;
 extern msec_timestamp_t dstc_msec_monotonic_timestamp(void);
-extern int dstc_get_timeout_msec(void);
+// Return the number of milliseconds until the next timeout.
+extern int dstc_get_timeout_msec_rel(void);
 
-extern usec_timestamp_t dstc_get_timeout_timestamp(void);
-extern void dstc_process_epoll_result(struct epoll_event* event);
 extern rmc_node_id_t dstc_get_node_id(void);
 extern uint8_t dstc_remote_function_available(void* func_ptr);
 extern uint8_t dstc_remote_function_available_by_name(char* func_name);

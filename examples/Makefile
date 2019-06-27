@@ -2,9 +2,9 @@
 SUBDIRS =                 \
 	print_name_and_age    \
 	dynamic_data          \
-	struct                \
+	print_struct          \
 	callback              \
-	callback_dynamic_data \
+	callback_dyndata      \
 	stress                \
 	loopback              \
 	chat                  \

@@ -47,7 +47,7 @@ void set_value(int value)
         exit(0);
     }
 
-    if (value % 100000 == 0)
+    if (value % 1000000 == 0)
         printf("Value: %d\n", value);
 
 

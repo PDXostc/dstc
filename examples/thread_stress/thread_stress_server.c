@@ -35,7 +35,7 @@ void _set_value(int thr, int value, int *last_value, usec_timestamp_t* start_ts)
     if (value == -1) {
         usec_timestamp_t stop_ts = rmc_usec_monotonic_timestamp();
         (*last_value)++;
-        printf("Thread[%d] Processed %d calls in %.2f sec -> %.2f calls/sec\n",
+        printf("Server thread[%d] Processed %d calls in %.2f sec -> %.2f calls/sec\n",
                thr,
                *last_value,
                (stop_ts - *start_ts) / 1000000.0,
@@ -46,11 +46,11 @@ void _set_value(int thr, int value, int *last_value, usec_timestamp_t* start_ts)
     }
 
     if (value % 100000 == 0)
-        printf("Thread[%d] Value: %d\n", thr, value);
+        printf("Server thread[%d] Value: %d\n", thr, value);
 
     // Check that we got the expected value.
     if (*last_value != -1 && value != *last_value + 1 ) {
-        printf("Thread[%d] Integrity failure!  Want value %d Got value %d\n",
+        printf("Server thread[%d] Integrity failure!  Want value %d Got value %d\n",
                thr, *last_value + 1 , value);
         exit(255);
     }
@@ -100,9 +100,9 @@ void *t_exec(void* arg)
     int thr = (intptr_t) arg;
 
     while(!exit_flag[thr])
-        dstc_process_events(-1);
+        dstc_process_events(100);
 
-    printf("Thread %d is exiting\n", thr);
+    printf("Server thread %d is exiting\n", thr);
     return 0;
 }
 

@@ -65,7 +65,7 @@ void *t_exec(void* arg)
         dstc_process_pending_events();
 
         if (val % 100000 == 0)
-            printf("Thread[%lu] Value: %d\n", ind, val);
+            printf("Client thread[%lu] Value: %d\n", ind, val);
 
         ++val;
     }

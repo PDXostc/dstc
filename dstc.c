@@ -318,6 +318,35 @@ static uint8_t* dstc_payload_buffer_empty(dstc_context_t* ctx)
     return 0;
 }
 
+static msec_timestamp_t dstc_get_next_timeout_abs(void)
+{
+    // Prep for future, caller-provided contexct.
+    dstc_context_t* ctx = &_dstc_default_context;
+
+    usec_timestamp_t sub_event_tout_ts = 0;
+    usec_timestamp_t pub_event_tout_ts = 0;
+
+    dstc_lock_and_init_context(ctx);
+
+    rmc_pub_timeout_get_next(ctx->pub_ctx, &pub_event_tout_ts);
+    rmc_sub_timeout_get_next(ctx->sub_ctx, &sub_event_tout_ts);
+
+    dstc_unlock_context(ctx);
+
+    // Figure out the shortest event timeout between pub and sub context
+    if (pub_event_tout_ts == -1 && sub_event_tout_ts == -1)
+        return -1;
+
+    if (pub_event_tout_ts == -1 && sub_event_tout_ts != -1)
+        return sub_event_tout_ts / 1000;
+
+    if (pub_event_tout_ts != -1 && sub_event_tout_ts == -1)
+        return pub_event_tout_ts / 1000;
+
+    return (pub_event_tout_ts < sub_event_tout_ts)?
+        (pub_event_tout_ts / 1000):(sub_event_tout_ts / 1000);
+}
+
 // Retrieve a function pointer by name previously registered with
 // dstc_register_server_function()
 //
@@ -1247,36 +1276,9 @@ uint8_t dstc_remote_function_available(void* client_func)
 }
 
 
-usec_timestamp_t dstc_get_timeout_timestamp(void)
-{
-    // Prep for future, caller-provided contexct.
-    dstc_context_t* ctx = &_dstc_default_context;
-
-    usec_timestamp_t sub_event_tout_ts = 0;
-    usec_timestamp_t pub_event_tout_ts = 0;
-
-    dstc_lock_and_init_context(ctx);
-
-    rmc_pub_timeout_get_next(ctx->pub_ctx, &pub_event_tout_ts);
-    rmc_sub_timeout_get_next(ctx->sub_ctx, &sub_event_tout_ts);
-
-    dstc_unlock_context(ctx);
-
-    // Figure out the shortest event timeout between pub and sub context
-    if (pub_event_tout_ts == -1 && sub_event_tout_ts == -1)
-        return -1;
-
-    if (pub_event_tout_ts == -1 && sub_event_tout_ts != -1)
-        return sub_event_tout_ts;
-
-    if (pub_event_tout_ts != -1 && sub_event_tout_ts == -1)
-        return pub_event_tout_ts;
-
-    return (pub_event_tout_ts < sub_event_tout_ts)?
-        pub_event_tout_ts:sub_event_tout_ts;
-}
 
 msec_timestamp_t dstc_msec_monotonic_timestamp(void)
+
 {
     struct timespec res;
 
@@ -1285,19 +1287,20 @@ msec_timestamp_t dstc_msec_monotonic_timestamp(void)
     return (msec_timestamp_t) res.tv_sec * 1000 + res.tv_nsec / 1000000;
 }
 
-int dstc_get_timeout_msec(void)
+int dstc_get_timeout_msec_rel(void)
 {
-    usec_timestamp_t tout = dstc_get_timeout_timestamp();
+    msec_timestamp_t tout = dstc_get_next_timeout_abs();
 
     if (tout == -1)
         return -1;
 
     // Convert to relative timestamp.
-    tout -= rmc_usec_monotonic_timestamp();
+    tout -= dstc_msec_monotonic_timestamp();
+
     if (tout < 0)
         return 0;
 
-    return tout / 1000 + 1;
+    return tout + 1;
 }
 
 
@@ -1318,7 +1321,7 @@ int dstc_process_events(int timeout)
 
 
     if (timeout == -1)
-        timeout = dstc_get_timeout_msec();
+        timeout = dstc_get_timeout_msec_rel();
 
     if (dstc_lock_and_init_context_timed(ctx, timeout) == ETIME)
         return ETIME;
