@@ -769,15 +769,24 @@ static void dstc_process_incoming(rmc_sub_context_t* sub_ctx)
     dstc_lock_context(ctx);
     while((pack = rmc_sub_get_next_dispatch_ready(sub_ctx))) {
         uint32_t ind = 0;
+        void* payload = rmc_sub_packet_payload(pack);
+        payload_len_t payload_len = rmc_sub_packet_payload_len(pack);
 
-        RMC_LOG_DEBUG("Got packet. payload_len[%d]", rmc_sub_packet_payload_len(pack));
-        while(ind < rmc_sub_packet_payload_len(pack)) {
+        RMC_LOG_DEBUG("Got packet. payload_len[%d]", payload_len);
+
+        // We need to mark the packet as dispatched before we make the function calls,
+        // Since any calls to dstc_process_events() from inside the invoked funciton
+        // would lead to recursion.
+        //
+        rmc_sub_packet_dispatched_keep_payload(sub_ctx, pack);
+
+        while(ind < payload_len) {
             RMC_LOG_DEBUG("Processing function call. ind[%d]", ind);
-            ind += dstc_process_function_call(ctx, ((uint8_t*) rmc_sub_packet_payload(pack) + ind),
-                                              rmc_sub_packet_payload_len(pack) - ind);
+            ind += dstc_process_function_call(ctx,
+                                              ((uint8_t*) payload + ind),
+                                              payload_len - ind);
         }
-
-        rmc_sub_packet_dispatched(sub_ctx, pack);
+        free(payload);
     }
     dstc_unlock_context(ctx);
     return;
@@ -1306,6 +1315,10 @@ int dstc_process_events(int timeout)
 
     // Prep for future, caller-provided contexct.
     dstc_context_t* ctx = &_dstc_default_context;
+
+
+    if (timeout == -1)
+        timeout = dstc_get_timeout_msec();
 
     if (dstc_lock_and_init_context_timed(ctx, timeout) == ETIME)
         return ETIME;

@@ -8,6 +8,7 @@ SUBDIRS =                 \
 	stress                \
 	loopback              \
 	chat                  \
+	thread_stress         \
 	cpp                   \
 
 .PHONY: all clean install uninstall cpp

@@ -30,7 +30,6 @@ usec_timestamp_t start_ts = 0;
 void set_value(int value)
 {
     static int last_value = -1;
-    int ret;
 
     if (start_ts == 0)
         start_ts = rmc_usec_monotonic_timestamp();

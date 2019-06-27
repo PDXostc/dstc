@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
     dstc_set_value2(-1);
     dstc_set_value3(-1);
     dstc_set_value4(-1);
-    // Process events for another 100 msec to ensure that all calls gets out.
+
     dstc_process_pending_events();
     exit(0);
 }

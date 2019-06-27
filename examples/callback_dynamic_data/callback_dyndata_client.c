@@ -54,11 +54,11 @@ void get_all_elements_callback(dstc_dynamic_data_t dynarg, int elem_count)
         puts("(Add elements using -a.)");
 
     while(elem_count--)
-        printf("Name: %s   Age: %d\n",
+        printf("%s:%d\n",
                elem[elem_count].name,
                elem[elem_count].age);
 
-    putchar('\n');
+    exit(0);
 }
 
 

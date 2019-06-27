@@ -22,7 +22,7 @@ void get_value_callback(int value);
 // and a callback function pointer as indicated by DECL_CALLBACK_ARG
 //
 
-DSTC_CLIENT(double_value_server, int,, DSTC_DECL_CALLBACK_ARG);
+DSTC_CLIENT(double_value, int,, DSTC_DECL_CALLBACK_ARG);
 
 //
 // Callback invoked by the remotely executed double_value_server() function.
@@ -50,7 +50,7 @@ DSTC_CLIENT_CALLBACK(double_value_callback, int,);
 int main(int argc, char* argv[])
 {
     // Wait for function to become available on one or more servers.
-    while(!dstc_remote_function_available(dstc_double_value_server))
+    while(!dstc_remote_function_available(dstc_double_value))
         dstc_process_events(-1);
 
     // Make the call
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
     // The arguments must match the actual arguments of the callback function implemented
     // above.
     puts("Asking servr to double 223344");
-    dstc_double_value_server(223344, DSTC_CLIENT_CALLBACK_ARG(double_value_callback));
+    dstc_double_value(223344, DSTC_CLIENT_CALLBACK_ARG(double_value_callback));
 
     // Process events until callback, which will exit process, is made.
     while(1)

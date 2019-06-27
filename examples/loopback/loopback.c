@@ -10,7 +10,7 @@
 
 #include "dstc.h"
 #include <stdio.h>
-
+#include <stdlib.h>
 // Define both a client and a server that can be called from the
 // same function
 //
