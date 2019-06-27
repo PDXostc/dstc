@@ -111,8 +111,8 @@ int main(int argc, char* argv[])
 
         // Find out when our next timeout is.
         // If timeout is zero, then we need to process a timeout immediately.
-        while (!(timeout = dstc_get_timeout_msec())) {
-            RMC_LOG_DEBUG("Got timeout in dstc_get_timeout_msec()");
+        while (!(timeout = dstc_get_timeout_msec_rel())) {
+            RMC_LOG_DEBUG("Got timeout in dstc_get_timeout_msec_rel()");
             dstc_process_timeout();
         }
 

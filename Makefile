@@ -5,14 +5,15 @@
 .PHONY: all clean distclean install uninstall examples install_examples
 
 SRC=dstc.c
-HDR=dstc.h dstc_internal.h
+EXT_HDR=dstc.h
+HDR=${EXT_HDR} dstc_internal.h
 OBJ=dstc.o
 
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I/usr/local/include
-CFLAGSLIST=-pthread -fPIC -O $(INCLUDES) -Wall $(CFLAGS) $(CPPFLAGS) -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
+CFLAGSLIST=-pthread -fPIC -g $(INCLUDES) -Wall $(CFLAGS) $(CPPFLAGS) -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
 DESTDIR ?= /usr/local
 export CFLAGSLIST
 export DESTDIR
@@ -62,7 +63,7 @@ install:  all
 	install -d ${DESTDIR}/lib; \
 	install -d ${DESTDIR}/include; \
 	install -m 0644 ${LIB_TARGET}  ${DESTDIR}/lib; \
-	install -m 0644 ${HDR}  ${DESTDIR}/include; \
+	install -m 0644 ${EXT_HDR}  ${DESTDIR}/include; \
 	install -m 0644 ${LIB_SO_TARGET}  ${DESTDIR}/lib;
 
 #

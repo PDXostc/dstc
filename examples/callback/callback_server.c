@@ -19,7 +19,7 @@
 // The deserializer decodes the incoming data and calls the
 // print_name_and_age() function in this file.
 //
-DSTC_SERVER(double_value_server, int,, DSTC_DECL_CALLBACK_ARG)
+DSTC_SERVER(double_value, int,, DSTC_DECL_CALLBACK_ARG)
 
 //
 // Print out name and age.
@@ -33,16 +33,27 @@ DSTC_SERVER(double_value_server, int,, DSTC_DECL_CALLBACK_ARG)
 // dstc_[name] where name is the name of the callback reference,
 // (callback_ref in the example below).
 //
-void double_value_server(int value, dstc_callback_t callback_ref)
+void double_value(int value, dstc_callback_t callback_ref)
 {
     DSTC_SERVER_CALLBACK(callback_ref, int,);
 
+    if (value == -1) {
+        puts("double_value(-1): Got exit signal.");
+        dstc_process_pending_events();
+        exit(0);
+    }
+
     printf("double_value(%d) called with a callback\n", value);
     dstc_callback_ref(value + value);
+    dstc_process_pending_events();
+    exit(0);
 }
 
 int main(int argc, char* argv[])
 {
     // Process incoming events for ever
-    dstc_process_events(-1);
+    while(1)
+        dstc_process_events(-1);
+
+    exit(0);
 }

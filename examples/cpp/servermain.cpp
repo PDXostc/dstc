@@ -35,5 +35,11 @@ int main() {
     ExampleServer obj(callback_vec_number, callback_vec_string);
 
     std::cout << "running for 10 seconds." << std::endl;
-    dstc_process_events(10 * 1000 * 1000);
+    msec_timestamp_t current_ts = dstc_msec_monotonic_timestamp();
+    msec_timestamp_t stop_ts = current_ts + 10000;
+    while(current_ts < stop_ts) {
+        dstc_process_events(stop_ts - current_ts);
+        current_ts = dstc_msec_monotonic_timestamp();
+    }
+    exit(0);
 }

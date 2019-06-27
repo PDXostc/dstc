@@ -34,10 +34,22 @@ void test_dynamic_function(dstc_dynamic_data_t dynarg, int second_arg[4])
     printf("Second Arg[1]: %d\n", second_arg[1]);
     printf("Second Arg[2]: %d\n", second_arg[2]);
     printf("Second Arg[3]: %d\n", second_arg[3]);
+
+    if (strcmp((char*) dynarg.data, "DynamicData123") ||
+        second_arg[0] != 1 ||
+        second_arg[1] != 2 ||
+        second_arg[2] != 3 ||
+        second_arg[3] != 4) {
+        puts("Error: Got wrong data");
+        exit(255);
+    }
+
+    exit(0);
 }
 
 int main(int argc, char* argv[])
 {
     // Process incoming events forever
-    dstc_process_events(-1);
+    while(1)
+        dstc_process_events(-1);
 }

@@ -30,7 +30,6 @@ usec_timestamp_t start_ts = 0;
 void set_value(int value)
 {
     static int last_value = -1;
-    int ret;
 
     if (start_ts == 0)
         start_ts = rmc_usec_monotonic_timestamp();
@@ -43,13 +42,12 @@ void set_value(int value)
                (stop_ts - start_ts) / 1000000.0,
                last_value / ((stop_ts - start_ts) / 1000000.0));
 
-        while((ret = dstc_process_single_event(0)) != ETIME)
-            ;
+        dstc_process_pending_events();
         printf("Exiting: %s\n", strerror(errno));
         exit(0);
     }
 
-    if (value % 100000 == 0)
+    if (value % 1000000 == 0)
         printf("Value: %d\n", value);
 
 
@@ -66,5 +64,6 @@ void set_value(int value)
 int main(int argc, char* argv[])
 {
     // Process incoming events forever
-    dstc_process_events(-1);
+    while(1)
+        dstc_process_events(-1);
 }
