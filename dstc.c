@@ -507,7 +507,6 @@ static void dstc_register_remote_function(dstc_context_t* ctx,
     int ind = 0;
     dstc_remote_node_t* remote = 0;
 
-
     // See if the node has registered any prior functions
     // If so, check that we don't have a duplicate and then register
     // the new function.
@@ -769,7 +768,7 @@ static void dstc_subscription_complete(rmc_sub_context_t* sub_ctx,
     while(ind--) {
         RMC_LOG_COMMENT("  [%s]", ctx->server_func[ind].func_name);
         dstc_control_message_t ctl = {
-            .node_id = node_id
+            .node_id = rmc_pub_node_id(ctx->pub_ctx)
         };
 
         strcpy(ctl.name, ctx->server_func[ind].func_name);
@@ -939,6 +938,7 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                     ctx->sub_ctx,
                     ctx->pub_ctx);
 
+    RMC_LOG_INFO("Node ID[0x%X]", rmc_sub_node_id(ctx->sub_ctx));
     // Start ticking announcements as a client that the server will connect back to.
     // Only do announce if we have client services that requires servers to connect
     // back to us as a subsriber in order to make their remote functions available.
@@ -1234,7 +1234,8 @@ uint8_t dstc_remote_function_available_by_name(char* func_name)
     // to see if you can find one with a matching na,e
     ind = ctx->remote_node_ind;
     while(ind--) {
-        if (!strcmp(func_name, ctx->remote_node[ind].func_name)) {
+        if (ctx->remote_node[ind].node_id != 0 &&
+            !strcmp(func_name, ctx->remote_node[ind].func_name)) {
             dstc_unlock_context(ctx);
             return 1;
         }
@@ -1315,7 +1316,6 @@ int dstc_process_events(int timeout)
 {
     int nfds = 0;
     int retval = 0;
-
     // Prep for future, caller-provided contexct.
     dstc_context_t* ctx = &_dstc_default_context;
 
@@ -1330,7 +1330,10 @@ int dstc_process_events(int timeout)
 
     do {
         errno = 0;
-        nfds = epoll_wait(ctx->epoll_fd, events, sizeof(events) / sizeof(events[0]), timeout);
+        nfds = epoll_wait(ctx->epoll_fd,
+                          events,
+                          sizeof(events) / sizeof(events[0]),
+                          timeout);
     } while(nfds == -1 && errno == EINTR);
 
     if (nfds == -1) {
@@ -1341,13 +1344,13 @@ int dstc_process_events(int timeout)
     // Timeout
     if (nfds == 0) {
         dstc_process_timeout();
-
         retval = ETIME;
     }
 
     // Process all pending events.
     while(nfds--)
         dstc_process_epoll_result(&events[nfds]);
+
 
     dstc_unlock_context(ctx);
     return retval;
