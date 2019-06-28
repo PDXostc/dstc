@@ -43,12 +43,13 @@ void set_value(int value)
                last_value / ((stop_ts - start_ts) / 1000000.0));
 
         dstc_process_pending_events();
-        printf("Exiting: %s\n", strerror(errno));
+        printf("Server exiting: %s\n", strerror(errno));
         exit(0);
     }
 
-    if (value % 1000000 == 0)
-        printf("Value: %d\n", value);
+
+    if (value % 100000 == 0)
+        printf("Server value: %d\n", value);
 
 
     // Check that we got the expected value.

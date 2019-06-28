@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 
         dstc_process_pending_events();
         if (val % 100000 == 0)
-            printf("Value: %d\n", val);
+            printf("Client value: %d\n", val);
 
         ++val;
     }
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
     // all final calls go out.
 
     dstc_unbuffer_client_calls();
-    puts("Telling server to exit");
+    puts("Client telling server to exit");
     int ret = 0;
     while ((ret = dstc_set_value(-1)) == EBUSY) {
         dstc_process_events(100);
@@ -69,5 +69,6 @@ int main(int argc, char* argv[])
 
     // Process events until there are no more.
     dstc_process_pending_events();
+    puts("Client exiting");
     exit(0);
 }

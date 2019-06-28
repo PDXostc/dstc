@@ -582,6 +582,9 @@ static void poll_add(user_data_t user_data,
                             event_user_data);
         exit(255);
     }
+    RMC_LOG_COMMENT("poll_add() read[%c] write[%c]\n",
+                    ((action & RMC_POLLREAD)?'y':'n'),
+                    ((action & RMC_POLLWRITE)?'y':'n'));
     dstc_unlock_context(ctx);
 }
 
@@ -1312,19 +1315,35 @@ int dstc_process_pending_events(void)
     return 0;
 }
 
-int dstc_process_events(int timeout)
+int dstc_process_events(int timeout_rel)
 {
     int nfds = 0;
     int retval = 0;
     // Prep for future, caller-provided contexct.
     dstc_context_t* ctx = &_dstc_default_context;
+    msec_timestamp_t start_time = dstc_msec_monotonic_timestamp();
+    int next_dstc_timeout_rel = dstc_get_timeout_msec_rel();
+    int next_dstc_timeout_abs = start_time + next_dstc_timeout_rel;
 
+    if (timeout_rel == -1)
+        timeout_rel = next_dstc_timeout_rel;
+    else
+        timeout_rel = (next_dstc_timeout_rel < timeout_rel)?
+            next_dstc_timeout_rel:timeout_rel;
 
-    if (timeout == -1)
-        timeout = dstc_get_timeout_msec_rel();
-
-    if (dstc_lock_and_init_context_timed(ctx, timeout) == ETIME)
+    if (dstc_lock_and_init_context_timed(ctx, timeout_rel) == ETIME) {
+        dstc_process_timeout();
         return ETIME;
+    }
+
+    // We may have spent some time waiting for the lock.
+    // Recalculate the new relative timestamp.
+    if (timeout_rel != 0) {
+        timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp();
+
+        if (timeout_rel < 0)
+            timeout_rel = 0;
+    }
 
     struct epoll_event events[dstc_get_socket_count()];
 
@@ -1333,7 +1352,7 @@ int dstc_process_events(int timeout)
         nfds = epoll_wait(ctx->epoll_fd,
                           events,
                           sizeof(events) / sizeof(events[0]),
-                          timeout);
+                          timeout_rel);
     } while(nfds == -1 && errno == EINTR);
 
     if (nfds == -1) {
