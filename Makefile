@@ -13,9 +13,8 @@ LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I/usr/local/include
-CFLAGSLIST=-pthread -fPIC -g $(INCLUDES) -Wall $(CFLAGS) $(CPPFLAGS) -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
+CFLAGS ?=-fPIC -g $(INCLUDES) -Wall -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
 DESTDIR ?= /usr/local
-export CFLAGSLIST
 export DESTDIR
 
 #
@@ -27,7 +26,7 @@ all: $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
 #	Make sure all of the object files are current.
 #
 $(OBJ): $(SRC) $(HDR)
-	$(CC) $(CFLAGSLIST) -c $(SRC)
+	$(CC) $(CFLAGS) -c $(SRC)
 
 #
 #	Rebuild the static target library.
@@ -39,7 +38,7 @@ $(LIB_TARGET): $(OBJ)
 #	Rebuild the shared object target library.b
 #
 $(LIB_SO_TARGET):  $(OBJ)
-	$(CC) -shared $(CFLAGSLIST) $(OBJ) -o $(LIB_SO_TARGET)
+	$(CC) -shared $(CFLAGS) $(OBJ) -o $(LIB_SO_TARGET)
 
 #
 #	Remove all the generated files in this project.  Note that this does NOT
