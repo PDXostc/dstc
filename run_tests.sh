@@ -5,14 +5,18 @@
 
 TESTS="print_name_and_age callback print_struct dynamic_data stress thread_stress"
 TIMEOUT=30 # seconds
-cd examples
+
+pushd "${0%/*}/examples"
 
 for TEST in $TESTS
 do
     echo "-------------------------"
     echo "Running test $TEST"
     echo "-------------------------"
-    cd $TEST
+
+    if [ -d "./$TEST" ]; then
+      cd $TEST
+    fi
 
     timeout 15s ./${TEST}_server &
     timeout 15s ./${TEST}_client &
@@ -32,12 +36,17 @@ do
         exit $RES
     fi
 
-    cd ..
+    if [ "$(basename $PWD)" ==  ${TEST} ]; then
+      cd ..
+    fi
+    
     echo "------"
     echo "Test $TEST passed"
     echo
     echo
 
 done
+
+popd
 
 exit 0
