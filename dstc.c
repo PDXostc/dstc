@@ -1223,10 +1223,11 @@ int dstc_process_events(int timeout_rel)
     // Prep for future, caller-provided contexct.
     dstc_context_t* ctx = &_dstc_default_context;
     struct timespec abs_time;
+    int lock_res = 0;
 
 //    printf("Timeout_rel[%d]\n", timeout_rel);
 
-    if (timeout_rel <= 0) {
+    if (timeout_rel != 0) {
         msec_timestamp_t start_time = dstc_msec_monotonic_timestamp(&abs_time);
         int next_dstc_timeout_rel = dstc_get_timeout_msec_rel(start_time);
         int next_dstc_timeout_abs = start_time + next_dstc_timeout_rel;
@@ -1234,33 +1235,31 @@ int dstc_process_events(int timeout_rel)
         if (timeout_rel == -1)
             timeout_rel = next_dstc_timeout_rel;
         else
-            if (timeout_rel != 0)
-                timeout_rel = (next_dstc_timeout_rel < timeout_rel)?
-                    next_dstc_timeout_rel:timeout_rel;
+            timeout_rel = (next_dstc_timeout_rel < timeout_rel)?
+                next_dstc_timeout_rel:timeout_rel;
+
+        if (timeout_rel != -1) {
+            abs_time.tv_nsec += timeout_rel * 1000000;
+            abs_time.tv_sec += abs_time.tv_nsec / 1000000000;
+            abs_time.tv_nsec = abs_time.tv_nsec % 1000000000;
+            lock_res = dstc_lock_and_init_context_timeout(ctx, &abs_time);
+
+            if (lock_res == ETIME) {
+                dstc_process_timeout();
+                return ETIME;
+            }
+
+            // Did we spend time waiting for the lock?
+            if (lock_res != ENOTBLOCK) {
+                timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp(0);
+            }
+        } else
+            dstc_lock_and_init_context(ctx);
     }
-    //    printf("Timeout_rel2[%d]\n", timeout_rel);
-
-    if (timeout_rel != -1) {
-        abs_time.tv_nsec += timeout_rel * 1000000;
-        abs_time.tv_sec += abs_time.tv_nsec / 1000000000;
-        abs_time.tv_nsec = abs_time.tv_nsec % 1000000000;
-        int res = dstc_lock_and_init_context_timeout(ctx, &abs_time);
-
-        if (res == ETIME) {
-            dstc_process_timeout();
-            return ETIME;
-        }
-
-        // Did we spend time waiting for the lock?
-        if (res != ENOTBLOCK) {
-            timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp(0);
-        }
-    } else
-          dstc_lock_and_init_context(ctx);
 
     // We may have spent some time waiting for the lock.
     // Recalculate the new relative timestamp.
-    if (timeout_rel != 0) {
+    if (lock_res ==) {
 //        printf("Timeout_rel3[%d]\n", timeout_rel);
 
         if (timeout_rel < 0)
