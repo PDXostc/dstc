@@ -20,23 +20,6 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include "dstc_internal.h"
-#ifdef DSTC_PTHREAD_DEBUG
-#include <stdio.h>
-
-extern const char* rmc_log_color_light_red();
-extern const char* rmc_log_color_red();
-extern const char* rmc_log_color_dark_red();
-extern const char* rmc_log_color_orange();
-extern const char* rmc_log_color_yellow();
-extern const char* rmc_log_color_light_blue();
-extern const char* rmc_log_color_blue();
-extern const char* rmc_log_color_dark_blue();
-extern const char* rmc_log_color_light_green();
-extern const char* rmc_log_color_green();
-extern const char* rmc_log_color_dark_green();
-extern const char* rmc_log_color_none();
-extern const char* rmc_log_color_flashing_red();
-#endif
 
 #include <rmc_log.h>
 
@@ -135,137 +118,53 @@ static int dstc_context_initialized(dstc_context_t* ctx)
     return 1;
 }
 
-#ifdef DSTC_PTHREAD_DEBUG
-static int _next_color = 1;
-static const char* (*color_func[])(void) = {
-    rmc_log_color_none,
-    rmc_log_color_green,
-    rmc_log_color_orange,
-    rmc_log_color_dark_red,
-    rmc_log_color_blue,
-    rmc_log_color_dark_green,
-    rmc_log_color_yellow,
-    rmc_log_color_light_blue,
-    rmc_log_color_light_red,
-    rmc_log_color_dark_blue,
-};
-static __thread const char* (*_color)(void) = 0;
-static __thread int _depth = 0;
-#endif
 
-static int _dstc_lock_context(dstc_context_t* ctx, int timeout_ms, int line)
+static int _dstc_lock_context_timeout(dstc_context_t* ctx, struct timespec* abs_timeout, int line)
 {
-#ifdef DSTC_PTHREAD_DEBUG
-    if (!_color) {
-        if (_next_color < sizeof(color_func)/sizeof(color_func[0]))
-            _color = color_func[_next_color++];
-        else
-            _color = color_func[0];
+    if (!pthread_mutex_trylock(&ctx->lock))
+        return ENOTBLOCK;
+
+    if (pthread_mutex_timedlock(&ctx->lock, abs_timeout)) {
+        return ETIME;
     }
-#endif
-
-    if (timeout_ms != -1) {
-        struct timespec tout;
-
-        clock_gettime(CLOCK_REALTIME, &tout);
-        tout.tv_sec += timeout_ms / 1000;
-        tout.tv_nsec = (timeout_ms % 1000) * 1000000;
-        if (tout.tv_nsec >= 1000000000) {
-            tout.tv_sec += 1;
-            tout.tv_nsec = tout.tv_nsec % 1000000000;
-        }
-
-#ifdef DSTC_PTHREAD_DEBUG
-        printf("%*c%s[%lX] line[%d] tout[%.4d] - %sblocked%s\n",
-               _depth*2, ' ',
-               (*_color)(),
-               pthread_self(),
-               line,
-               timeout_ms,
-               rmc_log_color_red(),
-               rmc_log_color_none());
-        fflush(stdout);
-#endif
-
-        if (pthread_mutex_timedlock(&ctx->lock, &tout)) {
-#ifdef DSTC_PTHREAD_DEBUG
-            printf("\r%*c%s[%lX] lock line[%d] tout[%.4d] - %stimeout%s\n",
-                   _depth*2, ' ',
-                   (*_color)(),
-                   pthread_self(),
-                   line,
-                   timeout_ms,
-                   rmc_log_color_orange(),
-                   rmc_log_color_none());
-#endif
-            return ETIME;
-        }
-#ifdef DSTC_PTHREAD_DEBUG
-        printf("%*c%s[%lX] line[%d] tout[%d] - %slocked%s\n",
-               _depth*2, ' ',
-               (*_color)(),
-               pthread_self(),
-               line,
-               timeout_ms,
-               rmc_log_color_yellow(),
-              rmc_log_color_none());
-#endif
-    }
-    else {
-#ifdef DSTC_PTHREAD_DEBUG
-        printf("%*c%s[%lX] line[%d] tout[n/a] - %sblocked%s\n",
-               _depth*2, ' ',
-               (*_color)(),
-               pthread_self(),
-               line,
-               rmc_log_color_red(),
-               rmc_log_color_none());
-        fflush(stdout);
-#endif
-        pthread_mutex_lock(&ctx->lock);
-#ifdef DSTC_PTHREAD_DEBUG
-        printf("%*c%s[%lX] line[%d] tout[n/a] - %slocked%s\n",
-               _depth*2, ' ',
-               (*_color)(),
-               pthread_self(),
-               line,
-               rmc_log_color_yellow(),
-               rmc_log_color_none());
-#endif
-    }
-
-#ifdef DSTC_PTHREAD_DEBUG
-    _depth++;
-#endif
     return 0;
 }
 
-#define dstc_lock_context(ctx) _dstc_lock_context(ctx, -1, __LINE__)
-#define dstc_lock_context_timed(ctx, timeout_ms) _dstc_lock_context(ctx, timeout_ms, __LINE__)
+static int _dstc_lock_context(dstc_context_t* ctx, int line)
+{
+    pthread_mutex_lock(&ctx->lock);
+    return 0;
+}
+
+#define dstc_lock_context(ctx) _dstc_lock_context(ctx, __LINE__)
 
 static void _dstc_unlock_context(dstc_context_t* ctx, int line)
 {
-#ifdef DSTC_PTHREAD_DEBUG
-    _depth--;
-    printf("%*c%s[%lX] line [%d]          - %sunlocked%s\n",
-           _depth*2, ' ',
-            (*_color)(),
-           pthread_self(),
-           line,
-           rmc_log_color_light_green(),
-           rmc_log_color_none());
-#endif
-
     pthread_mutex_unlock(&ctx->lock);
 }
 
 #define dstc_unlock_context(ctx) _dstc_unlock_context(ctx, __LINE__)
 
-static int _dstc_lock_and_init_context(dstc_context_t* ctx, int timeout, int line)
+static int _dstc_lock_and_init_context_timeout(dstc_context_t* ctx, struct timespec* abs_timeout, int line)
 {
     int ret = 0;
 
-    ret = _dstc_lock_context(ctx, timeout, line);
+    ret = _dstc_lock_context_timeout(ctx, abs_timeout, line);
+
+    if (ret && ret != ENOTBLOCK)
+        return ret;
+
+    if (!dstc_context_initialized(ctx))
+        return dstc_setup();
+
+    return ret;
+}
+
+static int _dstc_lock_and_init_context(dstc_context_t* ctx, int line)
+{
+    int ret = 0;
+
+    ret = _dstc_lock_context(ctx, line);
 
     if (ret)
         return ret;
@@ -276,8 +175,8 @@ static int _dstc_lock_and_init_context(dstc_context_t* ctx, int timeout, int lin
     return 0;
 }
 
-#define dstc_lock_and_init_context(ctx) _dstc_lock_and_init_context(ctx, -1, __LINE__)
-#define dstc_lock_and_init_context_timed(ctx, timeout) _dstc_lock_and_init_context(ctx, timeout, __LINE__)
+#define dstc_lock_and_init_context(ctx) _dstc_lock_and_init_context(ctx, __LINE__)
+#define dstc_lock_and_init_context_timeout(ctx, abs_timeout) _dstc_lock_and_init_context_timeout(ctx, abs_timeout, __LINE__)
 
 // ctx must be non-null and locked
 static uint32_t dstc_payload_buffer_in_use(dstc_context_t* ctx)
@@ -1281,17 +1180,19 @@ uint8_t dstc_remote_function_available(void* client_func)
 
 
 
-msec_timestamp_t dstc_msec_monotonic_timestamp(void)
+msec_timestamp_t dstc_msec_monotonic_timestamp(struct timespec* abs_time_res)
 
 {
     struct timespec res;
 
-    clock_gettime(CLOCK_BOOTTIME, &res);
+    if (!abs_time_res)
+        abs_time_res = &res;
 
-    return (msec_timestamp_t) res.tv_sec * 1000 + res.tv_nsec / 1000000;
+    clock_gettime(CLOCK_MONOTONIC, abs_time_res);
+    return (msec_timestamp_t) abs_time_res->tv_sec * 1000 + abs_time_res->tv_nsec / 1000000;
 }
 
-int dstc_get_timeout_msec_rel(void)
+int dstc_get_timeout_msec_rel(msec_timestamp_t current_time)
 {
     msec_timestamp_t tout = dstc_get_next_timeout_abs();
 
@@ -1299,7 +1200,7 @@ int dstc_get_timeout_msec_rel(void)
         return -1;
 
     // Convert to relative timestamp.
-    tout -= dstc_msec_monotonic_timestamp();
+    tout -= (current_time?current_time:dstc_msec_monotonic_timestamp(0));
 
     if (tout < 0)
         return 0;
@@ -1311,7 +1212,7 @@ int dstc_get_timeout_msec_rel(void)
 int dstc_process_pending_events(void)
 {
     while(dstc_process_events(0) != ETIME)
-        ;
+       ;
     return 0;
 }
 
@@ -1321,25 +1222,46 @@ int dstc_process_events(int timeout_rel)
     int retval = 0;
     // Prep for future, caller-provided contexct.
     dstc_context_t* ctx = &_dstc_default_context;
-    msec_timestamp_t start_time = dstc_msec_monotonic_timestamp();
-    int next_dstc_timeout_rel = dstc_get_timeout_msec_rel();
-    int next_dstc_timeout_abs = start_time + next_dstc_timeout_rel;
+    struct timespec abs_time;
 
-    if (timeout_rel == -1)
-        timeout_rel = next_dstc_timeout_rel;
-    else
-        timeout_rel = (next_dstc_timeout_rel < timeout_rel)?
-            next_dstc_timeout_rel:timeout_rel;
+//    printf("Timeout_rel[%d]\n", timeout_rel);
 
-    if (dstc_lock_and_init_context_timed(ctx, timeout_rel) == ETIME) {
-        dstc_process_timeout();
-        return ETIME;
+    if (timeout_rel <= 0) {
+        msec_timestamp_t start_time = dstc_msec_monotonic_timestamp(&abs_time);
+        int next_dstc_timeout_rel = dstc_get_timeout_msec_rel(start_time);
+        int next_dstc_timeout_abs = start_time + next_dstc_timeout_rel;
+
+        if (timeout_rel == -1)
+            timeout_rel = next_dstc_timeout_rel;
+        else
+            if (timeout_rel != 0)
+                timeout_rel = (next_dstc_timeout_rel < timeout_rel)?
+                    next_dstc_timeout_rel:timeout_rel;
     }
+    //    printf("Timeout_rel2[%d]\n", timeout_rel);
+
+    if (timeout_rel != -1) {
+        abs_time.tv_nsec += timeout_rel * 1000000;
+        abs_time.tv_sec += abs_time.tv_nsec / 1000000000;
+        abs_time.tv_nsec = abs_time.tv_nsec % 1000000000;
+        int res = dstc_lock_and_init_context_timeout(ctx, &abs_time);
+
+        if (res == ETIME) {
+            dstc_process_timeout();
+            return ETIME;
+        }
+
+        // Did we spend time waiting for the lock?
+        if (res != ENOTBLOCK) {
+            timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp(0);
+        }
+    } else
+          dstc_lock_and_init_context(ctx);
 
     // We may have spent some time waiting for the lock.
     // Recalculate the new relative timestamp.
     if (timeout_rel != 0) {
-        timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp();
+//        printf("Timeout_rel3[%d]\n", timeout_rel);
 
         if (timeout_rel < 0)
             timeout_rel = 0;

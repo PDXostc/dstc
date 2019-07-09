@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
         // system resources allows it.
         //
         while (dstc_set_value(val) == EBUSY) {
-            dstc_process_events(100);
+            dstc_process_pending_events();
             continue;
         }
 

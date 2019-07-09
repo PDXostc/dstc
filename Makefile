@@ -13,7 +13,7 @@ LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I/usr/local/include
-CFLAGS ?=-fPIC -g $(INCLUDES) -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
+CFLAGS ?=-fPIC -ggdb $(INCLUDES) -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
 
 DESTDIR ?= /usr/local
 export DESTDIR
