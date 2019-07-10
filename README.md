@@ -21,9 +21,8 @@ The ```dstc.c``` and ```dstc.h``` files currently weigh in at ~1000 lines of
 code (according to cloc). The sample multi-user chat server is 36 lines of code.
 
 ## Fast
-The underlying reliable multicast can transmit 25 million signals / second
-between a publisher and subscriber running on two Dell servers with 10Gb Ethernet
-between them, using a single thread.
+The test code in ```examples/stress``` runs at 10M calls / second between two Dell R720 
+servers connected via 10Gb Ethernet. Single threaded.
 
 ## Light dependencies
 You just need gcc and reliable multicast to build and deploy your services. 
@@ -33,7 +32,7 @@ Any Posix-compliant OS is a suitable target environment.
 All scalars, arrays, unions and structs can be transmitted, as long as
 they do not contain pointers.
 
-## Multiple parallel executions
+## Call once - execute many
 If a server function is registered in multiple processes / nodes
 across a network, all of them will be invoked in parallel with a
 (single) client call to the given function.<br>
