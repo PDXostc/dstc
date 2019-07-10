@@ -40,7 +40,7 @@ void _set_value(int thr, int value, int *last_value, usec_timestamp_t* start_ts)
                *last_value,
                (stop_ts - *start_ts) / 1000000.0,
                *last_value / ((stop_ts - *start_ts) / 1000000.0));
-        dstc_process_pending_events();
+        dstc_process_events(0);
         exit_flag[thr] = 1;
         return;
     }

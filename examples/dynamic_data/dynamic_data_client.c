@@ -40,5 +40,5 @@ int main(int argc, char* argv[])
                                second_array_arg);
 
     // Process events for another 100 msec to ensure that the call gets out.
-    dstc_process_pending_events();
+    dstc_process_events(0);
 }
