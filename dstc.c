@@ -23,7 +23,6 @@
 
 #include <rmc_log.h>
 
-#define MAX_CONNECTIONS 16
 #define SUSPEND_TRAFFIC_THRESHOLD 3000
 #define RESTART_TRAFFIC_THRESHOLD 2800
 
@@ -806,7 +805,7 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          control_listen_port, // Use ephereal tcp port for tcp control
                          user_data_ptr(ctx),
                          poll_add_pub, poll_modify_pub, poll_remove,
-                         MAX_CONNECTIONS,
+                         DSTC_MAX_CONNECTIONS,
                          free_published_packets);
 
     // Setup a callback for subscriber disconnect, meaning that remote nodes
@@ -830,7 +829,7 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          multicast_iface_addr,  // Use any NIC address for multicast transmit.
                          user_data_ptr(ctx),
                          poll_add_sub, poll_modify_sub, poll_remove,
-                         MAX_CONNECTIONS,
+                         DSTC_MAX_CONNECTIONS,
                          0,0);
 
     rmc_sub_set_packet_ready_callback(ctx->sub_ctx, dstc_process_incoming);
@@ -864,11 +863,11 @@ static int dstc_setup_internal(dstc_context_t* ctx,
     return 0;
 }
 
-static int dstc_queue(dstc_context_t* ctx,
-                      char* name,
-                      dstc_callback_t callback_ref,
-                      uint8_t* arg,
-                      uint32_t arg_sz)
+static int _dstc_queue(dstc_context_t* ctx,
+                       char* name,
+                       dstc_callback_t callback_ref,
+                       uint8_t* arg,
+                       uint32_t arg_sz)
 {
     // Will be freed by RMC on confirmed delivery
     dstc_header_t *call = 0;
@@ -1126,7 +1125,7 @@ int dstc_queue_callback(dstc_context_t* ctx, dstc_callback_t addr, uint8_t* arg,
     // This integer will be mapped by the received through the
     // ctx->local_callback
     // table to a pending callback function.
-    res = dstc_queue(ctx, 0, addr, arg, arg_sz);
+    res = _dstc_queue(ctx, 0, addr, arg, arg_sz);
     _dstc_unlock_context(ctx);
     return res;
 }
@@ -1139,8 +1138,8 @@ int dstc_queue_func(dstc_context_t* ctx, char* name, uint8_t* arg, uint32_t arg_
     if (!ctx)
         ctx = &_dstc_default_context;
 
-    _dstc_lock_and_init_context(ctx);
-    res = dstc_queue(ctx, name, 0, arg, arg_sz);
+    _dstc_lock_context(ctx);
+    res = _dstc_queue(ctx, name, 0, arg, arg_sz);
     _dstc_unlock_context(ctx);
     return res;
 }
@@ -1268,7 +1267,7 @@ static int _dstc_process_timeout(dstc_context_t* ctx)
 
 static int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
 {
-    struct epoll_event events[_dstc_get_socket_count(ctx)];
+    struct epoll_event events[DSTC_MAX_CONNECTIONS];
     int nfds = 0;
 
     do {
@@ -1335,15 +1334,32 @@ int dstc_process_events(int timeout_rel)
 
 //    printf("Timeout_rel[%d]\n", timeout_rel);
 
+    // If we have infinite timeout, and no pending dstc timeouts,
+    // wait forever for incoming traffic.
+    if (timeout_rel == -1 && next_dstc_timeout_rel == -1) {
+        // Lock with the given timeout.
+        _dstc_lock_and_init_context(ctx);
+        _dstc_process_single_event(ctx, -1);
+        _dstc_unlock_context(ctx);
+        return 0;
+    }
+
+    // We have specified infinite timeout, however DSTC has
+    // its own timeout that we need to adhere to.
     if (timeout_rel == -1)
         timeout_rel = next_dstc_timeout_rel;
     else
+        // We have an actual timeout specified, pick the shortest
+        // timeout of that and the next DSTC timeout.
         timeout_rel = (next_dstc_timeout_rel < timeout_rel)?
             next_dstc_timeout_rel:timeout_rel;
 
+    // At this point, we are guarnteed that timeout_rel is not -1 (infinite)
+    // and specifies a timeout duration, which may be 0.
+
     // Do we have a zero timeout, or a timeout that has already
     // expired?
-    if (!timeout_rel || timeout_rel < -1) {
+    if (timeout_rel <= 0) {
         _dstc_lock_and_init_context(ctx);
         _dstc_process_single_event(ctx, 0);
         _dstc_process_timeout(ctx);
@@ -1375,6 +1391,8 @@ int dstc_process_events(int timeout_rel)
     if (lock_res != ENOTBLK)
         timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp(0);
 
+    if (timeout_rel < 0)
+        timeout_rel = 0;
     retval = _dstc_process_single_event(ctx, timeout_rel);
 
     // Did we time out?

@@ -36,20 +36,16 @@ int main(int argc, char* argv[])
     // the output queue enough to continue.
     //
     while(val < 1000000) {
-        // Process a single event for as many times as necessary
-        // to unblock our client call.
+        // Pump out calls until we get EBUSY back.
         //
-        // We can have a 1000 msec timeout since
-        // dstc_process_events() will return as soon as it has
-        // completed one cycle, which will be carried out as soon as
-        // system resources allows it.
-        //
+        // At that point, process events to actually send them
+        // over the wire until the dstc_set_value() call succeeeds.
         while (dstc_set_value(val) == EBUSY) {
-            dstc_process_pending_events();
+            dstc_process_events(1);
             continue;
         }
 
-        dstc_process_pending_events();
+        // dstc_process_pending_events();
         if (val % 100000 == 0)
             printf("Client value: %d\n", val);
 
@@ -58,17 +54,18 @@ int main(int argc, char* argv[])
 
     // Unbuffer call sequences to ensure that we get
     // all final calls go out.
-
     dstc_unbuffer_client_calls();
     puts("Client telling server to exit");
     int ret = 0;
     while ((ret = dstc_set_value(-1)) == EBUSY) {
-        dstc_process_events(100);
+        dstc_process_events(1);
         continue;
     }
 
     // Process events until there are no more.
-    dstc_process_pending_events();
+    while(dstc_process_events(1) != ETIME)
+        ;
+
     puts("Client exiting");
     exit(0);
 }

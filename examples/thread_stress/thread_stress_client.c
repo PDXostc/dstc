@@ -35,34 +35,31 @@ void *t_exec(void* arg)
     // the output queue enough to continue.
     //
     while(val < 1000000) {
-        int res = 0;
 
         switch(ind) {
         case 1:
-            res = dstc_set_value1(val);
+            while (dstc_set_value1(val) == EBUSY)
+                dstc_process_events(1);
             break;
 
         case 2:
-            res = dstc_set_value2(val);
+            while (dstc_set_value2(val) == EBUSY)
+                dstc_process_events(1);
             break;
 
         case 3:
-            res = dstc_set_value3(val);
+            while (dstc_set_value3(val) == EBUSY)
+                dstc_process_events(1);
             break;
 
         case 4:
-            res = dstc_set_value4(val);
+            while (dstc_set_value4(val) == EBUSY)
+                dstc_process_events(1);
+
             break;
         default:
             printf("WUT %lu\n", ind);
         }
-
-        if (res == EBUSY) {
-            dstc_process_pending_events();
-            continue;
-        }
-
-        dstc_process_pending_events();
 
         if (val % 100000 == 0)
             printf("Client thread[%lu] Value: %d\n", ind, val);
@@ -105,11 +102,21 @@ int main(int argc, char* argv[])
     dstc_unbuffer_client_calls();
 
     // Send terminating call
-    dstc_set_value1(-1);
-    dstc_set_value2(-1);
-    dstc_set_value3(-1);
-    dstc_set_value4(-1);
+    while (dstc_set_value1(-1) == EBUSY)
+        dstc_process_events(1);
 
-    dstc_process_pending_events();
+    while (dstc_set_value2(-1) == EBUSY)
+        dstc_process_events(1);
+
+    while (dstc_set_value3(-1) == EBUSY)
+        dstc_process_events(1);
+
+    while (dstc_set_value4(-1) == EBUSY)
+        dstc_process_events(1);
+
+
+    // Process events until there are no more.
+    while(dstc_process_events(1) != ETIME)
+        ;
     exit(0);
 }

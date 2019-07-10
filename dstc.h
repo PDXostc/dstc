@@ -13,6 +13,11 @@
 #include <reliable_multicast.h>
 #include <pthread.h>
 
+
+// Maximum number of concurrent client or servers nodes
+// we can talk to at any given time.
+#define DSTC_MAX_CONNECTIONS 32
+
 typedef intptr_t dstc_callback_t;
 
 // Internal callback
