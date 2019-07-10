@@ -31,6 +31,6 @@ int main(int argc, char* argv[])
     strcpy(name, "Bob Smith");
     dstc_print_name_and_age(name, 25);
     // Process all pending events, ensuring that the call goes out.
-    dstc_process_pending_events();
+    dstc_process_events(0);
     exit(0);
 }

@@ -1325,7 +1325,8 @@ int dstc_process_events(int timeout_rel)
     int lock_res = 0;
 
     if (timeout_rel == 0) {
-        return dstc_process_pending_events();
+        while(_dstc_process_single_event(ctx, 0) != ETIME)
+            ;
     }
 
     start_time = dstc_msec_monotonic_timestamp(&abs_time);

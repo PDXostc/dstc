@@ -42,7 +42,7 @@ void set_value(int value)
                (stop_ts - start_ts) / 1000000.0,
                last_value / ((stop_ts - start_ts) / 1000000.0));
 
-        dstc_process_pending_events();
+        dstc_process_events(0);
         printf("Server exiting: %s\n", strerror(errno));
         exit(0);
     }

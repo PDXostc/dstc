@@ -39,13 +39,13 @@ void double_value(int value, dstc_callback_t callback_ref)
 
     if (value == -1) {
         puts("double_value(-1): Got exit signal.");
-        dstc_process_pending_events();
+        dstc_process_events(0);
         exit(0);
     }
 
     printf("double_value(%d) called with a callback\n", value);
     dstc_callback_ref(value + value);
-    dstc_process_pending_events();
+    dstc_process_events(0);
     exit(0);
 }
 

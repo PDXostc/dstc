@@ -33,5 +33,5 @@ int main(int argc, char* argv[])
     dstc_print_struct(arg);
 
     // Ensure that everything gets sent out.
-    dstc_process_pending_events();
+    dstc_process_events(0);
 }

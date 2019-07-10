@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
     // If we choke on EBUSY, process events until we have cleared
     // the output queue enough to continue.
     //
-    while(val < 1000000) {
+    while(val < 10000000) {
         // Pump out calls until we get EBUSY back.
         //
         // At that point, process events to actually send them
@@ -45,7 +45,6 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        // dstc_process_pending_events();
         if (val % 100000 == 0)
             printf("Client value: %d\n", val);
 
@@ -58,13 +57,18 @@ int main(int argc, char* argv[])
     puts("Client telling server to exit");
     int ret = 0;
     while ((ret = dstc_set_value(-1)) == EBUSY) {
-        dstc_process_events(1);
+        dstc_process_events(0);
         continue;
     }
 
+    puts("Processing events telling server to exit");
     // Process events until there are no more.
-    while(dstc_process_events(1) != ETIME)
-        ;
+    msec_timestamp_t ts = dstc_msec_monotonic_timestamp(0);
+    msec_timestamp_t timeout = ts + 500;
+    while(ts < timeout) {
+        dstc_process_events(timeout - ts);
+        ts = dstc_msec_monotonic_timestamp(0);
+    }
 
     puts("Client exiting");
     exit(0);

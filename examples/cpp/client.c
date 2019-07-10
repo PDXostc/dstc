@@ -16,5 +16,5 @@ int main() {
 
     dstc_do_number_stuff(1242.512, 123);
     dstc_do_string_stuff("blah blah blah");
-    dstc_process_pending_events();
+    dstc_process_events(0);
 }

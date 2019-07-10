@@ -77,7 +77,8 @@ extern void dstc_unbuffer_client_calls(void);
 
 extern int dstc_process_events(int timeout);
 extern int dstc_process_timeout(void);
-extern int dstc_process_pending_events(void);
+// Depracated, use dstc_process_events(0) instead.
+extern int dstc_process_pending_events(void) __attribute__((deprecated));
 extern void dstc_process_epoll_result(struct epoll_event* event);
 
 typedef usec_timestamp_t msec_timestamp_t;
