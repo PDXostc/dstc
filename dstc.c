@@ -1285,12 +1285,11 @@ static int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
     }
 
     // Timeout
-    if (nfds == 0) {
-        _dstc_process_timeout(ctx);
+    if (nfds == 0)
         return ETIME;
-    }
 
-    // Process all pending events.
+
+    // Process all pending event.s
     while(nfds--)
         _dstc_process_epoll_result(ctx, &events[nfds]);
 
@@ -1298,14 +1297,18 @@ static int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
 }
 
 
+static int _dstc_process_pending_events(dstc_context_t* ctx)
+{
+    while(_dstc_process_single_event(ctx, 0) != ETIME)
+       ;
+    return 0;
+}
+
 int dstc_process_pending_events(void)
 {
     dstc_context_t* ctx = &_dstc_default_context;
     _dstc_lock_and_init_context(ctx);
-
-    while(_dstc_process_single_event(ctx, 0) != ETIME)
-       ;
-
+    _dstc_process_pending_events(ctx);
     _dstc_unlock_context(ctx);
 
     return 0;
@@ -1320,6 +1323,8 @@ int dstc_process_events(int timeout_rel)
     int next_dstc_timeout_rel = 0;
     int next_dstc_timeout_abs = 0;
     int retval = 0;
+    int lock_res = 0;
+
     if (timeout_rel == 0) {
         return dstc_process_pending_events();
     }
@@ -1336,37 +1341,45 @@ int dstc_process_events(int timeout_rel)
         timeout_rel = (next_dstc_timeout_rel < timeout_rel)?
             next_dstc_timeout_rel:timeout_rel;
 
-    // Do we have a zero timeout, or a timeout that has already expired?
+    // Do we have a zero timeout, or a timeout that has already
+    // expired?
     if (!timeout_rel || timeout_rel < -1) {
-        return dstc_process_pending_events();
+        _dstc_lock_and_init_context(ctx);
+        _dstc_process_single_event(ctx, 0);
+        _dstc_process_timeout(ctx);
+        _dstc_unlock_context(ctx);
+        return ETIME;
     }
 
-    // Do we have an actual timeout value.
-    if (timeout_rel > 0) {
-        int lock_res = 0;
-        // Adjuste absolute time.
-        abs_time.tv_nsec += timeout_rel * 1000000;
-        abs_time.tv_sec += abs_time.tv_nsec / 1000000000;
-        abs_time.tv_nsec = abs_time.tv_nsec % 1000000000;
+    // We have an actual timeout value
+    // Adjust absolute time to the time
+    // when we need the mutex lock to stop
+    // waiting for acquisition.
+    //
+    abs_time.tv_nsec += timeout_rel * 1000000;
+    abs_time.tv_sec += abs_time.tv_nsec / 1000000000;
+    abs_time.tv_nsec = abs_time.tv_nsec % 1000000000;
 
-        // Lock with the given timeout.x
-        lock_res = _dstc_lock_and_init_context_timeout(ctx, &abs_time);
+    // Lock with the given timeout.
+    lock_res = _dstc_lock_and_init_context_timeout(ctx, &abs_time);
 
-        // Did we time out?
-        if (lock_res == ETIME) {
-            _dstc_process_timeout(ctx);
-            _dstc_unlock_context(ctx);
-            return ETIME;
-        }
-
-        // Did we not get the lock immediately, and had to wait for it?
-        // If so recalcuate how much time we have left.
-        if (lock_res != ENOTBLK) {
-            timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp(0);
-        }
+    // Did we time out?
+    if (lock_res == ETIME) {
+        _dstc_process_timeout(ctx);
+        _dstc_unlock_context(ctx);
+        return ETIME;
     }
+
+    // Did we not get the lock immediately, and had to wait for it?
+    // If so recalcuate how much time we have left.
+    if (lock_res != ENOTBLK)
+        timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp(0);
 
     retval = _dstc_process_single_event(ctx, timeout_rel);
+
+    // Did we time out?
+    if (retval == ETIME)
+        _dstc_process_timeout(ctx);
 
     _dstc_unlock_context(ctx);
     return retval;
