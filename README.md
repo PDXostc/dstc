@@ -17,7 +17,7 @@ robustly. See https://github.com/PDXostc/reliable_multicast for details
 # FEATURES
 
 ## Lightweight
-The ```dstc.c``` and ```dstc.h``` files currently weigh in at ~1000 lines of
+The ```dstc.c``` and ```dstc.h``` files currently weigh in at ~1250 lines of
 code (according to cloc). The sample multi-user chat server is 36 lines of code.
 
 ## Fast
@@ -32,7 +32,7 @@ Any Posix-compliant OS is a suitable target environment.
 All scalars, arrays, unions and structs can be transmitted, as long as
 they do not contain pointers.
 
-## Call once - execute many
+## Call once - Execute many
 If a server function is registered in multiple processes / nodes
 across a network, all of them will be invoked in parallel with a
 (single) client call to the given function.<br>
@@ -51,7 +51,10 @@ and resources across the network as load increases.
 Reliable multicast will retransmit any dropped packets via a sideband TCP channel,
 combining TCP-level robustness with the scalability of UDP.
 
-
+## Thread safe
+DSTC is fully thread safe both on the client and server side. That said, DSTC does 
+not create any threads of its own in order to keep the runtime environment as
+simple and transparent as possible.
 
 # LIMITATIONS
 Since the purpose is to provide bare-bones RPC mechanisms with a minimum of
@@ -81,7 +84,7 @@ for how this can easily be achieved in a mixed-architecture deployment.
 DSTC uses reliable_multicast (RMC)as its transport layer. Download, build
 and install RMC from:
 
-[Reliable Multicast v1.3](https://github.com/PDXostc/reliable_multicast/releases/tag/v1.3)
+[Reliable Multicast v1.5](https://github.com/PDXostc/reliable_multicast/releases/tag/v1.5)
 
 Update `Makefile` in this DSTC directory to point to the include and library directories of the installed RMC code.
 
@@ -280,7 +283,7 @@ Compile and link ```dstc.c``` with your code.
 Both ```DSTC_CLIENT``` and ```DSTC_SERVER``` can accept basic C data
 type arguments (except pointers) like structs and fix-size arrays.
 
-The ```DECL_DYNAMIC_ARG``` macro can be used in ```DSTC_CLIENT```
+The ```DSTC_DECL_DYNAMIC_ARG``` macro can be used in ```DSTC_CLIENT```
 and ```DSTC_SERVER``` to specify that the given argument has dynamic length.
 
 
@@ -289,19 +292,19 @@ Below is an example from ```examples/dynamic_data/dynamic_data_client.c``` where
 the ```dynamic_message()``` function accepts a dynamic length argument and an
 array of four integers.
 
-    DSTC_CLIENT(dynamic_message, DECL_DYNAMIC_ARG, int, [4])
+    DSTC_CLIENT(dynamic_message, DSTC_DECL_DYNAMIC_ARG, int, [4])
 
 The client-side call to ```dynamic_message``` is as follows:
 
     char *first_arg = "This string can be variable length";
     int second_arg[4] = { 1,2,3,4 };
 
-    // Use the DYNAMIC_ARG() macro to specify that we want to provide a dynamic
+    // Use the DSTC_DYNAMIC_ARG() macro to specify that we want to provide a dynamic
     // length string (that includes the terminating null char):
 
-    dstc_dynamic_message(DYNAMIC_ARG(first_arg, strlen(first_arg) + 1), second_arg);
+    dstc_dynamic_message(DSTC_DYNAMIC_ARG(first_arg, strlen(first_arg) + 1), second_arg);
 
-The first argument to ```DYNAMIC_ARG``` is expected to be ```void*```. The second
+The first argument to ```DSTC_DYNAMIC_ARG``` is expected to be ```void*```. The second
 argument is expected to be ```uint32_t```.
 
 ## Server-side dynamic data
@@ -309,7 +312,7 @@ argument is expected to be ```uint32_t```.
 The server-side declaration of dynamic arguments is identical to the client side.
 From ```examples/dynamic_data/dynamic_data_client.c```:
 
-    DSTC_SERVER(dynamic_message, DECL_DYNAMIC_ARG, int, [4])
+    DSTC_SERVER(dynamic_message, DSTC_DECL_DYNAMIC_ARG, int, [4])
 
 An example of the actual function to be called is given below:
 
@@ -361,21 +364,29 @@ Below is an example from ```examples/callback/callback_client.c```
 where a call is made to the remote ```double_value()``` in order to
 double the provided value and send back the result through a callback.
 
-    DSTC_CLIENT(double_value, int,, DECL_CALLBACK_ARG);
+    DSTC_CLIENT(double_value, int,, DSTC_DECL_CALLBACK_ARG);
 
 The ```double_value()``` function accepts the value to double and a
 callback function pointer.
 
+The client-side callback, `double_value_callback`, that is to be invoked 
+by the remote server executing `double_value()`,
+needs to be declared on a file-level (outside any functions):
+
+    DSTC_CLIENT_CALLBACK(double_value_callback, int,);
+   
+The client callback macro defines the parameters to the callback function in
+the same way as `DSTC_CLIENT()` and `DSTC_SERVER()` does.
+
 The call to the function on the client side looks like below.
 
-    dstc_double_value(42, CLIENT_CALLBACK_ARG(double_value_callback,int,));
+    dstc_double_value(42, DSTC_CLIENT_CALLBACK_ARG(double_value_callback));
 
 The ```42``` argument is the value to double.
 
-The ```CLIENT_CALLBACK_ARG(double_value_callback,int,)``` specifies
-that a pointer to ```double_value_callback()``` function should be
-sent to the remote server, and that this callback function takes a
-single integer (the doubled value) as its sole argument.
+The ```CLIENT_CALLBACK_ARG(double_value_callback)``` specifies
+that a reference to ```double_value_callback()``` function should be
+sent to the remote server, allowing it to invoke the callback at a later stage.
 
 The callback function implementation is a regular C function that
 prints out the doubled value it receives from the remote server's
@@ -391,13 +402,13 @@ callback invocation:
 The server-side declaration of a callback argument to a function is the same
 as the client side. Below is code from ```examples/callback/callback_server.c```:
 
-    DSTC_SERVER(double_value, int,, DECL_CALLBACK_ARG)
+    DSTC_SERVER(double_value, int,, DSTC_DECL_CALLBACK_ARG)
 
 The implementation is as follows:
 
     void double_value(int value, dstc_callback_t callback_ref)
     {
-        DSTC_CALLBACK(callback_ref, int,);
+        DSTC_SEERVER_CALLBACK(callback_ref, int,);
 
         printf("double_value(%d) called with a callback\n", value);
         dstc_callback_ref(value + value);
@@ -406,7 +417,7 @@ The implementation is as follows:
 The ```dstc_callback_t callback_ref``` argument declares a DSTC-specific variable that
 hosts all information necessary to make a remote callback to the calling process.
 
-The ```DSTC_CALLBACK(callback_ref, int,);``` function sets up the necessary
+The ```DSTC_SERVER_CALLBACK(callback_ref, int,);``` function sets up the necessary
 code to define a local callback function ```dstc_callback_ref()``` in this
 case, that will forward the callback to the client process.
 
