@@ -776,6 +776,21 @@ static msec_timestamp_t _dstc_msec_monotonic_timestamp(struct timespec* abs_time
     return (msec_timestamp_t) abs_time_res->tv_sec * 1000 + abs_time_res->tv_nsec / 1000000;
 }
 
+static int _dstc_get_timeout_msec_rel(msec_timestamp_t current_time)
+{
+    msec_timestamp_t tout = _dstc_get_next_timeout_abs();
+
+    if (tout == -1)
+        return -1;
+
+    // Convert to relative timestamp.
+    tout -= current_time;
+
+    if (tout < 0)
+        return 0;
+
+    return tout + 1;
+}
 
 // ctx must be set and locked
 static int dstc_setup_internal(dstc_context_t* ctx,
@@ -1233,20 +1248,10 @@ msec_timestamp_t dstc_msec_monotonic_timestamp(void)
 }
 
 
-int dstc_get_timeout_msec_rel(msec_timestamp_t current_time)
+
+int dstc_get_timeout_msec_rel(void)
 {
-    msec_timestamp_t tout = _dstc_get_next_timeout_abs();
-
-    if (tout == -1)
-        return -1;
-
-    // Convert to relative timestamp.
-    tout -= (current_time?current_time:dstc_msec_monotonic_timestamp());
-
-    if (tout < 0)
-        return 0;
-
-    return tout + 1;
+    return _dstc_get_timeout_msec_rel(dstc_msec_monotonic_timestamp());
 }
 
 static int _dstc_process_timeout(dstc_context_t* ctx)
@@ -1330,7 +1335,7 @@ int dstc_process_events(int timeout_rel)
     }
 
     start_time = _dstc_msec_monotonic_timestamp(&abs_time);
-    next_dstc_timeout_rel = dstc_get_timeout_msec_rel(start_time);
+    next_dstc_timeout_rel = _dstc_get_timeout_msec_rel(start_time);
     next_dstc_timeout_abs = start_time + next_dstc_timeout_rel;
 
 //    printf("Timeout_rel[%d]\n", timeout_rel);
