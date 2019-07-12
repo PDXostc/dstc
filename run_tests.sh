@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Run tests.
 #
@@ -39,7 +39,7 @@ do
     if [ "$(basename $PWD)" ==  ${TEST} ]; then
       cd ..
     fi
-    
+
     echo "------"
     echo "Test $TEST passed"
     echo

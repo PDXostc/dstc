@@ -72,7 +72,7 @@ install:  all
 uninstall:  all
 	@$(MAKE) DESTDIR=${DESTDIR} -C examples uninstall; \
 	rm -f ${DESTDIR}/lib/${LIB_TARGET}; \
-	rm -f ${DESTDIR}/include/${HDR}; \
+	rm -f ${DESTDIR}/include/${EXT_HDR}; \
 	rm -f ${DESTDIR}/lib/${LIB_SO_TARGET};
 
 #
