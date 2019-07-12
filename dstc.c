@@ -770,6 +770,13 @@ static void free_published_packets(void* pl, payload_len_t len, user_data_t dt)
     free(pl);
 }
 
+static msec_timestamp_t _dstc_msec_monotonic_timestamp(struct timespec* abs_time_res)
+{
+    clock_gettime(CLOCK_MONOTONIC, abs_time_res);
+    return (msec_timestamp_t) abs_time_res->tv_sec * 1000 + abs_time_res->tv_nsec / 1000000;
+}
+
+
 // ctx must be set and locked
 static int dstc_setup_internal(dstc_context_t* ctx,
                                rmc_node_id_t node_id,
@@ -1219,19 +1226,12 @@ uint8_t dstc_remote_function_available(void* client_func)
     return res;
 }
 
-
-
-msec_timestamp_t dstc_msec_monotonic_timestamp(struct timespec* abs_time_res)
-
+msec_timestamp_t dstc_msec_monotonic_timestamp(void)
 {
     struct timespec res;
-
-    if (!abs_time_res)
-        abs_time_res = &res;
-
-    clock_gettime(CLOCK_MONOTONIC, abs_time_res);
-    return (msec_timestamp_t) abs_time_res->tv_sec * 1000 + abs_time_res->tv_nsec / 1000000;
+    return _dstc_msec_monotonic_timestamp(&res);
 }
+
 
 int dstc_get_timeout_msec_rel(msec_timestamp_t current_time)
 {
@@ -1241,7 +1241,7 @@ int dstc_get_timeout_msec_rel(msec_timestamp_t current_time)
         return -1;
 
     // Convert to relative timestamp.
-    tout -= (current_time?current_time:dstc_msec_monotonic_timestamp(0));
+    tout -= (current_time?current_time:dstc_msec_monotonic_timestamp());
 
     if (tout < 0)
         return 0;
@@ -1329,7 +1329,7 @@ int dstc_process_events(int timeout_rel)
             ;
     }
 
-    start_time = dstc_msec_monotonic_timestamp(&abs_time);
+    start_time = _dstc_msec_monotonic_timestamp(&abs_time);
     next_dstc_timeout_rel = dstc_get_timeout_msec_rel(start_time);
     next_dstc_timeout_abs = start_time + next_dstc_timeout_rel;
 
@@ -1390,7 +1390,7 @@ int dstc_process_events(int timeout_rel)
     // Did we not get the lock immediately, and had to wait for it?
     // If so recalcuate how much time we have left.
     if (lock_res != ENOTBLK)
-        timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp(0);
+        timeout_rel = next_dstc_timeout_abs - dstc_msec_monotonic_timestamp();
 
     if (timeout_rel < 0)
         timeout_rel = 0;
@@ -1423,7 +1423,7 @@ int dstc_process_timeout(void)
     dstc_context_t* ctx = &_dstc_default_context;
     int res = 0;
 
-    _dstc_lock_and_init_context(ctx);
+   _dstc_lock_and_init_context(ctx);
 
     res = _dstc_lock_and_init_context(ctx);
     _dstc_unlock_context(ctx);

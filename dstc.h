@@ -82,7 +82,7 @@ extern int dstc_process_pending_events(void) __attribute__((deprecated));
 extern void dstc_process_epoll_result(struct epoll_event* event);
 
 typedef usec_timestamp_t msec_timestamp_t;
-extern msec_timestamp_t dstc_msec_monotonic_timestamp(struct timespec* abs_time_res);
+extern msec_timestamp_t dstc_msec_monotonic_timestamp(void);
 // Return the number of milliseconds until the next timeout.
 
 extern int dstc_get_timeout_msec_rel(msec_timestamp_t current_time);
