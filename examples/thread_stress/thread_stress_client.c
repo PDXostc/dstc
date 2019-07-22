@@ -116,7 +116,13 @@ int main(int argc, char* argv[])
 
 
     // Process events until there are no more.
-    while(dstc_process_events(1) != ETIME)
-        ;
+    msec_timestamp_t ts = dstc_msec_monotonic_timestamp();
+    msec_timestamp_t timeout = ts + 2000;
+    while(ts < timeout) {
+        dstc_process_events(timeout - ts);
+        ts = dstc_msec_monotonic_timestamp();
+    }
+
+    puts("Client exiting");
     exit(0);
 }

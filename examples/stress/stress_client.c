@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
     puts("Processing events telling server to exit");
     // Process events until there are no more.
     msec_timestamp_t ts = dstc_msec_monotonic_timestamp();
-    msec_timestamp_t timeout = ts + 500;
+    msec_timestamp_t timeout = ts + 2000;
     while(ts < timeout) {
         dstc_process_events(timeout - ts);
         ts = dstc_msec_monotonic_timestamp();
