@@ -772,7 +772,7 @@ static void free_published_packets(void* pl, payload_len_t len, user_data_t dt)
 
 static msec_timestamp_t _dstc_msec_monotonic_timestamp(struct timespec* abs_time_res)
 {
-    clock_gettime(CLOCK_MONOTONIC, abs_time_res);
+    clock_gettime(CLOCK_BOOTTIME, abs_time_res);
     return (msec_timestamp_t) abs_time_res->tv_sec * 1000 + abs_time_res->tv_nsec / 1000000;
 }
 
