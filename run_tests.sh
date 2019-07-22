@@ -6,6 +6,12 @@
 TESTS="print_name_and_age callback print_struct dynamic_data stress thread_stress"
 TIMEOUT=30 # seconds
 
+
+# Make sure we are started with an absolute path
+if [ "${0:0:1}" != '/' ]; then
+   exec ${PWD}/${0}
+fi
+
 pushd "${0%/*}/examples"
 
 for TEST in $TESTS
