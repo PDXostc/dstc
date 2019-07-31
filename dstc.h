@@ -267,10 +267,10 @@ typedef dstc_callback_t CBCK;
 #define _FE4(_call, type, size, ...) _call(2, type, size) _FE2(_call, __VA_ARGS__)
 #define _FE6(_call, type, size, ...) _call(3, type, size) _FE4(_call, __VA_ARGS__)
 #define _FE8(_call, type, size, ...) _call(4, type, size) _FE6(_call, __VA_ARGS__)
-#define _FE10(_call, type, size, ...) _call(5, type, size) _FE9(_call, __VA_ARGS__)
-#define _FE12(_call, type, size, ...) _call(6, type, size) _FE11(_call, __VA_ARGS__)
-#define _FE14(_call, type, size, ...) _call(7, type, size) _FE14(_call, __VA_ARGS__)
-#define _FE16(_call, type, size, ...) _call(8, type, size) _FE16(_call, __VA_ARGS__)
+#define _FE10(_call, type, size, ...) _call(5, type, size) _FE8(_call, __VA_ARGS__)
+#define _FE12(_call, type, size, ...) _call(6, type, size) _FE10(_call, __VA_ARGS__)
+#define _FE14(_call, type, size, ...) _call(7, type, size) _FE12(_call, __VA_ARGS__)
+#define _FE16(_call, type, size, ...) _call(8, type, size) _FE14(_call, __VA_ARGS__)
 #define _ERR(...) "Declare arguments in pairs: (char, [16]). Leave size empty if not array (int,)"
 
 #define FOR_EACH_VARIADIC_MACRO(_call, ...)                             \
