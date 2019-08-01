@@ -3,7 +3,7 @@
 # Run tests.
 #
 
-TESTS="print_name_and_age callback print_struct dynamic_data stress thread_stress"
+TESTS="print_name_and_age many_arguments callback print_struct dynamic_data stress thread_stress"
 TIMEOUT=30 # seconds
 
 
