@@ -257,9 +257,11 @@ typedef dstc_callback_t CBCK;
 // deciphering variadic macro iterations.
 // Return argument N.
 #define _GET_NTH_ARG(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10,   \
-                     _11, _12, _13, _14, _15, _16, N, ...) N
+                     _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, \
+                     _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, \
+                     _31, _32, N, ...) N
 
-#define _GET_ARG_COUNT(...) _GET_NTH_ARG(__VA_ARGS__, 16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1)
+#define _GET_ARG_COUNT(...) _GET_NTH_ARG(__VA_ARGS__, 32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1)
 
 // Smells like... Erlang!
 #define _FE0(_call)
@@ -271,10 +273,22 @@ typedef dstc_callback_t CBCK;
 #define _FE12(_call, type, size, ...) _call(6, type, size) _FE10(_call, __VA_ARGS__)
 #define _FE14(_call, type, size, ...) _call(7, type, size) _FE12(_call, __VA_ARGS__)
 #define _FE16(_call, type, size, ...) _call(8, type, size) _FE14(_call, __VA_ARGS__)
+#define _FE18(_call, type, size, ...) _call(9, type, size) _FE16(_call, __VA_ARGS__)
+#define _FE20(_call, type, size, ...) _call(10, type, size) _FE18(_call, __VA_ARGS__)
+#define _FE22(_call, type, size, ...) _call(11, type, size) _FE20(_call, __VA_ARGS__)
+#define _FE24(_call, type, size, ...) _call(12, type, size) _FE22(_call, __VA_ARGS__)
+#define _FE26(_call, type, size, ...) _call(13, type, size) _FE24(_call, __VA_ARGS__)
+#define _FE28(_call, type, size, ...) _call(14, type, size) _FE26(_call, __VA_ARGS__)
+#define _FE30(_call, type, size, ...) _call(15, type, size) _FE28(_call, __VA_ARGS__)
+#define _FE32(_call, type, size, ...) _call(16, type, size) _FE30(_call, __VA_ARGS__)
 #define _ERR(...) "Declare arguments in pairs: (char, [16]). Leave size empty if not array (int,)"
 
 #define FOR_EACH_VARIADIC_MACRO(_call, ...)                             \
     _GET_NTH_ARG(__VA_ARGS__,                                           \
+                 _FE32, _ERR, _FE30, _ERR,                              \
+                 _FE28, _ERR, _FE26, _ERR,                              \
+                 _FE24, _ERR, _FE22, _ERR,                              \
+                 _FE20, _ERR, _FE18, _ERR,                              \
                  _FE16, _ERR, _FE14, _ERR,                              \
                  _FE12, _ERR, _FE10, _ERR,                              \
                  _FE8,  _ERR, _FE6,  _ERR,                              \
@@ -291,9 +305,21 @@ typedef dstc_callback_t CBCK;
 #define _LE12(_call, type, size, ...) _call(6, type, size) , _LE10(_call, __VA_ARGS__)
 #define _LE14(_call, type, size, ...) _call(7, type, size) , _LE12(_call, __VA_ARGS__)
 #define _LE16(_call, type, size, ...) _call(8, type, size) , _LE14(_call, __VA_ARGS__)
+#define _LE18(_call, type, size, ...) _call(9, type, size) , _LE16(_call, __VA_ARGS__)
+#define _LE20(_call, type, size, ...) _call(10, type, size) , _LE18(_call, __VA_ARGS__)
+#define _LE22(_call, type, size, ...) _call(11, type, size) , _LE20(_call, __VA_ARGS__)
+#define _LE24(_call, type, size, ...) _call(12, type, size) , _LE22(_call, __VA_ARGS__)
+#define _LE26(_call, type, size, ...) _call(13, type, size) , _LE24(_call, __VA_ARGS__)
+#define _LE28(_call, type, size, ...) _call(14, type, size) , _LE26(_call, __VA_ARGS__)
+#define _LE30(_call, type, size, ...) _call(15, type, size) , _LE28(_call, __VA_ARGS__)
+#define _LE32(_call, type, size, ...) _call(16, type, size) , _LE30(_call, __VA_ARGS__)
 
 #define FOR_EACH_VARIADIC_MACRO_ELEM(_call, ...)                        \
     _GET_NTH_ARG(__VA_ARGS__,                                           \
+                 _LE32, _ERR, _LE30, _ERR,                              \
+                 _LE28, _ERR, _LE26, _ERR,                              \
+                 _LE24, _ERR, _LE22, _ERR,                              \
+                 _LE20, _ERR, _LE18, _ERR,                              \
                  _LE16, _ERR, _LE14, _ERR,                              \
                  _LE12, _ERR, _LE10, _ERR,                              \
                  _LE8,  _ERR, _LE6,  _ERR,                              \
