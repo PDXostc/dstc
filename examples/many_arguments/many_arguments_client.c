@@ -12,10 +12,12 @@
 #include <stdlib.h>
 
 // Generate serializer functionality and the callable client function
-// dstc_print_name_and_age().
-// A call to dstc_print_name_and_age() will trigger a call to
-// print_name_and_age() in all servers that have regiistered
-// print_name_and_age through a DSTC_SERVER macro.
+// dstc_many_arguments().
+// A call to dstc_many_arguments() will trigger a call to
+// dstc_many_arguments() in all servers that have regiistered
+// many_arguments through a DSTC_SERVER macro.
+// 16 int arguments (maximum supported by DSTC) are provided
+// to test DSTC's argument transfer mechanism.
 //
 DSTC_CLIENT(many_arguments,
             int,,
