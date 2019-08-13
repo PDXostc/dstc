@@ -13,6 +13,9 @@
 #include <reliable_multicast.h>
 #include <pthread.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Maximum number of concurrent client or servers nodes
 // we can talk to at any given time.
@@ -472,5 +475,8 @@ static inline int dstc_dyndata_length(dstc_dynamic_data_t* dyndata)
     extern void name(DECLARE_ARGUMENTS(__VA_ARGS__));   \
     static DSTC_SERVER_INTERNAL(name, __VA_ARGS__)      \
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __DSTC_H__
