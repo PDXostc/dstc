@@ -1308,6 +1308,7 @@ static int _dstc_process_pending_events(dstc_context_t* ctx)
     return 0;
 }
 
+
 int dstc_process_pending_events(void)
 {
     dstc_context_t* ctx = &_dstc_default_context;
