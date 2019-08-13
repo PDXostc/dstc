@@ -5,7 +5,7 @@
 
 TESTS="print_name_and_age many_arguments callback print_struct dynamic_data stress thread_stress"
 TIMEOUT=30 # seconds
-
+export DSTC_MCAST_IFACE_ADDR=127.0.0.1
 
 # Make sure we are started with an absolute path
 if [ "${0:0:1}" != '/' ]; then

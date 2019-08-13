@@ -328,40 +328,45 @@ typedef dstc_callback_t CBCK;
 
 #define SERIALIZE_ARGUMENT(arg_id, type, size)                          \
     switch(*(uint32_t*) #type) {                                        \
-    case DSTC_DYNARG_TAG:                                               \
-        *((uint16_t*) payload) = ((dstc_dynamic_data_t*) &_a##arg_id)->length; \
-        payload += sizeof(uint16_t);                                       \
-        memcpy((void*) payload, ((dstc_dynamic_data_t*) &_a##arg_id)->data, \
-               ((dstc_dynamic_data_t*) & _a##arg_id)->length);          \
-        payload += ((dstc_dynamic_data_t*) & _a##arg_id)->length;          \
-        break;                                                          \
+    case DSTC_DYNARG_TAG: {                                             \
+        dstc_dynamic_data_t* tmp = (dstc_dynamic_data_t*) &_a##arg_id;  \
                                                                         \
+        memcpy(payload, (void*) &tmp->length, sizeof(uint16_t));        \
+        payload += sizeof(uint16_t);                                    \
+                                                                        \
+        memcpy((void*) payload, tmp->data, tmp->length);                \
+        payload += tmp->length;                                        \
+        break;                                                          \
+    }                                                                   \
     case DSTC_CALLBACK_TAG:                                             \
-        *((dstc_callback_t*) payload) = *((dstc_callback_t*) &_a##arg_id); \
-        payload += sizeof(uint64_t);                                       \
+        memcpy(payload, (void*) &_a##arg_id, sizeof(dstc_callback_t));  \
+        payload += sizeof(dstc_callback_t);                             \
         break;                                                          \
                                                                         \
     default:                                                            \
         if (sizeof(type size ) == sizeof(type))                         \
             memcpy((void*) payload, (void*) &_a##arg_id, sizeof(type size)); \
         else                                                            \
-            memcpy((void*) payload, (void*) *(char**) &_a##arg_id, sizeof(type size)); \
+            memcpy((void*) payload, &_a##arg_id, sizeof(type size)); \
         payload += sizeof(type size);                                      \
     }
 
 
 #define DESERIALIZE_ARGUMENT(arg_id, type, size)                        \
     switch(*(uint32_t*) #type) {                                        \
-    case DSTC_DYNARG_TAG:                                               \
-        ((dstc_dynamic_data_t*) &_a##arg_id)->length = *((uint16_t*) payload); \
-        payload += sizeof(uint16_t);                                       \
-        ((dstc_dynamic_data_t*) &_a##arg_id)->data = payload;              \
-        payload += ((dstc_dynamic_data_t*) &_a##arg_id)->length;           \
-        break;                                                          \
+    case DSTC_DYNARG_TAG: {                                             \
+        dstc_dynamic_data_t* tmp = (dstc_dynamic_data_t*) &_a##arg_id;  \
                                                                         \
+        memcpy((void*) &tmp->length, payload, sizeof(uint16_t));        \
+        payload += sizeof(uint16_t);                                    \
+                                                                        \
+        tmp->data = payload;                                            \
+        payload += tmp->length;                                         \
+        break;                                                          \
+    }                                                                   \
     case DSTC_CALLBACK_TAG:                                             \
-        *((dstc_callback_t*) &_a##arg_id) = *(dstc_callback_t*) payload; \
-        payload += sizeof(uint64_t);                                       \
+        memcpy((void*)&_a##arg_id, payload, sizeof(dstc_callback_t));   \
+        payload += sizeof(dstc_callback_t);                             \
         break;                                                          \
                                                                         \
     default:                                                            \
@@ -369,14 +374,16 @@ typedef dstc_callback_t CBCK;
             memcpy((void*) &_a##arg_id, (void*) payload, sizeof(type size)); \
         else                                                            \
             memcpy((void*) _a_ptr##arg_id, (void*) payload, sizeof(type size)); \
-        payload += sizeof(type size);                                      \
+        payload += sizeof(type size);                                   \
     }
 
 
 #define DECLARE_ARGUMENT(arg_id, type, size) type _a##arg_id size
 #define LIST_ARGUMENT(arg_id, type, size) _a##arg_id
 #define DECLARE_VARIABLE(arg_id, type, size) type _a##arg_id size ; type *_a_ptr##arg_id = (type*) &_a##arg_id;
-#define SIZE_ARGUMENT(arg_id, type, size) ((* (uint32_t*) #type == DSTC_DYNARG_TAG)?(sizeof(uint32_t) + ((dstc_dynamic_data_t*) &_a##arg_id)->length): sizeof(type size)) +
+#define SIZE_ARGUMENT(arg_id, type, size) ((* (uint32_t*) #type == DSTC_DYNARG_TAG)? \
+                                           (sizeof(uint32_t) + dstc_dyndata_length((dstc_dynamic_data_t*) &_a##arg_id)): \
+                                           sizeof(type size)) +
 
 
 #define SERIALIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SERIALIZE_ARGUMENT, ##__VA_ARGS__)
@@ -386,12 +393,22 @@ typedef dstc_callback_t CBCK;
 #define DECLARE_VARIABLES(...) FOR_EACH_VARIADIC_MACRO(DECLARE_VARIABLE, ##__VA_ARGS__)
 #define SIZE_ARGUMENTS(...) FOR_EACH_VARIADIC_MACRO(SIZE_ARGUMENT, ##__VA_ARGS__) 0
 
+// Used by SIZE_ARGUMENT in order to avoid type punting warning
+// that is emitted if we put casting and member reference
+// directly into that macro.
+//
+static inline int dstc_dyndata_length(dstc_dynamic_data_t* dyndata)
+{
+    return dyndata->length;
+}
+
 // Create client function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
 #define DSTC_CLIENT(name, ...)                                          \
     int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__))                     \
     {                                                                   \
+        extern int dstc_dyndata_length(dstc_dynamic_data_t*);           \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
         uint8_t *payload = arg_buf;                                     \
@@ -415,7 +432,7 @@ typedef dstc_callback_t CBCK;
         uint8_t *payload = arg_buf;                                     \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        return dstc_queue_callback(0, name, arg_buf, arg_sz);            \
+        return dstc_queue_callback(0, name, arg_buf, arg_sz);           \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \

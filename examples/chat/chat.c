@@ -36,7 +36,10 @@ static void handle_keyboard()
 {
     char buf[512];
 
-    fgets(buf, sizeof(buf)-1, stdin);
+    if (!fgets(buf, sizeof(buf)-1, stdin)) {
+        perror("fgets");
+        exit(255);
+    }
     buf[strlen(buf)-1] = 0; // Remove trailing newline
 
     // Distribute the input.
@@ -77,7 +80,10 @@ int main(int argc, char* argv[])
 
     // Ask for username
     printf("Username: ");
-    fgets(g_username, sizeof(g_username)-1, stdin);
+    if (!fgets(g_username, sizeof(g_username)-1, stdin)) {
+        perror("fgets");
+        exit(255);
+    }
     g_username[strlen(g_username)-1] = 0; // Remove trailing newline
 
     // Print initial prompt
