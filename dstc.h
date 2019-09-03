@@ -185,7 +185,7 @@ extern int dstc_setup2(
 
 // FIXME: ADD DOCUMENTATION
 typedef struct {
-    uint32_t length;
+    uint16_t length;
     const void* data;
 } dstc_dynamic_data_t;
 
@@ -204,7 +204,7 @@ typedef dstc_dynamic_data_t DSTC;
 
 // Use dynamic arguments as:
 // dstc_send_variable_len(DYNARG("Hello world", 11))
-#define DSTC_DYNAMIC_ARG(_data, _length) ({ DSTC d = { .length = _length, .data = _data }; d; })
+#define DSTC_DYNAMIC_ARG(_data, _length) ({ DSTC d = { .length = (uint16_t) _length, .data = _data }; d; })
 
 
 //
@@ -337,7 +337,7 @@ typedef dstc_callback_t CBCK;
         memcpy(payload, (void*) &tmp->length, sizeof(uint16_t));        \
         payload += sizeof(uint16_t);                                    \
                                                                         \
-        memcpy((void*) payload, tmp->data, tmp->length);                \
+        memcpy((void*) payload, tmp->data, (size_t) tmp->length);        \
         payload += tmp->length;                                        \
         break;                                                          \
     }                                                                   \
@@ -402,7 +402,7 @@ typedef dstc_callback_t CBCK;
 // that is emitted if we put casting and member reference
 // directly into that macro.
 //
-static inline int dstc_dyndata_length(dstc_dynamic_data_t* dyndata)
+static inline uint16_t dstc_dyndata_length(dstc_dynamic_data_t* dyndata)
 {
     return dyndata->length;
 }
@@ -413,7 +413,7 @@ static inline int dstc_dyndata_length(dstc_dynamic_data_t* dyndata)
 #define DSTC_CLIENT(name, ...)                                          \
     int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__))                     \
     {                                                                   \
-        extern int dstc_dyndata_length(dstc_dynamic_data_t*);           \
+        extern uint16_t dstc_dyndata_length(dstc_dynamic_data_t*);           \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
         uint8_t *payload = arg_buf;                                     \
