@@ -52,11 +52,12 @@ void do_exit(int status)
 // nothing to do with the declared functions and can be anything
 // as long as it is used consistently inside get_all_values().
 //
+// The callback takes one dynamic arg and the number of elements
+// stored in that argument.
+DSTC_SERVER_CALLBACK(remote_callback, DSTC_DECL_DYNAMIC_ARG, int,);
+
 void get_all_elements(dstc_callback_t remote_callback)
 {
-    // The callback takes one dynamic arg and the number of elements
-    // stored in that argument.
-    DSTC_SERVER_CALLBACK(remote_callback, DSTC_DECL_DYNAMIC_ARG, int,);
 
     // Send back all populated elements of the 'elems' array.
     // Second argument contains the number of elements sent.

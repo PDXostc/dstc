@@ -437,7 +437,7 @@ static inline uint16_t dstc_dyndata_length(dstc_dynamic_data_t* dyndata)
         uint8_t *payload = arg_buf;                                     \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        return dstc_queue_callback(0, name, arg_buf, arg_sz);           \
+        return dstc_queue_callback(0, (dstc_callback_t) dstc_##name, arg_buf, arg_sz); \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \
