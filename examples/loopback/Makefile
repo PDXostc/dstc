@@ -52,4 +52,4 @@ $(TARGET_NOMACRO) : $(NOMACRO_OBJ) $(DSTC_LIB)
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h
-	cpp ${INCPATH} -E ${SOURCE} | clang-format | grep -v '^# [0-9]' > ${NOMACRO_SOURCE}
+	$(CC) ${INCPATH} -E ${SOURCE} | clang-format | grep -v '^# [0-9]' > ${NOMACRO_SOURCE}

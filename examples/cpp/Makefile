@@ -99,10 +99,10 @@ $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTC_LIB)
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h
-	cpp ${INCPATH} -E ${CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${CLIENT_NOMACRO_SOURCE}
+	$(CC) ${INCPATH} -E ${CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${CLIENT_NOMACRO_SOURCE}
 
 $(C_CLIENT_NOMACRO_SOURCE): ${C_CLIENT_SOURCE} ../../dstc.h
-	cpp ${INCPATH} -E ${C_CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${C_CLIENT_NOMACRO_SOURCE}
+	$(CC) ${INCPATH} -E ${C_CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${C_CLIENT_NOMACRO_SOURCE}
 
 $(SERVER_NOMACRO_SOURCE): ${SERVER_SOURCE} ../../dstc.h
-	cpp ${INCPATH} -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
+	$(CC) ${INCPATH} -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
