@@ -66,7 +66,7 @@ void get_all_elements(dstc_callback_t remote_callback)
     // same info via dstc_dynamic_data_t:length, but it serves as a tutorial)
     //
     printf("Sending back %d elements\n", elem_index);
-    dstc_remote_callback(DSTC_DYNAMIC_ARG(elems, sizeof(struct name_and_age) * elem_index), elem_index);
+    dstc_remote_callback(remote_callback, DSTC_DYNAMIC_ARG(elems, sizeof(struct name_and_age) * elem_index), elem_index);
 }
 
 

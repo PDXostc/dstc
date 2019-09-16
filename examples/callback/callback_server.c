@@ -44,7 +44,7 @@ void double_value(int value, dstc_callback_t callback_ref)
     }
 
     printf("double_value(%d) called with a callback\n", value);
-    dstc_callback_ref(value + value);
+    dstc_callback_ref(callback_ref, value + value);
     dstc_process_events(0);
     exit(0);
 }
