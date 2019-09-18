@@ -1502,7 +1502,7 @@ int dstc_setup_epoll(int epoll_fd_arg)
     char* node_id = getenv(DSTC_ENV_NODE_ID);
     char* max_dstc_nodes = getenv(DSTC_ENV_MAX_NODES);
     char *multicast_group_addr = getenv(DSTC_ENV_MCAST_GROUP_ADDR);
-    char *multicast_iface_addr = getenv(DSTC_ENV_MCAST_IFACE_ADDR);
+    char *multicast_iface_addr = "192.168.0.1";//getenv(DSTC_ENV_MCAST_IFACE_ADDR);
     char *multicast_port = getenv(DSTC_ENV_MCAST_GROUP_PORT);
     char *control_listen_iface_addr = getenv(DSTC_ENV_CONTROL_LISTEN_IFACE);
     char *control_listen_port = getenv(DSTC_ENV_CONTROL_LISTEN_PORT);
