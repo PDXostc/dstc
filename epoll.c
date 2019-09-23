@@ -191,9 +191,12 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
         return ETIME;
 
 
+    _dstc_lock_context(ctx);
     // Process all pending event.s
     while(nfds--)
         _dstc_process_epoll_result(ctx, &events[nfds]);
+
+    _dstc_unlock_context(ctx);
 
     return 0;
 }

@@ -18,13 +18,13 @@ SUBDIRS =                 \
 epoll: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-		$(MAKE) -C $$dir \
+		$(MAKE) -C $$dir ; \
 	done
 
 poll: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-		$(MAKE) -C $$dir USE_POLL=1 \
+		$(MAKE) -C $$dir USE_POLL=1; \
 	done
 
 clean: $(SUBDIRS)

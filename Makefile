@@ -2,7 +2,7 @@
 # Doodling
 #
 
-.PHONY: poll epoll clean distclean install uninstall examples install_examples
+.PHONY: poll epoll clean distclean install uninstall examples poll_examples install_examples install_examples_poll
 
 EXT_HDR=dstc.h
 HDR=${EXT_HDR} dstc_internal.h
@@ -85,7 +85,7 @@ distclean: clean
 #
 #	Install the generated files.
 #
-install_epoll:  ${EPOLL_LIB_SO_TARGET} ${POLL_LIB_SO_TARGET} ${EPOLL_LIB_TARGET} ${POLL_LIB_TARGET}
+install:  ${EPOLL_LIB_SO_TARGET} ${POLL_LIB_SO_TARGET} ${EPOLL_LIB_TARGET} ${POLL_LIB_TARGET}
 	install -d ${DESTDIR}/lib; \
 	install -d ${DESTDIR}/include; \
 	install -m 0644 ${EPOLL_LIB_TARGET}  ${DESTDIR}/lib; \
@@ -118,7 +118,7 @@ uninstall_poll:
 #
 #	Build the examples only.
 #
-epoll_examples:
+examples:
 	${MAKE} -C examples epoll
 
 poll_examples:
@@ -127,8 +127,8 @@ poll_examples:
 #
 #	Install the generated example files.
 #
-install_examples_epoll:
-	${MAKE} DESTDIR=${DESTDIR} -C examples install_epoll
+install_examples:
+	${MAKE} DESTDIR=${DESTDIR} -C examples clean epoll install
 
 install_examples_poll:
-	${MAKE} DESTDIR=${DESTDIR} -C examples install_poll
+	${MAKE} DESTDIR=${DESTDIR} -C examples clean poll install

@@ -28,7 +28,14 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
-CFLAGS+= -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
+ifdef USE_POLL
+DSTCLIB=dstc-poll
+CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
+else
+DSTCLIB=dstc
+CFLAGS += -I../.. -Wall -O2
+endif
+
 
 .PHONY: all clean install nomacro uninstall
 
@@ -37,11 +44,11 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
 
 $(TARGET_SERVER): $(SERVER_OBJ)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -L../.. -l${DSTCLIB} -lrmc -o $@ $(LDFLAGS)
 
 
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	$(CC) $(CFLAGS)  $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS)  $^ -L../.. -l${DSTCLIB} -lrmc -o $@ $(LDFLAGS)
 
 
 # Recompile everything if dstc.h changes
@@ -65,11 +72,11 @@ uninstall:
 #
 # The client is built as a regular binary
 #
-$(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+$(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTCLIB)
+	$(CC) $(CFLAGS) $^ -L../.. -l${DSTCLIB} -lrmc -o $@ $(LDFLAGS)
 
-$(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+$(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTCLIB)
+	$(CC) $(CFLAGS) $^ -L../.. -l${DSTCLIB} -lrmc -o $@ $(LDFLAGS)
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h

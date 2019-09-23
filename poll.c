@@ -195,13 +195,12 @@ static void _dstc_process_poll_result(dstc_context_t* ctx,
     poll_elem_t* pelem = 0;
     int res = 0;
 
-    _dstc_lock_context(ctx);
 
     // Does it even exist in our poll set.
     HASH_FIND_INT(ctx->poll_hash, &event->fd, pelem);
     if (!pelem) {
-        RMC_LOG_FATAL("File descriptor %d not found in poll set\n", event->fd);
-        exit(255);
+        RMC_LOG_INFO("File descriptor %d not found in poll set. Probably deleted by other thread\n", event->fd);
+        return;
     }
 
     rmc_index_t c_ind = (rmc_index_t) FROM_POLL_EVENT_USER_DATA(pelem->user_data);
@@ -248,8 +247,10 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
     int n_hits = 0;
     int n_events = 0;
     int ind = 0;
-    poll_elem_t* iter = ctx->poll_hash;
+    poll_elem_t* iter;
 
+    _dstc_lock_context(ctx);
+    iter = ctx->poll_hash;
     // Fill out pfd.
     // SLOW!
     while(iter) {
@@ -258,6 +259,8 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
         iter = iter->hh.next;
         n_events++;
     }
+    _dstc_unlock_context(ctx);
+
     do {
         errno = 0;
         RMC_LOG_DEBUG("Will poll for %d milleseconds.", timeout_msec);
@@ -276,6 +279,8 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
 
     // Process all pending event.s
 
+    _dstc_lock_context(ctx);
+
     while(ind < n_events && n_hits) {
         if (pfd[ind].revents) {
             _dstc_process_poll_result(ctx, &pfd[ind]);
@@ -284,6 +289,7 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
         ++ind;
     }
 
+    _dstc_unlock_context(ctx);
     return 0;
 }
 

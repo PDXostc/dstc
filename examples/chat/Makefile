@@ -16,7 +16,13 @@ SOURCE=$(OBJ:%.o=%.c)
 NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
-CFLAGS+= -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
+ifdef USE_POLL
+DSTCLIB=dstc-poll
+CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
+else
+DSTCLIB=dstc
+CFLAGS += -I../.. -Wall -O2
+endif
 
 .PHONY: all clean install uninstall nomacro
 
@@ -30,7 +36,7 @@ nomacro:  $(TARGET_NOMACRO)
 # The client is built as a regular binary
 #
 $(TARGET): $(OBJ)
-	$(CC)  $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+	$(CC)  $(CFLAGS) $^ -L../.. -l${DSTCLIB} -lrmc -o $@ $(LDFLAGS)
 
 #
 # Recompile everything if dstc.h changes
@@ -54,7 +60,7 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO): $(NOMACRO_OBJ)
-	$(CC) $(CFLAGS) -L../.. -ldstc -lrmc $^ -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) -L../.. -l${DSTCLIB} -lrmc $^ -o $@ $(LDFLAGS)
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h
