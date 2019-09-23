@@ -41,7 +41,7 @@ dstc_context_t _dstc_default_context = {
     .local_callback = { {0,0 } },
 
 #ifdef USE_POLL
-    .poll_elem = (poll_elem_t*) 0;
+    .poll_hash = 0,
 #else
     .epoll_fd = -1,
 #endif
@@ -683,10 +683,14 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                                int epoll_fd_arg) // Ignored for USE_POLL
 {
 #ifdef USE_POLL
+    int ind = sizeof(ctx->poll_elem_array) / sizeof(ctx->poll_elem_array);
     if (!ctx)
         return EINVAL;
 
-    ctx->poll_elem  = (poll_elem_t*) 0;
+    ctx->poll_hash  = (poll_elem_t*) 0;
+
+    while(ind--)
+        ctx->poll_elem_array[ind]  = (poll_elem_t) { .pfd = {.fd = -1, .events = 0x00, .revents = 0x00}, .user_data = 0 };
 #else
     if (!ctx || epoll_fd_arg == -1)
         return EINVAL;
@@ -1354,9 +1358,9 @@ int dstc_setup_epoll(int epoll_fd_arg)
 int dstc_setup(void)
 {
 #ifdef USE_POLL
-    return dstc_setup_epoll(epoll_create(1));
-#else
     return dstc_setup_epoll(-1);
+#else
+    return dstc_setup_epoll(epoll_create(1));
 #endif
 }
 
@@ -1391,7 +1395,12 @@ int dstc_setup2(int epoll_fd_arg, // Ignored for USE_POLL
                               mcast_ttl,
                               control_listen_iface_addr,
                               control_listen_port,
-                              (epoll_fd_arg != -1)?epoll_fd_arg:epoll_create(1));
+#ifdef USE_POLL
+    -1
+#else
+                              (epoll_fd_arg != -1)?epoll_fd_arg:epoll_create(1)
+#endif
+        );
     _dstc_unlock_context(ctx);
     return res;
 }

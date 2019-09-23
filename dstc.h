@@ -13,6 +13,12 @@
 #include <reliable_multicast.h>
 #include <pthread.h>
 
+#ifdef USE_POLL
+#include <poll.h>
+#else
+#include <sys/epoll.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -86,6 +92,12 @@ extern int dstc_process_events(int timeout);
 extern int dstc_process_timeout(void);
 // Depracated, use dstc_process_events(0) instead.
 extern int dstc_process_pending_events(void) __attribute__((deprecated));
+
+#ifdef USE_POLL
+extern void dstc_process_poll_result(struct pollfd* events, int nevents);
+#else
+extern void dstc_process_epoll_result(struct epoll_event* event);
+#endif
 
 typedef usec_timestamp_t msec_timestamp_t;
 extern msec_timestamp_t dstc_msec_monotonic_timestamp(void);

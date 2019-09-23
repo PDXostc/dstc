@@ -15,10 +15,16 @@ SUBDIRS =                 \
 .PHONY: all clean install uninstall cpp
 
 
-all: $(SUBDIRS)
+epoll: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-		$(MAKE) -C $$dir $(MAKECMDGOALS); \
+		$(MAKE) -C $$dir \
+	done
+
+poll: $(SUBDIRS)
+	@for dir in $(SUBDIRS); \
+	do \
+		$(MAKE) -C $$dir USE_POLL=1 \
 	done
 
 clean: $(SUBDIRS)
@@ -33,7 +39,6 @@ install: $(SUBDIRS)
 	do \
 	    $(MAKE) DESTDIR=${DESTDIR} -C $$dir install; \
 	done \
-
 
 
 uninstall: $(SUBDIRS)

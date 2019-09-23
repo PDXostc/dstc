@@ -44,7 +44,7 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.cpp)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.cpp)
 
-CFLAGS+= -I../.. -Wall -O2
+CFLAGS+= -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
 CXXFLAGS=${CFLAGS} -std=c++14
 
 .PHONY: all clean install nomacro uninstall

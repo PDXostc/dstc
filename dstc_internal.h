@@ -52,8 +52,9 @@ typedef struct {
 // We use uthash.h to maintain a hash table that maps between
 // a file descriptor and a poll_elem_t element.
 #ifdef USE_POLL
+#include <poll.h>
 typedef struct  {
-        struct poll pfd;
+        struct pollfd pfd;
         uint32_t user_data;
         UT_hash_handle hh;
 } poll_elem_t;
@@ -79,7 +80,12 @@ typedef struct dstc_context {
     uint32_t callback_ind ;
 
 #ifdef USE_POLL
-    poll_elem_t *poll_elem;
+    // Hash handle
+    poll_elem_t *poll_hash;
+
+    // Array that we allocate poll_elem_t from
+    poll_elem_t poll_elem_array[DSTC_MAX_CONNECTIONS];
+
 #else
     int epoll_fd;
 #endif
@@ -132,12 +138,10 @@ dstc_header {
 #define DSTC_ENV_CONTROL_LISTEN_PORT "DSTC_CONTROL_LISTEN_PORT"
 #define DSTC_ENV_LOG_LEVEL "DSTC_LOG_LEVEL"
 
-//
-// Default max number of remote DSTC nodes we will be communicating with.
-// Can be overridden by dstc_setup2.
-//
+
 #define USER_DATA_INDEX_MASK 0x00007FFF
 #define USER_DATA_PUB_FLAG   0x00008000
+#define IS_PUB(_user_data) (((_user_data) & USER_DATA_PUB_FLAG)?1:0)
 
 extern void poll_add_pub(user_data_t user_data,
                          int descriptor,

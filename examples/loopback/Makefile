@@ -16,7 +16,7 @@ NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
 
-CFLAGS += -I../.. -Wall -O2
+CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
 
 .PHONY: all clean install nomacro uninstall
 

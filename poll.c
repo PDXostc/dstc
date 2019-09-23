@@ -8,14 +8,28 @@
 
 #include "dstc.h"
 #include "dstc_internal.h"
-#include <sys/epoll.h>
+
 #include <stdlib.h>
 #include <rmc_log.h>  // From reliable multicast packet
 #include <errno.h>
+#include "uthash.h"
 
-#define TO_POLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
-#define FROM_POLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
 
+#define TO_POLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0))
+#define FROM_POLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK)
+
+static poll_elem_t* find_free_poll_elem_index(dstc_context_t* ctx)
+{
+    int ind = 0;
+    while(ind < sizeof(ctx->poll_elem_array) / sizeof(ctx->poll_elem_array[0])) {
+        // Check if file descriptor is unused
+        if (ctx->poll_elem_array[ind].pfd.fd == -1)
+            return &ctx->poll_elem_array[ind];
+    }
+
+    // Out of mem
+    return 0;
+}
 
 static void poll_add(user_data_t user_data,
                      int descriptor,
@@ -23,23 +37,35 @@ static void poll_add(user_data_t user_data,
                      rmc_poll_action_t action)
 {
     dstc_context_t* ctx = (dstc_context_t*) user_data.ptr;
-    struct epoll_event ev = {
-        .data.u32 = event_user_data,
-        .events = 0 // EPOLLONESHOT
-    };
 
-    if (action & RMC_POLLREAD)
-        ev.events |= EPOLLIN;
-
-    if (action & RMC_POLLWRITE)
-        ev.events |= EPOLLOUT;
+    poll_elem_t* pelem = 0;
 
     _dstc_lock_context(ctx);
-    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, descriptor, &ev) == -1) {
-        RMC_LOG_INDEX_FATAL(FROM_POLL_EVENT_USER_DATA(event_user_data), "epoll_ctl(add) event_udata[%lX]",
-                            event_user_data);
+
+    // Do we already have it in our poll set?
+    HASH_FIND_INT(ctx->poll_hash, &descriptor, pelem);
+    if (pelem) {
+        RMC_LOG_INDEX_FATAL(event_user_data, "File descriptor %d already in poll set\n", descriptor);
         exit(255);
     }
+
+    pelem = find_free_poll_elem_index(ctx);
+
+    if (!pelem) {
+        RMC_LOG_INDEX_FATAL(event_user_data, "Out of poll_elem_t elements. Rebuild with larger DSTC_MAX_CONNECTIONS");
+        exit(255);
+    }
+
+    pelem->pfd.events = 0;
+    pelem->pfd.revents = 0;
+    if (action & RMC_POLLREAD)
+        pelem->pfd.events |= POLLIN;
+
+    if (action & RMC_POLLWRITE)
+        pelem->pfd.events |= POLLOUT;
+
+    pelem->pfd.fd = descriptor;
+    HASH_ADD_INT(ctx->poll_hash, pfd.fd, pelem);
     RMC_LOG_COMMENT("poll_add() read[%c] write[%c]\n",
                     ((action & RMC_POLLREAD)?'y':'n'),
                     ((action & RMC_POLLWRITE)?'y':'n'));
@@ -70,26 +96,29 @@ static void poll_modify(user_data_t user_data,
                         rmc_poll_action_t new_action)
 {
     dstc_context_t* ctx = (dstc_context_t*) user_data.ptr;
-
-    struct epoll_event ev = {
-        .data.u32 = event_user_data,
-        .events = 0 // EPOLLONESHOT
-    };
+    poll_elem_t* pelem = 0;
 
     if (old_action == new_action)
         return ;
 
-    if (new_action & RMC_POLLREAD)
-        ev.events |= EPOLLIN;
-
-    if (new_action & RMC_POLLWRITE)
-        ev.events |= EPOLLOUT;
-
     _dstc_lock_context(ctx);
-    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_MOD, descriptor, &ev) == -1) {
-        RMC_LOG_INDEX_FATAL(FROM_POLL_EVENT_USER_DATA(event_user_data), "epoll_ctl(modify): %s", strerror(errno));
+
+    // Does it even exist in our poll set.
+    HASH_FIND_INT(ctx->poll_hash, &descriptor, pelem);
+    if (!pelem) {
+        RMC_LOG_INDEX_FATAL(event_user_data, "File descriptor %d not found in poll set\n", descriptor);
         exit(255);
     }
+
+    pelem->pfd.events = 0;
+    pelem->pfd.revents = 0;
+
+    if (new_action & RMC_POLLREAD)
+        pelem->pfd.events |= POLLIN;
+
+    if (new_action & RMC_POLLWRITE)
+        pelem->pfd.events |= POLLOUT;
+
     _dstc_unlock_context(ctx);
 }
 
@@ -125,43 +154,62 @@ void poll_remove(user_data_t user_data,
                  rmc_index_t index)
 {
     dstc_context_t* ctx = (dstc_context_t*) user_data.ptr;
-
+    poll_elem_t* pelem = 0;
     _dstc_lock_context(ctx);
-    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, descriptor, 0) == -1) {
-        RMC_LOG_INDEX_WARNING(index, "epoll_ctl(delete): %s", strerror(errno));
-        _dstc_unlock_context(ctx);
-        return;
+
+    // Does it even exist in our poll set.
+    HASH_FIND_INT(ctx->poll_hash, &descriptor, pelem);
+    if (!pelem) {
+        RMC_LOG_FATAL("File descriptor %d not found in poll set\n", descriptor);
+        exit(255);
     }
-    RMC_LOG_INDEX_COMMENT(index, "poll_remove() desc[%d] index[%d]", descriptor, index);
+
+
+    HASH_DEL(ctx->poll_hash, pelem);
+
+    pelem->pfd.events = 0;
+    pelem->pfd.revents = 0;
+    pelem->pfd.fd = -1;
     _dstc_unlock_context(ctx);
 }
 
 
 
-static void _dstc_process_epoll_result(dstc_context_t* ctx,
-                                       struct epoll_event* event)
+static void _dstc_process_poll_result(dstc_context_t* ctx,
+                                       struct pollfd* event)
 
 {
 
     uint8_t op_res = 0;
-    rmc_index_t c_ind = (rmc_index_t) FROM_POLL_EVENT_USER_DATA(event->data.u32);
-    int is_pub = IS_PUB(event->data.u32);
+    poll_elem_t* pelem = 0;
+
+    _dstc_lock_context(ctx);
+
+    // Does it even exist in our poll set.
+    HASH_FIND_INT(ctx->poll_hash, &event->fd, pelem);
+    if (!pelem) {
+        RMC_LOG_FATAL("File descriptor %d not found in poll set\n", event->fd);
+        exit(255);
+    }
+
+    rmc_index_t c_ind = (rmc_index_t) FROM_POLL_EVENT_USER_DATA(pelem->user_data);
+    int is_pub = IS_PUB(pelem->user_data);
 
     RMC_LOG_INDEX_DEBUG(c_ind, "%s: %s%s%s",
                         (is_pub?"pub":"sub"),
-                        ((event->events & EPOLLIN)?" read":""),
-                        ((event->events & EPOLLOUT)?" write":""),
-                        ((event->events & EPOLLHUP)?" disconnect":""));
+                        ((event->revents & POLLIN)?" read":""),
+                        ((event->revents & POLLOUT)?" write":""),
+                        ((event->revents & POLLHUP)?" disconnect":""));
 
 
-    if (event->events & EPOLLIN) {
+    if (event->revents & POLLIN) {
         if (is_pub)
             rmc_pub_read(ctx->pub_ctx, c_ind, &op_res);
         else
             rmc_sub_read(ctx->sub_ctx, c_ind, &op_res);
     }
 
-    if (event->events & EPOLLOUT) {
+    if (event->revents & POLLOUT) {
         if (is_pub) {
             if (rmc_pub_write(ctx->pub_ctx, c_ind, &op_res) != 0)
                 rmc_pub_close_connection(ctx->pub_ctx, c_ind);
@@ -174,19 +222,17 @@ static void _dstc_process_epoll_result(dstc_context_t* ctx,
 
 int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
 {
-    struct epoll_event events[DSTC_MAX_CONNECTIONS];
+    struct pollfd pfd[DSTC_MAX_CONNECTIONS];
     int nfds = 0;
+    int ind = 0;
 
     do {
         errno = 0;
-        nfds = epoll_wait(ctx->epoll_fd,
-                          events,
-                          sizeof(events) / sizeof(events[0]),
-                          timeout_msec);
+        nfds = poll(pfd, sizeof(pfd) / sizeof(pfd[0]), timeout_msec);
     } while(nfds == -1 && errno == EINTR);
 
     if (nfds == -1) {
-        RMC_LOG_FATAL("epoll_wait(%d): %s", ctx->epoll_fd, strerror(errno));
+        RMC_LOG_FATAL("poll(): %s", strerror(errno));
         exit(255);
     }
 
@@ -194,16 +240,19 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
     if (nfds == 0)
         return ETIME;
 
-
     // Process all pending event.s
-    while(nfds--)
-        _dstc_process_epoll_result(ctx, &events[nfds]);
+    ind = sizeof(pfd) / sizeof(pfd[0]);
+    while(ind-- && nfds) {
+        if (pfd[ind].revents) {
+            _dstc_process_poll_result(ctx, &pfd[ind]);
+            nfds--;
+        }
+    }
 
     return 0;
 }
 
-void dstc_process_epoll_result(struct epoll_event* event)
-
+void dstc_process_poll_result(struct pollfd* events, int nevents)
 {
     extern dstc_context_t _dstc_default_context;
 
@@ -211,6 +260,9 @@ void dstc_process_epoll_result(struct epoll_event* event)
     dstc_context_t* ctx = &_dstc_default_context;
 
     _dstc_lock_and_init_context(ctx);
-    _dstc_process_epoll_result(ctx, event);
+    while(nevents--)
+        if (events[nevents].revents)
+            _dstc_process_poll_result(ctx, &events[nevents]);
+
     _dstc_unlock_context(ctx);
 }
