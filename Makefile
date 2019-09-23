@@ -4,15 +4,15 @@
 
 .PHONY: all clean distclean install uninstall examples install_examples
 
-SRC=dstc.c
+OBJ=dstc.o epoll.o
 EXT_HDR=dstc.h
 HDR=${EXT_HDR} dstc_internal.h
-OBJ=dstc.o
 
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
 INCLUDES=-I/usr/local/include
+
 CFLAGS ?=-fPIC -O2 $(INCLUDES) -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
 
 DESTDIR ?= /usr/local
@@ -22,13 +22,6 @@ export DESTDIR
 #	Build the entire project.
 #
 all: $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
-
-#
-#	Make sure all of the object files are current.
-#
-$(OBJ): $(SRC) $(HDR)
-	$(CC) $(CFLAGS) -c $(SRC)
-
 #
 #	Rebuild the static target library.
 #
@@ -47,8 +40,8 @@ $(LIB_SO_TARGET):  $(OBJ)
 #	clean up the submodules.
 #
 clean:
-	@$(MAKE) -C examples clean; \
 	rm -f $(OBJ) *~ $(LIB_TARGET) $(LIB_SO_TARGET)
+	@$(MAKE) -C examples clean;
 
 #
 #	Remove all of the generated files including any in the submodules.

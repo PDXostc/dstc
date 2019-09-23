@@ -18,7 +18,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+#ifndef USE_POLL
 #include <sys/epoll.h>
+#endif
+
 #include "dstc_internal.h"
 
 #include <rmc_log.h>
@@ -35,7 +39,13 @@ dstc_context_t _dstc_default_context = {
     .remote_node = { { 0, { 0 } } },
     .remote_node_ind = 0,
     .local_callback = { {0,0 } },
+
+#ifdef USE_POLL
+    .poll_elem = (poll_elem_t*) 0;
+#else
     .epoll_fd = -1,
+#endif
+
     .client_func = { { { 0 }, 0 } },
     .client_func_ind = 0 ,
     .client_callback_count = 0,
@@ -49,10 +59,6 @@ dstc_context_t _dstc_default_context = {
 };
 
 
-
-#define TO_EPOLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
-#define FROM_EPOLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
-#define IS_PUB(_user_data) (((_user_data) & USER_DATA_PUB_FLAG)?1:0)
 
 
 typedef struct {
@@ -119,7 +125,7 @@ static int _dstc_context_initialized(dstc_context_t* ctx)
 }
 
 
-static int _dstc_lock_context_timeout(dstc_context_t* ctx, struct timespec* abs_timeout, int line)
+int _dstc_lock_context_timeout(dstc_context_t* ctx, struct timespec* abs_timeout, int line)
 {
     if (!pthread_mutex_trylock(&ctx->lock))
         return ENOTBLK;
@@ -130,22 +136,19 @@ static int _dstc_lock_context_timeout(dstc_context_t* ctx, struct timespec* abs_
     return 0;
 }
 
-static int __dstc_lock_context(dstc_context_t* ctx, int line)
+int __dstc_lock_context(dstc_context_t* ctx, int line)
 {
     pthread_mutex_lock(&ctx->lock);
     return 0;
 }
 
-#define _dstc_lock_context(ctx) __dstc_lock_context(ctx, __LINE__)
 
-static void __dstc_unlock_context(dstc_context_t* ctx, int line)
+void __dstc_unlock_context(dstc_context_t* ctx, int line)
 {
     pthread_mutex_unlock(&ctx->lock);
 }
 
-#define _dstc_unlock_context(ctx) __dstc_unlock_context(ctx, __LINE__)
-
-static int __dstc_lock_and_init_context_timeout(dstc_context_t* ctx, struct timespec* abs_timeout, int line)
+int __dstc_lock_and_init_context_timeout(dstc_context_t* ctx, struct timespec* abs_timeout, int line)
 {
     int ret = 0;
 
@@ -160,7 +163,7 @@ static int __dstc_lock_and_init_context_timeout(dstc_context_t* ctx, struct time
     return ret;
 }
 
-static int __dstc_lock_and_init_context(dstc_context_t* ctx, int line)
+int __dstc_lock_and_init_context(dstc_context_t* ctx, int line)
 {
     int ret = 0;
 
@@ -175,8 +178,6 @@ static int __dstc_lock_and_init_context(dstc_context_t* ctx, int line)
     return 0;
 }
 
-#define _dstc_lock_and_init_context(ctx) __dstc_lock_and_init_context(ctx, __LINE__)
-#define _dstc_lock_and_init_context_timeout(ctx, abs_timeout) __dstc_lock_and_init_context_timeout(ctx, abs_timeout, __LINE__)
 
 // ctx must be non-null and locked
 static uint32_t _dstc_payload_buffer_in_use(dstc_context_t* ctx)
@@ -214,7 +215,6 @@ static uint8_t* _dstc_payload_buffer_alloc(dstc_context_t* ctx, uint32_t size)
     ctx->pub_buffer_ind += size;
     return res;
 }
-
 
 
 // ctx must be non-null and locked
@@ -464,128 +464,6 @@ static void dstc_unregister_remote_node(dstc_context_t* ctx,
 }
 
 
-
-static void poll_add(user_data_t user_data,
-                     int descriptor,
-                     uint32_t event_user_data,
-                     rmc_poll_action_t action)
-{
-    dstc_context_t* ctx = (dstc_context_t*) user_data.ptr;
-    struct epoll_event ev = {
-        .data.u32 = event_user_data,
-        .events = 0 // EPOLLONESHOT
-    };
-
-    if (action & RMC_POLLREAD)
-        ev.events |= EPOLLIN;
-
-    if (action & RMC_POLLWRITE)
-        ev.events |= EPOLLOUT;
-
-    _dstc_lock_context(ctx);
-    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, descriptor, &ev) == -1) {
-        RMC_LOG_INDEX_FATAL(FROM_EPOLL_EVENT_USER_DATA(event_user_data), "epoll_ctl(add) event_udata[%lX]",
-                            event_user_data);
-        exit(255);
-    }
-    RMC_LOG_COMMENT("poll_add() read[%c] write[%c]\n",
-                    ((action & RMC_POLLREAD)?'y':'n'),
-                    ((action & RMC_POLLWRITE)?'y':'n'));
-    _dstc_unlock_context(ctx);
-}
-
-
-static void poll_add_sub(user_data_t user_data,
-                         int descriptor,
-                         rmc_index_t index,
-                         rmc_poll_action_t action)
-{
-    poll_add(user_data, descriptor, TO_EPOLL_EVENT_USER_DATA(index, 0), action);
-}
-
-static void poll_add_pub(user_data_t user_data,
-                         int descriptor,
-                         rmc_index_t index,
-                         rmc_poll_action_t action)
-{
-    poll_add(user_data, descriptor, TO_EPOLL_EVENT_USER_DATA(index, 1), action);
-}
-
-static void poll_modify(user_data_t user_data,
-                        int descriptor,
-                        uint32_t event_user_data,
-                        rmc_poll_action_t old_action,
-                        rmc_poll_action_t new_action)
-{
-    dstc_context_t* ctx = (dstc_context_t*) user_data.ptr;
-
-    struct epoll_event ev = {
-        .data.u32 = event_user_data,
-        .events = 0 // EPOLLONESHOT
-    };
-
-    if (old_action == new_action)
-        return ;
-
-    if (new_action & RMC_POLLREAD)
-        ev.events |= EPOLLIN;
-
-    if (new_action & RMC_POLLWRITE)
-        ev.events |= EPOLLOUT;
-
-    _dstc_lock_context(ctx);
-    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_MOD, descriptor, &ev) == -1) {
-        RMC_LOG_INDEX_FATAL(FROM_EPOLL_EVENT_USER_DATA(event_user_data), "epoll_ctl(modify): %s", strerror(errno));
-        exit(255);
-    }
-    _dstc_unlock_context(ctx);
-}
-
-static void poll_modify_pub(user_data_t user_data,
-                            int descriptor,
-                            rmc_index_t index,
-                            rmc_poll_action_t old_action,
-                            rmc_poll_action_t new_action)
-{
-    poll_modify(user_data,
-                descriptor,
-                TO_EPOLL_EVENT_USER_DATA(index, 1),
-                old_action,
-                new_action);
-}
-
-static void poll_modify_sub(user_data_t user_data,
-                            int descriptor,
-                            rmc_index_t index,
-                            rmc_poll_action_t old_action,
-                            rmc_poll_action_t new_action)
-{
-    poll_modify(user_data,
-                descriptor,
-                TO_EPOLL_EVENT_USER_DATA(index, 0),
-                old_action,
-                new_action);
-}
-
-
-static void poll_remove(user_data_t user_data,
-                        int descriptor,
-                        rmc_index_t index)
-{
-    dstc_context_t* ctx = (dstc_context_t*) user_data.ptr;
-
-    _dstc_lock_context(ctx);
-    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, descriptor, 0) == -1) {
-        RMC_LOG_INDEX_WARNING(index, "epoll_ctl(delete): %s", strerror(errno));
-        _dstc_unlock_context(ctx);
-        return;
-    }
-    RMC_LOG_INDEX_COMMENT(index, "poll_remove() desc[%d] index[%d]", descriptor, index);
-    _dstc_unlock_context(ctx);
-}
-
-
-
 // ctx must be set and locked.
 static uint32_t dstc_process_function_call(dstc_context_t* ctx,
                                            uint8_t* data,
@@ -802,12 +680,20 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                                int mcast_ttl,
                                char* control_listen_iface_addr,
                                int control_listen_port,
-                               int epoll_fd_arg)
+                               int epoll_fd_arg) // Ignored for USE_POLL
 {
+#ifdef USE_POLL
+    if (!ctx)
+        return EINVAL;
+
+    ctx->poll_elem  = (poll_elem_t*) 0;
+#else
     if (!ctx || epoll_fd_arg == -1)
         return EINVAL;
 
     ctx->epoll_fd = epoll_fd_arg;
+#endif
+
     ctx->remote_node_ind = 0;
     ctx->callback_ind = 0;
     ctx->pub_buffer_ind = 0;
@@ -826,6 +712,8 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          control_listen_iface_addr, // Use any NIC address for listen control port.
                          control_listen_port, // Use ephereal tcp port for tcp control
                          user_data_ptr(ctx),
+                         // Different versions of poll_(add|modify|remote) used depending on USE_POLL
+                         // See poll.c and epoll.c
                          poll_add_pub, poll_modify_pub, poll_remove,
                          DSTC_MAX_CONNECTIONS,
                          free_published_packets);
@@ -850,7 +738,9 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          multicast_group_addr, multicast_port,
                          multicast_iface_addr,  // Use any NIC address for multicast transmit.
                          user_data_ptr(ctx),
-                         poll_add_sub, poll_modify_sub, poll_remove,
+                         // Different versions of poll_(add|modify|remote) used depending on USE_POLL
+                         // See poll.c and epoll.c
+                         poll_add_pub, poll_modify_pub, poll_remove,
                          DSTC_MAX_CONNECTIONS,
                          0,0);
 
@@ -970,41 +860,6 @@ static int _dstc_queue(dstc_context_t* ctx,
 
     return 0;
 }
-
-static void _dstc_process_epoll_result(dstc_context_t* ctx,
-                                       struct epoll_event* event)
-
-{
-
-    uint8_t op_res = 0;
-    rmc_index_t c_ind = (rmc_index_t) FROM_EPOLL_EVENT_USER_DATA(event->data.u32);
-    int is_pub = IS_PUB(event->data.u32);
-
-    RMC_LOG_INDEX_DEBUG(c_ind, "%s: %s%s%s",
-                        (is_pub?"pub":"sub"),
-                        ((event->events & EPOLLIN)?" read":""),
-                        ((event->events & EPOLLOUT)?" write":""),
-                        ((event->events & EPOLLHUP)?" disconnect":""));
-
-
-    if (event->events & EPOLLIN) {
-        if (is_pub)
-            rmc_pub_read(ctx->pub_ctx, c_ind, &op_res);
-        else
-            rmc_sub_read(ctx->sub_ctx, c_ind, &op_res);
-    }
-
-    if (event->events & EPOLLOUT) {
-        if (is_pub) {
-            if (rmc_pub_write(ctx->pub_ctx, c_ind, &op_res) != 0)
-                rmc_pub_close_connection(ctx->pub_ctx, c_ind);
-        } else {
-            if (rmc_sub_write(ctx->sub_ctx, c_ind, &op_res) != 0)
-                rmc_sub_close_connection(ctx->sub_ctx, c_ind);
-        }
-    }
-}
-
 
 //
 // ---------------------------------------------------------
@@ -1270,36 +1125,6 @@ static int _dstc_process_timeout(dstc_context_t* ctx)
 
 
 
-static int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
-{
-    struct epoll_event events[DSTC_MAX_CONNECTIONS];
-    int nfds = 0;
-
-    do {
-        errno = 0;
-        nfds = epoll_wait(ctx->epoll_fd,
-                          events,
-                          sizeof(events) / sizeof(events[0]),
-                          timeout_msec);
-    } while(nfds == -1 && errno == EINTR);
-
-    if (nfds == -1) {
-        RMC_LOG_FATAL("epoll_wait(%d): %s", ctx->epoll_fd, strerror(errno));
-        exit(255);
-    }
-
-    // Timeout
-    if (nfds == 0)
-        return ETIME;
-
-
-    // Process all pending event.s
-    while(nfds--)
-        _dstc_process_epoll_result(ctx, &events[nfds]);
-
-    return 0;
-}
-
 
 static int _dstc_process_pending_events(dstc_context_t* ctx)
 {
@@ -1409,19 +1234,6 @@ int dstc_process_events(int timeout_rel)
     _dstc_unlock_context(ctx);
     return retval;
 }
-
-
-void dstc_process_epoll_result(struct epoll_event* event)
-
-{
-    // Prep for future, caller-provided contexct.
-    dstc_context_t* ctx = &_dstc_default_context;
-
-    _dstc_lock_and_init_context(ctx);
-    _dstc_process_epoll_result(ctx, event);
-    _dstc_unlock_context(ctx);
-}
-
 
 int dstc_process_timeout(void)
 {
@@ -1541,10 +1353,14 @@ int dstc_setup_epoll(int epoll_fd_arg)
 
 int dstc_setup(void)
 {
+#ifdef USE_POLL
     return dstc_setup_epoll(epoll_create(1));
+#else
+    return dstc_setup_epoll(-1);
+#endif
 }
 
-int dstc_setup2(int epoll_fd_arg,
+int dstc_setup2(int epoll_fd_arg, // Ignored for USE_POLL
                 rmc_node_id_t node_id,
                 int max_dstc_nodes,
                 char* multicast_group_addr,

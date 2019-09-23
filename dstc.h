@@ -37,8 +37,10 @@ typedef void (*dstc_internal_dispatch_t)(dstc_callback_t callback_ref,
 // Single context
 struct dstc_context;
 
+#ifdef USE_POLL
 // An epoll event.
 struct epoll_event;
+#endif
 
 //
 // Functions available to DSTC apps.
@@ -46,7 +48,9 @@ struct epoll_event;
 extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
 extern int dstc_setup(void);
+
 extern int dstc_setup_epoll(int epollfd);
+
 
 // Start buffering outbound calls into larger packets.
 // Packets will be sent either when the outbound buffer is full (63KB), or
@@ -72,7 +76,7 @@ extern void dstc_flush_client_calls(void);
 extern void dstc_unbuffer_client_calls(void);
 
 // DSTC_EVENT_FLAG is used to determine if the .data returned with
-// a returned (epoll) event is to be processed by DSTC, or if
+// a returned (epoll or poll) event is to be processed by DSTC, or if
 // the event was supplied by the calling code outside DSTC.
 // See chat.c for example.
 //
@@ -82,7 +86,6 @@ extern int dstc_process_events(int timeout);
 extern int dstc_process_timeout(void);
 // Depracated, use dstc_process_events(0) instead.
 extern int dstc_process_pending_events(void) __attribute__((deprecated));
-extern void dstc_process_epoll_result(struct epoll_event* event);
 
 typedef usec_timestamp_t msec_timestamp_t;
 extern msec_timestamp_t dstc_msec_monotonic_timestamp(void);
@@ -134,7 +137,6 @@ extern int dstc_setup2(
     // See examples/chat.c for example.
     // Set to -1 to use DSTC-internal epoll management.
     int epoll_fd_arg,
-
     // Specific RMC node ID to use. Set to 0 in order to
     // get a randomly assigned ID./
     rmc_node_id_t node_id,
