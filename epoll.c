@@ -13,10 +13,6 @@
 #include <rmc_log.h>  // From reliable multicast packet
 #include <errno.h>
 
-#define TO_POLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
-#define FROM_POLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
-
-
 static void poll_add(user_data_t user_data,
                      int descriptor,
                      uint32_t event_user_data,

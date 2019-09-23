@@ -683,14 +683,21 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                                int epoll_fd_arg) // Ignored for USE_POLL
 {
 #ifdef USE_POLL
-    int ind = sizeof(ctx->poll_elem_array) / sizeof(ctx->poll_elem_array);
+    int ind = sizeof(ctx->poll_elem_array) / sizeof(ctx->poll_elem_array[0]);
     if (!ctx)
         return EINVAL;
 
     ctx->poll_hash  = (poll_elem_t*) 0;
 
     while(ind--)
-        ctx->poll_elem_array[ind]  = (poll_elem_t) { .pfd = {.fd = -1, .events = 0x00, .revents = 0x00}, .user_data = 0 };
+        ctx->poll_elem_array[ind]  = (poll_elem_t) {
+            .pfd = {
+                .fd = -1, // Indicates that element is not allocated
+                .events = 0x00,
+                .revents = 0x00},
+            .user_data = 0
+        };
+
 #else
     if (!ctx || epoll_fd_arg == -1)
         return EINVAL;
@@ -744,7 +751,7 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          user_data_ptr(ctx),
                          // Different versions of poll_(add|modify|remote) used depending on USE_POLL
                          // See poll.c and epoll.c
-                         poll_add_pub, poll_modify_pub, poll_remove,
+                         poll_add_sub, poll_modify_sub, poll_remove,
                          DSTC_MAX_CONNECTIONS,
                          0,0);
 

@@ -26,7 +26,7 @@ EPOLL_OBJ=${patsubst %.c, %_epoll.o, ${EPOLL_SRC}}
 EPOLL_LIB_TARGET=libdstc.a
 EPOLL_LIB_SO_TARGET=libdstc.so
 
-CFLAGS ?=-fPIC -O2 ${INCLUDES} -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
+CFLAGS ?=-fPIC -ggdb ${INCLUDES} -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
 
 DESTDIR ?= /usr/local
 export DESTDIR

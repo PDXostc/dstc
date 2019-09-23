@@ -15,8 +15,6 @@
 #include "uthash.h"
 
 
-#define TO_POLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0))
-#define FROM_POLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK)
 
 static poll_elem_t* find_free_poll_elem_index(dstc_context_t* ctx)
 {
@@ -25,6 +23,8 @@ static poll_elem_t* find_free_poll_elem_index(dstc_context_t* ctx)
         // Check if file descriptor is unused
         if (ctx->poll_elem_array[ind].pfd.fd == -1)
             return &ctx->poll_elem_array[ind];
+        RMC_LOG_DEBUG("Poll element %d = %d", ind, ctx->poll_elem_array[ind].pfd.fd);
+        ind++;
     }
 
     // Out of mem
@@ -45,30 +45,35 @@ static void poll_add(user_data_t user_data,
     // Do we already have it in our poll set?
     HASH_FIND_INT(ctx->poll_hash, &descriptor, pelem);
     if (pelem) {
-        RMC_LOG_INDEX_FATAL(event_user_data, "File descriptor %d already in poll set\n", descriptor);
+        RMC_LOG_INDEX_FATAL(FROM_POLL_EVENT_USER_DATA(event_user_data), "File descriptor %d already in poll set\n", descriptor);
         exit(255);
     }
 
     pelem = find_free_poll_elem_index(ctx);
 
     if (!pelem) {
-        RMC_LOG_INDEX_FATAL(event_user_data, "Out of poll_elem_t elements. Rebuild with larger DSTC_MAX_CONNECTIONS");
+        RMC_LOG_INDEX_FATAL(FROM_POLL_EVENT_USER_DATA(event_user_data), "Out of poll_elem_t elements. Rebuild with larger DSTC_MAX_CONNECTIONS");
         exit(255);
     }
 
+    pelem->user_data = event_user_data;
     pelem->pfd.events = 0;
     pelem->pfd.revents = 0;
+    pelem->pfd.fd = descriptor;
+
     if (action & RMC_POLLREAD)
         pelem->pfd.events |= POLLIN;
 
     if (action & RMC_POLLWRITE)
         pelem->pfd.events |= POLLOUT;
 
-    pelem->pfd.fd = descriptor;
     HASH_ADD_INT(ctx->poll_hash, pfd.fd, pelem);
-    RMC_LOG_COMMENT("poll_add() read[%c] write[%c]\n",
+    RMC_LOG_COMMENT("poll_add(%d) %s read[%c] write[%c] user_data[%X]\n",
+                    descriptor,
+                    IS_PUB(event_user_data)?"pub":"sub",
                     ((action & RMC_POLLREAD)?'y':'n'),
-                    ((action & RMC_POLLWRITE)?'y':'n'));
+                    ((action & RMC_POLLWRITE)?'y':'n'),
+                    FROM_POLL_EVENT_USER_DATA(event_user_data));
     _dstc_unlock_context(ctx);
 }
 
@@ -119,6 +124,10 @@ static void poll_modify(user_data_t user_data,
     if (new_action & RMC_POLLWRITE)
         pelem->pfd.events |= POLLOUT;
 
+    RMC_LOG_COMMENT("poll_modify(%d) read[%c] write[%c]\n",
+                    descriptor,
+                    ((new_action & RMC_POLLREAD)?'y':'n'),
+                    ((new_action & RMC_POLLWRITE)?'y':'n'));
     _dstc_unlock_context(ctx);
 }
 
@@ -164,6 +173,8 @@ void poll_remove(user_data_t user_data,
         exit(255);
     }
 
+    RMC_LOG_COMMENT("poll_remove(%d)\n",
+                    descriptor);
 
     HASH_DEL(ctx->poll_hash, pelem);
 
@@ -182,6 +193,7 @@ static void _dstc_process_poll_result(dstc_context_t* ctx,
 
     uint8_t op_res = 0;
     poll_elem_t* pelem = 0;
+    int res = 0;
 
     _dstc_lock_context(ctx);
 
@@ -195,7 +207,11 @@ static void _dstc_process_poll_result(dstc_context_t* ctx,
     rmc_index_t c_ind = (rmc_index_t) FROM_POLL_EVENT_USER_DATA(pelem->user_data);
     int is_pub = IS_PUB(pelem->user_data);
 
-    RMC_LOG_INDEX_DEBUG(c_ind, "%s: %s%s%s",
+    RMC_LOG_INDEX_DEBUG(c_ind, "desc[%d/%d] ind[%d] user_data[%u] %s:%s%s%s",
+                        event->fd,
+                        pelem->pfd.fd,
+                        c_ind,
+                        FROM_POLL_EVENT_USER_DATA(pelem->user_data),
                         (is_pub?"pub":"sub"),
                         ((event->revents & POLLIN)?" read":""),
                         ((event->revents & POLLOUT)?" write":""),
@@ -211,11 +227,17 @@ static void _dstc_process_poll_result(dstc_context_t* ctx,
 
     if (event->revents & POLLOUT) {
         if (is_pub) {
-            if (rmc_pub_write(ctx->pub_ctx, c_ind, &op_res) != 0)
+            if ((res = rmc_pub_write(ctx->pub_ctx, c_ind, &op_res))  != 0) {
+                RMC_LOG_INFO("rmc_pub_write(%d) failed: %s - %s", c_ind,
+                             strerror(res), op_res);
                 rmc_pub_close_connection(ctx->pub_ctx, c_ind);
+            }
         } else {
-            if (rmc_sub_write(ctx->sub_ctx, c_ind, &op_res) != 0)
+            if ((res = rmc_sub_write(ctx->sub_ctx, c_ind, &op_res)) != 0) {
+                RMC_LOG_INFO("rmc_sub_write(%d) failed: %s - %s", c_ind,
+                             strerror(res), op_res);
                 rmc_sub_close_connection(ctx->sub_ctx, c_ind);
+            }
         }
     }
 }
@@ -223,30 +245,43 @@ static void _dstc_process_poll_result(dstc_context_t* ctx,
 int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
 {
     struct pollfd pfd[DSTC_MAX_CONNECTIONS];
-    int nfds = 0;
+    int n_hits = 0;
+    int n_events = 0;
     int ind = 0;
+    poll_elem_t* iter = ctx->poll_hash;
 
+    // Fill out pfd.
+    // SLOW!
+    while(iter) {
+        pfd[n_events] = iter->pfd;
+        pfd[n_events].revents = 0;
+        iter = iter->hh.next;
+        n_events++;
+    }
     do {
         errno = 0;
-        nfds = poll(pfd, sizeof(pfd) / sizeof(pfd[0]), timeout_msec);
-    } while(nfds == -1 && errno == EINTR);
+        RMC_LOG_DEBUG("Will poll for %d milleseconds.", timeout_msec);
+        n_hits = poll(pfd, n_events, timeout_msec);
+        RMC_LOG_DEBUG("Done polling.: %d / %s", n_hits, strerror(errno));
+    } while(n_hits == -1 && errno == EINTR);
 
-    if (nfds == -1) {
+    if (n_hits == -1) {
         RMC_LOG_FATAL("poll(): %s", strerror(errno));
         exit(255);
     }
 
     // Timeout
-    if (nfds == 0)
+    if (n_hits == 0)
         return ETIME;
 
     // Process all pending event.s
-    ind = sizeof(pfd) / sizeof(pfd[0]);
-    while(ind-- && nfds) {
+
+    while(ind < n_events && n_hits) {
         if (pfd[ind].revents) {
             _dstc_process_poll_result(ctx, &pfd[ind]);
-            nfds--;
+            n_hits--;
         }
+        ++ind;
     }
 
     return 0;
