@@ -132,13 +132,46 @@ static int _dstc_context_initialized(dstc_context_t* ctx)
 
 int _dstc_lock_context_timeout(dstc_context_t* ctx, struct timespec* abs_timeout, int line)
 {
+
     if (!pthread_mutex_trylock(&ctx->lock))
         return ENOTBLK;
+
+// Apple does not have pthread_mutex_timedlock(), so we have
+// to emulate it using stupid busy wait.
+#if __APPLE__
+    int result = 0;
+    msec_timestamp_t abs_timeout_msec =
+        (msec_timestamp_t) abs_timeout->tv_sec * 1000 +
+        abs_timeout->tv_nsec / 1000000;
+
+    do
+    {
+        struct timespec ts;
+        int status = -1;
+
+        result = pthread_mutex_trylock(&ctx->lock);
+        if (!result || result != EBUSY)
+            return result;
+
+        //
+
+        ts.tv_sec = 0;
+        ts.tv_sec = 5000000;
+
+        // Jesus this is ugly
+        while (status == -1)
+            status = nanosleep(&ts, &ts);
+    }
+    while (result == EBUSY && dstc_msec_monotonic_timestamp() < abs_timeout_msec);
+    return ETIME;
+
+#else
 
     if (pthread_mutex_timedlock(&ctx->lock, abs_timeout)) {
         return ETIME;
     }
     return 0;
+#endif
 }
 
 int __dstc_lock_context(dstc_context_t* ctx, int line)
