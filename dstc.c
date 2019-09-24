@@ -1194,7 +1194,7 @@ int dstc_process_events(int timeout_rel)
     else
         // We have an actual timeout specified, pick the shortest
         // timeout of that and the next DSTC timeout.
-        timeout_rel = (next_dstc_timeout_rel < timeout_rel)?
+        timeout_rel = (next_dstc_timeout_rel != -1 && next_dstc_timeout_rel < timeout_rel)?
             next_dstc_timeout_rel:timeout_rel;
 
     // At this point, we are guarnteed that timeout_rel is not -1 (infinite)

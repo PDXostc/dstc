@@ -29,11 +29,11 @@ SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
 ifdef USE_POLL
-CFLAGS += -I../.. -Wall -pthread -O2 -DUSE_POLL=1
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_POLL=1
 DSTCLIB=dstc-poll
 else
 DSTCLIB=dstc
-CFLAGS += -I../.. -Wall -pthread -O2
+CFLAGS += -I../.. -pthread -Wall -pthread -ggdb
 endif
 
 .PHONY: all clean install nomacro uninstall
