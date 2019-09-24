@@ -2,10 +2,20 @@
 # Executable example code from the README.md file
 #
 
-NAME=loopback
+
+
+
+ifdef USE_POLL
+POLL_SUFFIX=-poll
+CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
+else
+POLL_SUFFIX=
+CFLAGS += -I../.. -Wall -O2
+endif
 
 INCLUDE=../../dstc.h
 
+NAME=loopback${POLL_SUFFIX
 TARGET=${NAME}
 TARGET_NOMACRO=${TARGET}_nomacro
 
@@ -17,15 +27,6 @@ NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
 
 
-ifdef USE_POLL
-DSTCLIB=dstc-poll
-CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
-else
-DSTCLIB=dstc
-CFLAGS += -I../.. -Wall -O2
-endif
-
-
 .PHONY: all clean install nomacro uninstall
 
 all: $(TARGET)
@@ -33,7 +34,7 @@ all: $(TARGET)
 nomacro:  $(TARGET_NOMACRO)
 
 $(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) $^ -L../.. -l${DSTCLIB} -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
 
 
 # Recompile everything if dstc.h changes
@@ -56,7 +57,7 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO) : $(NOMACRO_OBJ) $(DSTCLIB)
-	$(CC)  $(CFLAGS) $^ -L../.. -l${DSTCLIB} -lrmc -o $@ $(LDFLAGS)
+	$(CC)  $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h

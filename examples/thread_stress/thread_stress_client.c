@@ -88,6 +88,8 @@ int main(int argc, char* argv[])
     dstc_buffer_client_calls();
 
 
+    t_exec(1);
+    /*
     pthread_create(&t1, 0, t_exec, (void*) 1);
     pthread_create(&t2, 0, t_exec, (void*) 2);
     pthread_create(&t3, 0, t_exec, (void*) 3);
@@ -115,6 +117,7 @@ int main(int argc, char* argv[])
         dstc_process_events(1);
 
 
+    */
     // Process events until there are no more.
     msec_timestamp_t ts = dstc_msec_monotonic_timestamp();
     msec_timestamp_t timeout = ts + 2000;

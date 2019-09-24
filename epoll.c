@@ -175,6 +175,7 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
 
     do {
         errno = 0;
+        RMC_LOG_DEBUG("epoll(): %d", timeout_msec);
         nfds = epoll_wait(ctx->epoll_fd,
                           events,
                           sizeof(events) / sizeof(events[0]),

@@ -45,7 +45,7 @@ void _set_value(int thr, int value, int *last_value, usec_timestamp_t* start_ts)
         return;
     }
 
-    if (value % 100000 == 0)
+//    if (value % 100000 == 0)
         printf("Server thread[%d] Value: %d\n", thr, value);
 
     // Check that we got the expected value.
@@ -98,9 +98,12 @@ void set_value4(int value)
 void *t_exec(void* arg)
 {
     int thr = (intptr_t) arg;
-
-    while(!exit_flag[thr])
+    int count = 0;
+    while(!exit_flag[thr]){
+        printf("Count: %d\n", count);
         dstc_process_events(100);
+        count++;
+    }
 
     printf("Server thread %d is exiting\n", thr);
     return 0;
@@ -114,11 +117,14 @@ int main(int argc, char* argv[])
     pthread_t t4;
     int res = 0;
     dstc_setup();
-    res = pthread_create(&t1, 0, t_exec, (void*) 0);
+    t_exec(0);
+/*    res = pthread_create(&t1, 0, t_exec, (void*) 0);
     if (res) {
         perror("thr1");
         exit(255);
     }
+*/
+/*
 
     res = pthread_create(&t2, 0, t_exec, (void*) 1);
     if (res) {
@@ -137,7 +143,7 @@ int main(int argc, char* argv[])
         exit(255);
     }
 
-    pthread_join(t1, 0);
+  pthread_join(t1, 0);
     puts("Joined thread 1");
     pthread_join(t2, 0);
     puts("Joined thread 2");
@@ -145,6 +151,7 @@ int main(int argc, char* argv[])
     puts("Joined thread 3");
     pthread_join(t4, 0);
     puts("Joined thread 4");
-
+*/
     exit(0);
+
 }

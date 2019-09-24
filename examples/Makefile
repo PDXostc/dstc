@@ -12,10 +12,10 @@ SUBDIRS =                 \
 	many_arguments        \
 	cpp                   \
 
-.PHONY: all clean install uninstall cpp
+.PHONY: all clean install uninstall cpp poll
 
 
-epoll: $(SUBDIRS)
+all: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
 		$(MAKE) -C $$dir ; \

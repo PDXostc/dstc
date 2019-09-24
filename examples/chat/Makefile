@@ -17,10 +17,10 @@ NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
 ifdef USE_POLL
-DSTCLIB=dstc-poll
+POLL_SUFFIX=-poll
 CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
 else
-DSTCLIB=dstc
+POLL_SUFFIX=
 CFLAGS += -I../.. -Wall -O2
 endif
 
@@ -36,7 +36,7 @@ nomacro:  $(TARGET_NOMACRO)
 # The client is built as a regular binary
 #
 $(TARGET): $(OBJ)
-	$(CC)  $(CFLAGS) $^ -L../.. -l${DSTCLIB} -lrmc -o $@ $(LDFLAGS)
+	$(CC)  $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
 
 #
 # Recompile everything if dstc.h changes
@@ -60,7 +60,7 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO): $(NOMACRO_OBJ)
-	$(CC) $(CFLAGS) -L../.. -l${DSTCLIB} -lrmc $^ -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) -L../.. -ldstc${POLL_SUFFIX} -lrmc $^ -o $@ $(LDFLAGS)
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h
