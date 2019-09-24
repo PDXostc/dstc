@@ -119,7 +119,7 @@ uninstall_poll:
 #	Build the examples only.
 #
 examples:
-	${MAKE} -C examples epoll
+	${MAKE} -C examples
 
 poll_examples:
 	${MAKE} -C examples poll

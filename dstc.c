@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/socket.h>
