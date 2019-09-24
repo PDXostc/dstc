@@ -35,7 +35,11 @@
 //
 
 dstc_context_t _dstc_default_context = {
+#ifdef __APPLE__
+    .lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER,
+#else
     .lock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP,
+#endif
     .remote_node = { { 0, { 0 } } },
     .remote_node_ind = 0,
     .local_callback = { {0,0 } },
