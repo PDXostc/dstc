@@ -12,19 +12,13 @@ SUBDIRS =                 \
 	many_arguments        \
 	cpp                   \
 
-.PHONY: all clean install uninstall cpp poll
-
+.PHONY: all clean install uninstall
 
 all: $(SUBDIRS)
+	echo ${UNAME}
 	@for dir in $(SUBDIRS); \
 	do \
-		$(MAKE) -C $$dir ; \
-	done
-
-poll: $(SUBDIRS)
-	@for dir in $(SUBDIRS); \
-	do \
-		$(MAKE) -C $$dir USE_POLL=1; \
+		$(MAKE) -C $$dir; \
 	done
 
 clean: $(SUBDIRS)

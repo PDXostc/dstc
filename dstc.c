@@ -20,8 +20,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#ifndef USE_POLL
+#ifdef USE_EPOLL
 #include <sys/epoll.h>
+#endif
+
+#ifdef USE_POLL
+#include <poll.h>
 #endif
 
 #include "dstc_internal.h"
@@ -47,7 +51,9 @@ dstc_context_t _dstc_default_context = {
 
 #ifdef USE_POLL
     .poll_hash = 0,
-#else
+#endif
+
+#ifdef USE_EPOLL
     .epoll_fd = -1,
 #endif
 
@@ -735,8 +741,9 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                 .revents = 0x00},
             .user_data = 0
         };
+#endif
 
-#else
+#ifdef USE_EPOLL
     if (!ctx || epoll_fd_arg == -1)
         return EINVAL;
 
@@ -761,7 +768,7 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          control_listen_iface_addr, // Use any NIC address for listen control port.
                          control_listen_port, // Use ephereal tcp port for tcp control
                          user_data_ptr(ctx),
-                         // Different versions of poll_(add|modify|remote) used depending on USE_POLL
+                         // Different versions of poll_(add|modify|remote) used depending on USE_POLL/USE_EPOLL
                          // See poll.c and epoll.c
                          poll_add_pub, poll_modify_pub, poll_remove,
                          DSTC_MAX_CONNECTIONS,
@@ -787,7 +794,7 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          multicast_group_addr, multicast_port,
                          multicast_iface_addr,  // Use any NIC address for multicast transmit.
                          user_data_ptr(ctx),
-                         // Different versions of poll_(add|modify|remote) used depending on USE_POLL
+                         // Different versions of poll_(add|modify|remote) used depending on USE_POLL/USE_EPOLL
                          // See poll.c and epoll.c
                          poll_add_sub, poll_modify_sub, poll_remove,
                          DSTC_MAX_CONNECTIONS,
@@ -1173,8 +1180,6 @@ static int _dstc_process_timeout(dstc_context_t* ctx)
 }
 
 
-
-
 static int _dstc_process_pending_events(dstc_context_t* ctx)
 {
     while(_dstc_process_single_event(ctx, 0) != ETIME)
@@ -1205,8 +1210,14 @@ int dstc_process_events(int timeout_rel)
     int lock_res = 0;
 
     if (timeout_rel == 0) {
-        while(_dstc_process_single_event(ctx, 0) != ETIME)
-            ;
+        while(1) {
+            _dstc_lock_context(ctx);
+            if (_dstc_process_single_event(ctx, 0) == ETIME) {
+                _dstc_unlock_context(ctx);
+                return ETIME;
+            }
+            _dstc_unlock_context(ctx);
+        }
     }
 
     start_time = _dstc_msec_monotonic_timestamp(&abs_time);
@@ -1218,8 +1229,7 @@ int dstc_process_events(int timeout_rel)
     // If we have infinite timeout, and no pending dstc timeouts,
     // wait forever for incoming traffic.
     if (timeout_rel == -1 && next_dstc_timeout_rel == -1) {
-        // Lock with the given timeout.
-        _dstc_lock_and_init_context(ctx);
+        _dstc_lock_context(ctx);
         _dstc_process_single_event(ctx, -1);
         _dstc_unlock_context(ctx);
         return 0;
@@ -1242,7 +1252,7 @@ int dstc_process_events(int timeout_rel)
     // Do we have a zero timeout, or a timeout that has already
     // expired?
     if (timeout_rel <= 0) {
-        _dstc_lock_and_init_context(ctx);
+        _dstc_lock_context(ctx);
         _dstc_process_single_event(ctx, 0);
         _dstc_process_timeout(ctx);
         _dstc_unlock_context(ctx);
@@ -1293,7 +1303,7 @@ int dstc_process_timeout(void)
 
    _dstc_lock_and_init_context(ctx);
 
-    res = _dstc_lock_and_init_context(ctx);
+    res = _dstc_process_timeout(ctx);
     _dstc_unlock_context(ctx);
     return res;
 }
@@ -1405,7 +1415,8 @@ int dstc_setup(void)
 {
 #ifdef USE_POLL
     return dstc_setup_epoll(-1);
-#else
+#endif
+#ifdef USE_EPOLL
     return dstc_setup_epoll(epoll_create(1));
 #endif
 }
@@ -1442,8 +1453,9 @@ int dstc_setup2(int epoll_fd_arg, // Ignored for USE_POLL
                               control_listen_iface_addr,
                               control_listen_port,
 #ifdef USE_POLL
-    -1
-#else
+                              -1
+#endif
+#ifdef USE_EPOLL
                               (epoll_fd_arg != -1)?epoll_fd_arg:epoll_create(1)
 #endif
         );

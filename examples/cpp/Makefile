@@ -2,15 +2,7 @@
 # Executable example code from the README.md file
 #
 
-ifdef USE_POLL
-POLL_SUFFIX=-poll
-CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
-else
-POLL_SUFFIX=
-CFLAGS += -I../.. -Wall -O2
-endif
-
-NAME=cpp${POLL_SUFFIX}
+NAME=cpp
 
 # FIXME variable substitution is a thing
 INCLUDE=../../dstc.h callbackvector.hpp
@@ -18,8 +10,7 @@ INCLUDE=../../dstc.h callbackvector.hpp
 #
 # C Targate
 #
-
-TARGET_C_CLIENT=c_client${POLL_SUFFIX}
+TARGET_C_CLIENT=c_client
 TARGET_NOMACRO_C_CLIENT=${TARGET_C_CLIENT}_nomacro
 
 C_CLIENT_OBJ=client.o
@@ -53,6 +44,16 @@ SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.cpp)
 
 
+NAME=dynamic_data
+
+
+UNAME ?= ${shell uname -s}
+ifeq (${UNAME}, Linux)
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_EPOLL
+else
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_POLL
+endif
+
 CXXFLAGS=${CFLAGS} -std=c++14
 
 .PHONY: all clean install nomacro uninstall
@@ -62,14 +63,14 @@ all: $(TARGET_C_CLIENT) $(TARGET_SERVER) $(TARGET_CLIENT)
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT) $(TARGET_NOMACRO_C_CLIENT)
 
 $(TARGET_SERVER): $(SERVER_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 $(TARGET_C_CLIENT): $(C_CLIENT_OBJ)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 # Recompile everything if dstc.h changes
@@ -97,13 +98,13 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTCLIB)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_NOMACRO_C_CLIENT) : $(C_CLIENT_NOMACRO_OBJ) $(DSTCLIB)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTCLIB)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h

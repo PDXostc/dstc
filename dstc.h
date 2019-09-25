@@ -15,8 +15,16 @@
 
 #ifdef USE_POLL
 #include <poll.h>
-#else
+#endif
+
+#ifdef USE_EPOLL
 #include <sys/epoll.h>
+#endif
+
+#ifndef USE_POLL
+#ifndef USE_EPOLL
+#error Define either USE_POLL or USE_EPOLL
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -43,7 +51,7 @@ typedef void (*dstc_internal_dispatch_t)(dstc_callback_t callback_ref,
 // Single context
 struct dstc_context;
 
-#ifdef USE_POLL
+#ifdef USE_EPOLL
 // An epoll event.
 struct epoll_event;
 #endif
@@ -96,8 +104,14 @@ extern int dstc_process_timeout(void);
 extern int dstc_process_pending_events(void) __attribute__((deprecated));
 
 #ifdef USE_POLL
-extern void dstc_process_poll_result(struct pollfd* events, int nevents);
-#else
+extern void dstc_process_poll_result(struct pollfd* events);
+
+int dstc_retrieve_pollfd_vector(struct pollfd* result,
+                                int max_result,
+                                int* stored_result);
+#endif
+
+#ifdef USE_EPOLL
 extern void dstc_process_epoll_result(struct epoll_event* event);
 #endif
 

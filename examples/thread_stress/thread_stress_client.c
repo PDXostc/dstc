@@ -39,22 +39,22 @@ void *t_exec(void* arg)
         switch(ind) {
         case 1:
             while (dstc_set_value1(val) == EBUSY)
-                dstc_process_events(1);
+                dstc_process_events(0);
             break;
 
         case 2:
             while (dstc_set_value2(val) == EBUSY)
-                dstc_process_events(1);
+                dstc_process_events(0);
             break;
 
         case 3:
             while (dstc_set_value3(val) == EBUSY)
-                dstc_process_events(1);
+                dstc_process_events(0);
             break;
 
         case 4:
             while (dstc_set_value4(val) == EBUSY)
-                dstc_process_events(1);
+                dstc_process_events(0);
 
             break;
         default:
@@ -85,13 +85,12 @@ int main(int argc, char* argv[])
           !dstc_remote_function_available(dstc_set_value4))
         dstc_process_events(-1);
 
+    // Fill each underlying UDP packet with as much data as possible
+    //
     dstc_buffer_client_calls();
-
-
-    t_exec(1);
-    /*
     pthread_create(&t1, 0, t_exec, (void*) 1);
     pthread_create(&t2, 0, t_exec, (void*) 2);
+
     pthread_create(&t3, 0, t_exec, (void*) 3);
     pthread_create(&t4, 0, t_exec, (void*) 4);
 
@@ -117,7 +116,10 @@ int main(int argc, char* argv[])
         dstc_process_events(1);
 
 
-    */
+
+    // Unbuffer the send in order to ensure that all call goes out.
+    dstc_unbuffer_client_calls();
+
     // Process events until there are no more.
     msec_timestamp_t ts = dstc_msec_monotonic_timestamp();
     msec_timestamp_t timeout = ts + 2000;

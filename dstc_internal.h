@@ -52,7 +52,6 @@ typedef struct {
 // We use uthash.h to maintain a hash table that maps between
 // a file descriptor and a poll_elem_t element.
 #ifdef USE_POLL
-#include <poll.h>
 typedef struct  {
         struct pollfd pfd;
         uint32_t user_data;
@@ -85,8 +84,9 @@ typedef struct dstc_context {
 
     // Array that we allocate poll_elem_t from
     poll_elem_t poll_elem_array[DSTC_MAX_CONNECTIONS];
+#endif
 
-#else
+#ifdef USE_EPOLL
     int epoll_fd;
 #endif
 

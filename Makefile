@@ -1,5 +1,6 @@
 #
-# Doodling
+# DSTC top-level makefile.
+# Builds code and examples
 #
 
 .PHONY: poll epoll clean distclean install uninstall examples poll_examples install_examples install_examples_poll
@@ -13,55 +14,47 @@ INCLUDES=-I/usr/local/include
 #
 # Poll build
 #
-POLL_SRC=dstc.c poll.c
-POLL_OBJ=${patsubst %.c, %_poll.o, ${POLL_SRC}}
-POLL_LIB_TARGET=libdstc-poll.a
-POLL_LIB_SO_TARGET=libdstc-poll.so
-
 #
 # Epoll build
 #
-EPOLL_SRC=dstc.c epoll.c
-EPOLL_OBJ=${patsubst %.c, %_epoll.o, ${EPOLL_SRC}}
-EPOLL_LIB_TARGET=libdstc.a
-EPOLL_LIB_SO_TARGET=libdstc.so
+SRC=dstc.c poll.c epoll.c
+OBJ=${patsubst %.c, %.o, ${SRC}}
+LIB_TARGET=libdstc.a
+LIB_SO_TARGET=libdstc.so
 
-CFLAGS ?=-fPIC -ggdb ${INCLUDES} -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
 
 DESTDIR ?= /usr/local
 export DESTDIR
 
-#
-#	Build the entire project.
-#
-all: epoll
+UNAME ?= ${shell uname -s}
+ifeq (${UNAME}, Linux)
+POLL_FLAG=-DUSE_EPOLL=1
+else
+POLL_FLAG=-DUSE_POLL=1
+endif
 
-poll:  ${POLL_LIB_TARGET} ${POLL_LIB_SO_TARGET}
-epoll: ${EPOLL_LIB_TARGET} ${EPOLL_LIB_SO_TARGET}
+CFLAGS ?=-fPIC -ggdb ${INCLUDES} ${POLL_FLAG} -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
+
+#
+# Build the entire project.
+#
+all:  ${LIB_TARGET} ${LIB_SO_TARGET}
 
 #
 #	Rebuild the static target library.
 #
-${EPOLL_LIB_TARGET}: ${EPOLL_OBJ}
-	ar r ${EPOLL_LIB_TARGET} ${EPOLL_OBJ}
-
-${POLL_LIB_TARGET}: ${POLL_OBJ}
-	ar r ${POLL_LIB_TARGET} ${POLL_OBJ}
+${LIB_TARGET}: ${OBJ}
+	ar r ${LIB_TARGET} ${OBJ}
 
 #
 #	Rebuild the shared object target library.b
 #
-${EPOLL_LIB_SO_TARGET}:  ${EPOLL_OBJ}
-	${CC} -shared ${CFLAGS} ${EPOLL_OBJ} -o ${EPOLL_LIB_SO_TARGET}
+${LIB_SO_TARGET}:  ${OBJ}
+	${CC} -shared ${CFLAGS} ${OBJ} -o ${LIB_SO_TARGET}
 
-${POLL_LIB_SO_TARGET}:  ${POLL_OBJ}
-	${CC} -shared ${CFLAGS} ${POLL_OBJ} -o ${POLL_LIB_SO_TARGET}
 
-${EPOLL_OBJ}:  ${EPOLL_SRC} ${HDR}
-	${CC} -c ${CFLAGS} ${patsubst %_epoll.o,%.c, $@} -o $@
-
-${POLL_OBJ}:  ${POLL_SRC} ${HDR}
-	${CC} -c ${CFLAGS} -DUSE_POLL ${patsubst %_poll.o, %.c, $@} -o $@
+${OBJ}: ${SRC} ${HDR}
+	${CC} -c ${CFLAGS} ${patsubst %.o,%.c, $@} -o $@
 
 
 
@@ -71,9 +64,7 @@ ${POLL_OBJ}:  ${POLL_SRC} ${HDR}
 #	clean up the submodules.
 #
 clean:
-	rm -f ${POLL_OBJ} ${EPOLL_OBJ} *~ \
-		${EPOLL_LIB_TARGET} ${EPOLL_LIB_SO_TARGET} \
-		${POLL_LIB_TARGET} ${EPOLL_LIB_SO_TARGET}
+	rm -f  ${OBJ} *~ ${LIB_TARGET} ${LIB_SO_TARGET}
 	@${MAKE} -C examples clean;
 
 #
@@ -85,34 +76,21 @@ distclean: clean
 #
 #	Install the generated files.
 #
-install:  ${EPOLL_LIB_SO_TARGET} ${POLL_LIB_SO_TARGET} ${EPOLL_LIB_TARGET} ${POLL_LIB_TARGET}
+install:  ${LIB_SO_TARGET} ${LIB_TARGET}
 	install -d ${DESTDIR}/lib; \
 	install -d ${DESTDIR}/include; \
-	install -m 0644 ${EPOLL_LIB_TARGET}  ${DESTDIR}/lib; \
+	install -m 0644 ${LIB_TARGET}  ${DESTDIR}/lib; \
 	install -m 0644 ${EXT_HDR}  ${DESTDIR}/include; \
-	install -m 0644 ${EPOLL_LIB_SO_TARGET}  ${DESTDIR}/lib;
-
-install_poll:  ${EPOLL_LIB_SO_TARGET} ${POLL_LIB_SO_TARGET} ${EPOLL_LIB_TARGET} ${POLL_LIB_TARGET}
-	install -d ${DESTDIR}/lib; \
-	install -d ${DESTDIR}/include; \
-	install -m 0644 ${POLL_LIB_TARGET}  ${DESTDIR}/lib; \
-	install -m 0644 ${EXT_HDR}  ${DESTDIR}/include; \
-	install -m 0644 ${POLL_LIB_SO_TARGET}  ${DESTDIR}/lib;
+	install -m 0644 ${LIB_SO_TARGET}  ${DESTDIR}/lib;
 
 #
 #	Uninstall the generated files.
 #
-uninstall_epoll:
-	@${MAKE} DESTDIR=${DESTDIR} USE_POLL=${USE_POLL} -C examples uninstall; \
-	rm -f ${DESTDIR}/lib/${EPOLL_LIB_TARGET}; \
+uninstall:
+	@${MAKE} DESTDIR=${DESTDIR} -C examples uninstall; \
+	rm -f ${DESTDIR}/lib/${LIB_TARGET}; \
 	rm -f ${DESTDIR}/include/${EXT_HDR}; \
-	rm -f ${DESTDIR}/lib/${EPOLL_LIB_SO_TARGET};
-
-uninstall_poll:
-	@${MAKE} DESTDIR=${DESTDIR} USE_POLL=${USE_POLL} -C examples uninstall; \
-	rm -f ${DESTDIR}/lib/${POLL_LIB_TARGET}; \
-	rm -f ${DESTDIR}/include/${EXT_HDR}; \
-	rm -f ${DESTDIR}/lib/${POLL_LIB_SO_TARGET};
+	rm -f ${DESTDIR}/lib/${LIB_SO_TARGET};
 
 
 #
@@ -121,14 +99,9 @@ uninstall_poll:
 examples:
 	${MAKE} -C examples
 
-poll_examples:
-	${MAKE} -C examples poll
 
 #
 #	Install the generated example files.
 #
 install_examples:
 	${MAKE} DESTDIR=${DESTDIR} -C examples clean epoll install
-
-install_examples_poll:
-	${MAKE} DESTDIR=${DESTDIR} -C examples clean poll install

@@ -2,7 +2,15 @@
 # Executable example code from the README.md file
 #
 
-NAME=chat
+
+UNAME ?= ${shell uname -s}
+ifeq (${UNAME}, Linux)
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_EPOLL
+NAME=chat_epoll
+else
+CFLAGS += -I../.. -pthread -Wall -pthread -ggdb -DUSE_POLL
+NAME=chat_poll
+endif
 
 # FIXME variable substitution is a thing
 INCLUDE=../../dstc.h
@@ -10,19 +18,11 @@ INCLUDE=../../dstc.h
 TARGET=${NAME}
 TARGET_NOMACRO=${TARGET}_nomacro
 
-OBJ=chat.o
+OBJ=${NAME}.o
 SOURCE=$(OBJ:%.o=%.c)
 
 NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
-
-ifdef USE_POLL
-POLL_SUFFIX=-poll
-CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
-else
-POLL_SUFFIX=
-CFLAGS += -I../.. -Wall -O2
-endif
 
 .PHONY: all clean install uninstall nomacro
 
@@ -36,7 +36,7 @@ nomacro:  $(TARGET_NOMACRO)
 # The client is built as a regular binary
 #
 $(TARGET): $(OBJ)
-	$(CC)  $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC)  $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 #
 # Recompile everything if dstc.h changes
@@ -60,7 +60,7 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO): $(NOMACRO_OBJ)
-	$(CC) $(CFLAGS) -L../.. -ldstc${POLL_SUFFIX} -lrmc $^ -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) ../../libdstc.so -lrmc $^ -o $@ $(LDFLAGS)
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h

@@ -5,7 +5,7 @@
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 
-
+#ifdef USE_EPOLL
 #include "dstc.h"
 #include "dstc_internal.h"
 #include <sys/epoll.h>
@@ -159,10 +159,12 @@ static void _dstc_process_epoll_result(dstc_context_t* ctx,
 
     if (event->events & EPOLLOUT) {
         if (is_pub) {
-            if (rmc_pub_write(ctx->pub_ctx, c_ind, &op_res) != 0)
+            op_res = rmc_pub_write(ctx->pub_ctx, c_ind, &op_res);
+            if (op_res != 0 && op_res != ENODATA)
                 rmc_pub_close_connection(ctx->pub_ctx, c_ind);
         } else {
-            if (rmc_sub_write(ctx->sub_ctx, c_ind, &op_res) != 0)
+            op_res = rmc_sub_write(ctx->sub_ctx, c_ind, &op_res);
+            if (op_res != 0 && op_res != ENODATA)
                 rmc_sub_close_connection(ctx->sub_ctx, c_ind);
         }
     }
@@ -172,18 +174,20 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
 {
     struct epoll_event events[DSTC_MAX_CONNECTIONS];
     int nfds = 0;
+    int fd = ctx->epoll_fd;
 
+    _dstc_unlock_context(ctx);
     do {
         errno = 0;
-        RMC_LOG_DEBUG("epoll(): %d", timeout_msec);
-        nfds = epoll_wait(ctx->epoll_fd,
+        nfds = epoll_wait(fd,
                           events,
                           sizeof(events) / sizeof(events[0]),
                           timeout_msec);
     } while(nfds == -1 && errno == EINTR);
+    _dstc_lock_context(ctx);
 
     if (nfds == -1) {
-        RMC_LOG_FATAL("epoll_wait(%d): %s", ctx->epoll_fd, strerror(errno));
+        RMC_LOG_FATAL("epoll_wait(%d): %s",  fd, strerror(errno));
         exit(255);
     }
 
@@ -192,12 +196,9 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
         return ETIME;
 
 
-    _dstc_lock_context(ctx);
     // Process all pending event.s
     while(nfds--)
         _dstc_process_epoll_result(ctx, &events[nfds]);
-
-    _dstc_unlock_context(ctx);
 
     return 0;
 }
@@ -214,3 +215,4 @@ void dstc_process_epoll_result(struct epoll_event* event)
     _dstc_process_epoll_result(ctx, event);
     _dstc_unlock_context(ctx);
 }
+#endif // POLL=epoll

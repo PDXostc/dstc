@@ -1,15 +1,8 @@
 #
 # Executable example code from the README.md file
 #
-ifdef USE_POLL
-POLL_SUFFIX=-poll
-CFLAGS += -I../.. -Wall -O2 -DUSE_POLL=${USE_POLL}
-else
-POLL_SUFFIX=
-CFLAGS += -I../.. -Wall -O2
-endif
 
-NAME=print_name_and_age${POLL_SUFFIX}
+NAME=print_name_and_age
 
 # FIXME variable substitution is a thing
 INCLUDE=../../dstc.h
@@ -35,6 +28,13 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
+UNAME ?= ${shell uname -s}
+ifeq (${UNAME}, Linux)
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_EPOLL
+else
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_POLL
+endif
+
 
 .PHONY: all clean install nomacro uninstall
 
@@ -43,10 +43,10 @@ all: $(TARGET_SERVER) $(TARGET_CLIENT)
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT)
 
 $(TARGET_SERVER): $(SERVER_OBJ)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 # Recompile everything if dstc.h changes
@@ -71,10 +71,10 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTCLIB)
-	$(CC)  $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC)  $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTCLIB)
-	$(CC)  $(CFLAGS) $^ -L../.. -ldstc${POLL_SUFFIX} -lrmc -o $@ $(LDFLAGS)
+	$(CC)  $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h

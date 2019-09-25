@@ -6,6 +6,7 @@
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 
 
+#ifdef USE_POLL
 #include "dstc.h"
 #include "dstc_internal.h"
 
@@ -13,7 +14,6 @@
 #include <rmc_log.h>  // From reliable multicast packet
 #include <errno.h>
 #include "uthash.h"
-
 
 
 static poll_elem_t* find_free_poll_elem_index(dstc_context_t* ctx)
@@ -193,8 +193,6 @@ static void _dstc_process_poll_result(dstc_context_t* ctx,
 
     uint8_t op_res = 0;
     poll_elem_t* pelem = 0;
-    int res = 0;
-
 
     // Does it even exist in our poll set.
     HASH_FIND_INT(ctx->poll_hash, &event->fd, pelem);
@@ -226,17 +224,13 @@ static void _dstc_process_poll_result(dstc_context_t* ctx,
 
     if (event->revents & POLLOUT) {
         if (is_pub) {
-            if ((res = rmc_pub_write(ctx->pub_ctx, c_ind, &op_res))  != 0) {
-                RMC_LOG_INFO("rmc_pub_write(%d) failed: %s - %s", c_ind,
-                             strerror(res), op_res);
+            op_res = rmc_pub_write(ctx->pub_ctx, c_ind, &op_res);
+            if (op_res != 0 && op_res != ENODATA)
                 rmc_pub_close_connection(ctx->pub_ctx, c_ind);
-            }
         } else {
-            if ((res = rmc_sub_write(ctx->sub_ctx, c_ind, &op_res)) != 0) {
-                RMC_LOG_INFO("rmc_sub_write(%d) failed: %s - %s", c_ind,
-                             strerror(res), op_res);
+            op_res = rmc_sub_write(ctx->sub_ctx, c_ind, &op_res);
+            if (op_res != 0 && op_res != ENODATA)
                 rmc_sub_close_connection(ctx->sub_ctx, c_ind);
-            }
         }
     }
 }
@@ -249,8 +243,8 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
     int ind = 0;
     poll_elem_t* iter;
 
-    _dstc_lock_context(ctx);
     iter = ctx->poll_hash;
+
     // Fill out pfd.
     // SLOW!
     while(iter) {
@@ -259,28 +253,24 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
         iter = iter->hh.next;
         n_events++;
     }
-    _dstc_unlock_context(ctx);
 
+    _dstc_unlock_context(ctx);
     do {
         errno = 0;
-        RMC_LOG_DEBUG("Will poll for %d milleseconds.", timeout_msec);
         n_hits = poll(pfd, n_events, timeout_msec);
-        RMC_LOG_DEBUG("Done polling.: %d / %s", n_hits, strerror(errno));
     } while(n_hits == -1 && errno == EINTR);
 
     if (n_hits == -1) {
         RMC_LOG_FATAL("poll(): %s", strerror(errno));
         exit(255);
     }
+    _dstc_lock_context(ctx);
 
     // Timeout
     if (n_hits == 0)
         return ETIME;
 
     // Process all pending event.s
-
-    _dstc_lock_context(ctx);
-
     while(ind < n_events && n_hits) {
         if (pfd[ind].revents) {
             _dstc_process_poll_result(ctx, &pfd[ind]);
@@ -289,21 +279,50 @@ int _dstc_process_single_event(dstc_context_t* ctx, int timeout_msec)
         ++ind;
     }
 
-    _dstc_unlock_context(ctx);
     return 0;
 }
 
-void dstc_process_poll_result(struct pollfd* events, int nevents)
-{
-    extern dstc_context_t _dstc_default_context;
 
+int dstc_retrieve_pollfd_vector(struct pollfd* result,
+                                int max_result,
+                                int* stored_result)
+{
+    int n_events = 0;
+    poll_elem_t* iter;
+    extern dstc_context_t _dstc_default_context;
     // Prep for future, caller-provided contexct.
     dstc_context_t* ctx = &_dstc_default_context;
 
     _dstc_lock_and_init_context(ctx);
-    while(nevents--)
-        if (events[nevents].revents)
-            _dstc_process_poll_result(ctx, &events[nevents]);
+    iter = ctx->poll_hash;
+
+    // Fill out pfd.
+    // SLOW!
+    while(iter && n_events < max_result) {
+        result[n_events] = iter->pfd;
+        result[n_events].revents = 0;
+        iter = iter->hh.next;
+        n_events++;
+    }
+
+    if (iter && n_events == max_result) {
+        _dstc_unlock_context(ctx);
+        return ENOMEM;
+    }
+    *stored_result = n_events;
 
     _dstc_unlock_context(ctx);
+
+    return 0;
 }
+void dstc_process_poll_result(struct pollfd* event)
+{
+    extern dstc_context_t _dstc_default_context;
+    // Prep for future, caller-provided contexct.
+    dstc_context_t* ctx = &_dstc_default_context;
+
+    _dstc_lock_and_init_context(ctx);
+    _dstc_process_poll_result(ctx, event);
+    _dstc_unlock_context(ctx);
+}
+#endif // POLL=poll
