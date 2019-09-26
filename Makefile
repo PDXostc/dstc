@@ -3,7 +3,7 @@
 # Builds code and examples
 #
 
-.PHONY: poll epoll clean distclean install uninstall examples poll_examples install_examples install_examples_poll
+.PHONY: all clean distclean install uninstall examples install_examples
 
 EXT_HDR=dstc.h
 HDR=${EXT_HDR} dstc_internal.h
@@ -94,7 +94,7 @@ uninstall:
 #
 #	Build the examples only.
 #
-examples:
+examples: all
 	${MAKE} -C examples
 
 
@@ -102,4 +102,4 @@ examples:
 #	Install the generated example files.
 #
 install_examples:
-	${MAKE} DESTDIR=${DESTDIR} -C examples clean epoll install
+	${MAKE} DESTDIR=${DESTDIR} -C examples install
