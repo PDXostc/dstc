@@ -2,10 +2,9 @@
 # Executable example code from the README.md file
 #
 
-NAME=loopback
-
 INCLUDE=../../dstc.h
 
+NAME=loopback
 TARGET=${NAME}
 TARGET_NOMACRO=${TARGET}_nomacro
 
@@ -16,7 +15,8 @@ NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
 
-CFLAGS += -I../.. -Wall -O2
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 ${USE_POLL}
+
 
 .PHONY: all clean install nomacro uninstall
 
@@ -25,7 +25,7 @@ all: $(TARGET)
 nomacro:  $(TARGET_NOMACRO)
 
 $(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 # Recompile everything if dstc.h changes
@@ -47,9 +47,9 @@ uninstall:
 #
 # The client is built as a regular binary
 #
-$(TARGET_NOMACRO) : $(NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC)  $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+$(TARGET_NOMACRO) : $(NOMACRO_OBJ) $(DSTCLIB)
+	$(CC)  $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h
-	cpp ${INCPATH} -E ${SOURCE} | clang-format | grep -v '^# [0-9]' > ${NOMACRO_SOURCE}
+	$(CC) ${INCPATH} -E ${SOURCE} | clang-format | grep -v '^# [0-9]' > ${NOMACRO_SOURCE}

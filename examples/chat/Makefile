@@ -3,20 +3,19 @@
 #
 
 NAME=chat
-
 # FIXME variable substitution is a thing
 INCLUDE=../../dstc.h
 
 TARGET=${NAME}
 TARGET_NOMACRO=${TARGET}_nomacro
 
-OBJ=chat.o
+OBJ=${NAME}.o
 SOURCE=$(OBJ:%.o=%.c)
 
 NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
-CFLAGS+= -I../.. -Wall -O2
+CFLAGS += -I../.. -pthread -Wall -O2 ${USE_POLL}
 
 .PHONY: all clean install uninstall nomacro
 
@@ -30,7 +29,7 @@ nomacro:  $(TARGET_NOMACRO)
 # The client is built as a regular binary
 #
 $(TARGET): $(OBJ)
-	$(CC)  $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+	$(CC)  $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 #
 # Recompile everything if dstc.h changes
@@ -54,7 +53,7 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO): $(NOMACRO_OBJ)
-	$(CC) $(CFLAGS) -L../.. -ldstc -lrmc $^ -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) ../../libdstc.so -lrmc $^ -o $@ $(LDFLAGS)
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h

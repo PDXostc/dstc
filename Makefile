@@ -1,45 +1,60 @@
 #
-# Doodling
+# DSTC top-level makefile.
+# Builds code and examples
 #
 
-.PHONY: all clean distclean install uninstall examples install_examples
+.PHONY: poll epoll clean distclean install uninstall examples poll_examples install_examples install_examples_poll
 
-SRC=dstc.c
 EXT_HDR=dstc.h
 HDR=${EXT_HDR} dstc_internal.h
-OBJ=dstc.o
 
+
+INCLUDES=-I/usr/local/include
+
+#
+# Poll build
+#
+#
+# Epoll build
+#
+SRC=dstc.c poll.c epoll.c
+OBJ=${patsubst %.c, %.o, ${SRC}}
 LIB_TARGET=libdstc.a
 LIB_SO_TARGET=libdstc.so
 
-INCLUDES=-I/usr/local/include
-CFLAGS ?=-fPIC -O2 $(INCLUDES) -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
 
 DESTDIR ?= /usr/local
 export DESTDIR
 
-#
-#	Build the entire project.
-#
-all: $(LIB_TARGET) $(LIB_SO_TARGET) $(OBJ)
+ifeq (${POLL}, 1)
+USE_POLL=-DUSE_POLL=1
+export USE_POLL
+endif
+
+CFLAGS ?=-fPIC -O2 ${INCLUDES} -Wall -pthread -D_GNU_SOURCE ${USE_POLL} #-DDSTC_PTHREAD_DEBUG
 
 #
-#	Make sure all of the object files are current.
+# Build the entire project.
 #
-$(OBJ): $(SRC) $(HDR)
-	$(CC) $(CFLAGS) -c $(SRC)
+all:  ${LIB_TARGET} ${LIB_SO_TARGET}
 
 #
 #	Rebuild the static target library.
 #
-$(LIB_TARGET): $(OBJ)
-	ar r $(LIB_TARGET) $(OBJ)
+${LIB_TARGET}: ${OBJ}
+	ar r ${LIB_TARGET} ${OBJ}
 
 #
 #	Rebuild the shared object target library.b
 #
-$(LIB_SO_TARGET):  $(OBJ)
-	$(CC) -shared $(CFLAGS) $(OBJ) -o $(LIB_SO_TARGET)
+${LIB_SO_TARGET}:  ${OBJ}
+	${CC} -shared ${CFLAGS} ${OBJ} -o ${LIB_SO_TARGET}
+
+
+${OBJ}: ${SRC} ${HDR}
+	${CC} -c ${CFLAGS} ${patsubst %.o,%.c, $@} -o $@
+
+
 
 #
 #	Remove all the generated files in this project.  Note that this does NOT
@@ -47,19 +62,19 @@ $(LIB_SO_TARGET):  $(OBJ)
 #	clean up the submodules.
 #
 clean:
-	@$(MAKE) -C examples clean; \
-	rm -f $(OBJ) *~ $(LIB_TARGET) $(LIB_SO_TARGET)
+	rm -f  ${OBJ} *~ ${LIB_TARGET} ${LIB_SO_TARGET}
+	@${MAKE} -C examples clean;
 
 #
 #	Remove all of the generated files including any in the submodules.
 #
 distclean: clean
-	@$(MAKE) clean
+	@${MAKE} clean
 
 #
 #	Install the generated files.
 #
-install:  all
+install:  ${LIB_SO_TARGET} ${LIB_TARGET}
 	install -d ${DESTDIR}/lib; \
 	install -d ${DESTDIR}/include; \
 	install -m 0644 ${LIB_TARGET}  ${DESTDIR}/lib; \
@@ -69,20 +84,22 @@ install:  all
 #
 #	Uninstall the generated files.
 #
-uninstall:  all
-	@$(MAKE) DESTDIR=${DESTDIR} -C examples uninstall; \
+uninstall:
+	@${MAKE} DESTDIR=${DESTDIR} -C examples uninstall; \
 	rm -f ${DESTDIR}/lib/${LIB_TARGET}; \
 	rm -f ${DESTDIR}/include/${EXT_HDR}; \
 	rm -f ${DESTDIR}/lib/${LIB_SO_TARGET};
+
 
 #
 #	Build the examples only.
 #
 examples:
-	$(MAKE) -C examples
+	${MAKE} -C examples
+
 
 #
 #	Install the generated example files.
 #
 install_examples:
-	$(MAKE) DESTDIR=${DESTDIR} -C examples install
+	${MAKE} DESTDIR=${DESTDIR} -C examples clean epoll install

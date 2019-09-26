@@ -33,9 +33,9 @@ DSTC_SERVER(double_value, int,, DSTC_DECL_CALLBACK_ARG)
 // dstc_[name] where name is the name of the callback reference,
 // (callback_ref in the example below).
 //
+DSTC_SERVER_CALLBACK(callback_ref, int,);
 void double_value(int value, dstc_callback_t callback_ref)
 {
-    DSTC_SERVER_CALLBACK(callback_ref, int,);
 
     if (value == -1) {
         puts("double_value(-1): Got exit signal.");
@@ -44,7 +44,7 @@ void double_value(int value, dstc_callback_t callback_ref)
     }
 
     printf("double_value(%d) called with a callback\n", value);
-    dstc_callback_ref(value + value);
+    dstc_callback_ref(callback_ref, value + value);
     dstc_process_events(0);
     exit(0);
 }

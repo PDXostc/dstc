@@ -98,9 +98,12 @@ void set_value4(int value)
 void *t_exec(void* arg)
 {
     int thr = (intptr_t) arg;
-
-    while(!exit_flag[thr])
+    int count = 0;
+    while(!exit_flag[thr]){
+//        printf("Count: %d\n", count);
         dstc_process_events(100);
+        count++;
+    }
 
     printf("Server thread %d is exiting\n", thr);
     return 0;
@@ -147,4 +150,5 @@ int main(int argc, char* argv[])
     puts("Joined thread 4");
 
     exit(0);
+
 }

@@ -10,6 +10,11 @@
 #define __DSTC_INTERNAL_H__
 
 #include "dstc.h"
+
+#if (!defined(__linux__) && !defined(__ANDROID__)) ||defined(USE_POLL)
+#include "uthash.h"
+#endif
+
 #include <pthread.h>
 
 // FIXME: Hash table for both local and remote func
@@ -38,6 +43,22 @@ typedef struct {
     void *client_func;
 } dstc_client_func_t;
 
+
+
+// If we use poll(2) instead of epoll(2), which is Linux specific,
+// We need a hash table to quickly map a file descriptor with a hit
+// to the corresponding struct poll and, especially user data
+// associated with the fd.
+// We use uthash.h to maintain a hash table that maps between
+// a file descriptor and a poll_elem_t element.
+#if (!defined(__linux__) && !defined(__ANDROID__)) ||defined(USE_POLL)
+typedef struct  {
+        struct pollfd pfd;
+        uint32_t user_data;
+        UT_hash_handle hh;
+} poll_elem_t;
+#endif
+
 // Single context
 typedef struct dstc_context {
     pthread_mutex_t lock;
@@ -57,7 +78,12 @@ typedef struct dstc_context {
 
     uint32_t callback_ind ;
 
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
     int epoll_fd;
+#else
+    poll_elem_t poll_elem_array[DSTC_MAX_CONNECTIONS];
+    poll_elem_t* poll_hash;
+#endif
 
     // All DSTC_CLIENT-registered functions (dstc_print_name_and_age)
     // and their string name.
@@ -107,12 +133,48 @@ dstc_header {
 #define DSTC_ENV_CONTROL_LISTEN_PORT "DSTC_CONTROL_LISTEN_PORT"
 #define DSTC_ENV_LOG_LEVEL "DSTC_LOG_LEVEL"
 
-//
-// Default max number of remote DSTC nodes we will be communicating with.
-// Can be overridden by dstc_setup2.
-//
+
 #define USER_DATA_INDEX_MASK 0x00007FFF
 #define USER_DATA_PUB_FLAG   0x00008000
+#define IS_PUB(_user_data) (((_user_data) & USER_DATA_PUB_FLAG)?1:0)
 
+extern void poll_add_pub(user_data_t user_data,
+                         int descriptor,
+                         rmc_index_t index,
+                         rmc_poll_action_t action);
+extern void poll_add_sub(user_data_t user_data,
+                         int descriptor,
+                         rmc_index_t index,
+                         rmc_poll_action_t action);
+
+extern void poll_modify_pub(user_data_t user_data,
+                            int descriptor,
+                            rmc_index_t index,
+                            rmc_poll_action_t old_action,
+                            rmc_poll_action_t new_action);
+
+extern void poll_modify_sub(user_data_t user_data,
+                            int descriptor,
+                            rmc_index_t index,
+                            rmc_poll_action_t old_action,
+                            rmc_poll_action_t new_action);
+
+extern void poll_remove(user_data_t user_data,
+                        int descriptor,
+                        rmc_index_t index);
+
+extern int _dstc_process_single_event(dstc_context_t* ctx,
+                                      int timeout_msec);
+
+
+#define _dstc_lock_context(ctx) __dstc_lock_context(ctx, __LINE__)
+#define _dstc_unlock_context(ctx) __dstc_unlock_context(ctx, __LINE__)
+#define _dstc_lock_and_init_context(ctx) __dstc_lock_and_init_context(ctx, __LINE__)
+#define _dstc_lock_and_init_context_timeout(ctx, abs_timeout) __dstc_lock_and_init_context_timeout(ctx, abs_timeout, __LINE__)
+
+extern int __dstc_lock_context(dstc_context_t* ctx, int line);
+extern void __dstc_unlock_context(dstc_context_t* ctx, int line);
+extern int __dstc_lock_and_init_context_timeout(dstc_context_t* ctx, struct timespec* abs_timeout, int line);
+extern int __dstc_lock_and_init_context(dstc_context_t* ctx, int line);
 
 #endif // __DSTC_INTERNAL_H__

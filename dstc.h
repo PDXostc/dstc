@@ -13,6 +13,12 @@
 #include <reliable_multicast.h>
 #include <pthread.h>
 
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
+#include <sys/epoll.h>
+#else
+#include <poll.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,8 +43,10 @@ typedef void (*dstc_internal_dispatch_t)(dstc_callback_t callback_ref,
 // Single context
 struct dstc_context;
 
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
 // An epoll event.
 struct epoll_event;
+#endif
 
 //
 // Functions available to DSTC apps.
@@ -46,7 +54,9 @@ struct epoll_event;
 extern uint32_t dstc_get_socket_count(void);
 extern int dstc_get_next_timeout(usec_timestamp_t* result_ts);
 extern int dstc_setup(void);
+
 extern int dstc_setup_epoll(int epollfd);
+
 
 // Start buffering outbound calls into larger packets.
 // Packets will be sent either when the outbound buffer is full (63KB), or
@@ -72,17 +82,27 @@ extern void dstc_flush_client_calls(void);
 extern void dstc_unbuffer_client_calls(void);
 
 // DSTC_EVENT_FLAG is used to determine if the .data returned with
-// a returned (epoll) event is to be processed by DSTC, or if
+// a returned (epoll or poll) event is to be processed by DSTC, or if
 // the event was supplied by the calling code outside DSTC.
 // See chat.c for example.
 //
 #define DSTC_EVENT_FLAG      0x80000000
+#define TO_POLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
+#define FROM_POLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
 
 extern int dstc_process_events(int timeout);
 extern int dstc_process_timeout(void);
 // Depracated, use dstc_process_events(0) instead.
 extern int dstc_process_pending_events(void) __attribute__((deprecated));
+
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
 extern void dstc_process_epoll_result(struct epoll_event* event);
+#else
+extern void dstc_process_poll_result(struct pollfd* events);
+extern int dstc_retrieve_pollfd_vector(struct pollfd* result,
+                                       int max_result,
+                                       int* stored_result);
+#endif
 
 typedef usec_timestamp_t msec_timestamp_t;
 extern msec_timestamp_t dstc_msec_monotonic_timestamp(void);
@@ -134,7 +154,6 @@ extern int dstc_setup2(
     // See examples/chat.c for example.
     // Set to -1 to use DSTC-internal epoll management.
     int epoll_fd_arg,
-
     // Specific RMC node ID to use. Set to 0 in order to
     // get a randomly assigned ID./
     rmc_node_id_t node_id,
@@ -431,13 +450,13 @@ static inline uint16_t dstc_dyndata_length(dstc_dynamic_data_t* dyndata)
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
 #define DSTC_SERVER_CALLBACK(name, ...)                                 \
-    int dstc_##name(DECLARE_ARGUMENTS(__VA_ARGS__)) {                   \
+    int dstc_##name(dstc_callback_t cb_ref, DECLARE_ARGUMENTS(__VA_ARGS__)) {            \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
         uint8_t *payload = arg_buf;                                     \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
-        return dstc_queue_callback(0, name, arg_buf, arg_sz);           \
+        return dstc_queue_callback(0, cb_ref, arg_buf, arg_sz);            \
     }                                                                   \
     void __attribute__((constructor)) _dstc_register_callback_##name()  \
     {                                                                   \

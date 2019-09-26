@@ -12,13 +12,14 @@ SUBDIRS =                 \
 	many_arguments        \
 	cpp                   \
 
-.PHONY: all clean install uninstall cpp
+.PHONY: all clean install uninstall
 
+export USE_POLL
 
 all: $(SUBDIRS)
 	@for dir in $(SUBDIRS); \
 	do \
-		$(MAKE) -C $$dir $(MAKECMDGOALS); \
+		$(MAKE) -C $$dir; \
 	done
 
 clean: $(SUBDIRS)
@@ -33,7 +34,6 @@ install: $(SUBDIRS)
 	do \
 	    $(MAKE) DESTDIR=${DESTDIR} -C $$dir install; \
 	done \
-
 
 
 uninstall: $(SUBDIRS)

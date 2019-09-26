@@ -10,7 +10,6 @@ INCLUDE=../../dstc.h callbackvector.hpp
 #
 # C Targate
 #
-
 TARGET_C_CLIENT=c_client
 TARGET_NOMACRO_C_CLIENT=${TARGET_C_CLIENT}_nomacro
 
@@ -44,7 +43,11 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.cpp)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.cpp)
 
-CFLAGS+= -I../.. -Wall -O2
+
+NAME=dynamic_data
+
+
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 ${USE_POLL}
 CXXFLAGS=${CFLAGS} -std=c++14
 
 .PHONY: all clean install nomacro uninstall
@@ -54,14 +57,14 @@ all: $(TARGET_C_CLIENT) $(TARGET_SERVER) $(TARGET_CLIENT)
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT) $(TARGET_NOMACRO_C_CLIENT)
 
 $(TARGET_SERVER): $(SERVER_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 $(TARGET_C_CLIENT): $(C_CLIENT_OBJ)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	$(CXX) $(CXXFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 # Recompile everything if dstc.h changes
@@ -88,21 +91,21 @@ uninstall:
 #
 # The client is built as a regular binary
 #
-$(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+$(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTCLIB)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
-$(TARGET_NOMACRO_C_CLIENT) : $(C_CLIENT_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+$(TARGET_NOMACRO_C_CLIENT) : $(C_CLIENT_NOMACRO_OBJ) $(DSTCLIB)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
-$(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTC_LIB)
-	$(CC) $(CFLAGS) $^ -L../.. -ldstc -lrmc -o $@ $(LDFLAGS)
+$(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTCLIB)
+	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h
-	cpp ${INCPATH} -E ${CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${CLIENT_NOMACRO_SOURCE}
+	$(CC) ${INCPATH} -E ${CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${CLIENT_NOMACRO_SOURCE}
 
 $(C_CLIENT_NOMACRO_SOURCE): ${C_CLIENT_SOURCE} ../../dstc.h
-	cpp ${INCPATH} -E ${C_CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${C_CLIENT_NOMACRO_SOURCE}
+	$(CC) ${INCPATH} -E ${C_CLIENT_SOURCE} | clang-format | grep -v '^# [0-9]' > ${C_CLIENT_NOMACRO_SOURCE}
 
 $(SERVER_NOMACRO_SOURCE): ${SERVER_SOURCE} ../../dstc.h
-	cpp ${INCPATH} -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
+	$(CC) ${INCPATH} -E ${SERVER_SOURCE} | clang-format | grep -v '^# [0-9]' > ${SERVER_NOMACRO_SOURCE}
