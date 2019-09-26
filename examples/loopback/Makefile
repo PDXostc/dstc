@@ -25,7 +25,7 @@ all: $(TARGET)
 nomacro:  $(TARGET_NOMACRO)
 
 $(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -L/usr/local/lib -ldstc -lrmc -o $@ $(LDFLAGS)
 
 
 # Recompile everything if dstc.h changes
@@ -48,7 +48,7 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO) : $(NOMACRO_OBJ) $(DSTCLIB)
-	$(CC)  $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
+	$(CC)  $(CFLAGS) $^ -L/usr/local/lib -ldstc -lrmc -o $@ $(LDFLAGS)
 
 
 $(NOMACRO_SOURCE): ${SOURCE} ../../dstc.h
