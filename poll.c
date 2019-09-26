@@ -6,7 +6,8 @@
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 
 
-#ifdef USE_POLL
+#if (!defined(__linux__) && !defined(__ANDROID__)) ||defined(USE_POLL)
+
 #include "dstc.h"
 #include "dstc_internal.h"
 
@@ -325,4 +326,4 @@ void dstc_process_poll_result(struct pollfd* event)
     _dstc_process_poll_result(ctx, event);
     _dstc_unlock_context(ctx);
 }
-#endif // POLL=poll
+#endif // Not linux or android

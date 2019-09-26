@@ -13,18 +13,10 @@
 #include <reliable_multicast.h>
 #include <pthread.h>
 
-#ifdef USE_POLL
-#include <poll.h>
-#endif
-
-#ifdef USE_EPOLL
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
 #include <sys/epoll.h>
-#endif
-
-#ifndef USE_POLL
-#ifndef USE_EPOLL
-#error Define either USE_POLL or USE_EPOLL
-#endif
+#else
+#include <poll.h>
 #endif
 
 #ifdef __cplusplus
@@ -51,7 +43,7 @@ typedef void (*dstc_internal_dispatch_t)(dstc_callback_t callback_ref,
 // Single context
 struct dstc_context;
 
-#ifdef USE_EPOLL
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
 // An epoll event.
 struct epoll_event;
 #endif
@@ -103,16 +95,13 @@ extern int dstc_process_timeout(void);
 // Depracated, use dstc_process_events(0) instead.
 extern int dstc_process_pending_events(void) __attribute__((deprecated));
 
-#ifdef USE_POLL
-extern void dstc_process_poll_result(struct pollfd* events);
-
-int dstc_retrieve_pollfd_vector(struct pollfd* result,
-                                int max_result,
-                                int* stored_result);
-#endif
-
-#ifdef USE_EPOLL
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
 extern void dstc_process_epoll_result(struct epoll_event* event);
+#else
+extern void dstc_process_poll_result(struct pollfd* events);
+extern int dstc_retrieve_pollfd_vector(struct pollfd* result,
+                                       int max_result,
+                                       int* stored_result);
 #endif
 
 typedef usec_timestamp_t msec_timestamp_t;

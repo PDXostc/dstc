@@ -11,7 +11,7 @@
 
 #include "dstc.h"
 
-#ifdef USE_POLL
+#if (!defined(__linux__) && !defined(__ANDROID__)) ||defined(USE_POLL)
 #include "uthash.h"
 #endif
 
@@ -51,7 +51,7 @@ typedef struct {
 // associated with the fd.
 // We use uthash.h to maintain a hash table that maps between
 // a file descriptor and a poll_elem_t element.
-#ifdef USE_POLL
+#if (!defined(__linux__) && !defined(__ANDROID__)) ||defined(USE_POLL)
 typedef struct  {
         struct pollfd pfd;
         uint32_t user_data;
@@ -78,16 +78,11 @@ typedef struct dstc_context {
 
     uint32_t callback_ind ;
 
-#ifdef USE_POLL
-    // Hash handle
-    poll_elem_t *poll_hash;
-
-    // Array that we allocate poll_elem_t from
-    poll_elem_t poll_elem_array[DSTC_MAX_CONNECTIONS];
-#endif
-
-#ifdef USE_EPOLL
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
     int epoll_fd;
+#else
+    poll_elem_t poll_elem_array[DSTC_MAX_CONNECTIONS];
+    poll_elem_t* poll_hash;
 #endif
 
     // All DSTC_CLIENT-registered functions (dstc_print_name_and_age)

@@ -26,14 +26,12 @@ LIB_SO_TARGET=libdstc.so
 DESTDIR ?= /usr/local
 export DESTDIR
 
-UNAME ?= ${shell uname -s}
-ifeq (${UNAME}, Linux)
-POLL_FLAG=-DUSE_EPOLL=1
-else
-POLL_FLAG=-DUSE_POLL=1
+ifeq (${POLL}, 1)
+USE_POLL=-DUSE_POLL=1
+export USE_POLL
 endif
 
-CFLAGS ?=-fPIC -ggdb ${INCLUDES} ${POLL_FLAG} -Wall -pthread -D_GNU_SOURCE #-DDSTC_PTHREAD_DEBUG
+CFLAGS ?=-fPIC -O2 ${INCLUDES} -Wall -pthread -D_GNU_SOURCE ${USE_POLL} #-DDSTC_PTHREAD_DEBUG
 
 #
 # Build the entire project.

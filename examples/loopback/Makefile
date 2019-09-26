@@ -15,12 +15,7 @@ NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
 
 
-UNAME ?= ${shell uname -s}
-ifeq (${UNAME}, Linux)
-CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_EPOLL
-else
-CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_POLL
-endif
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 ${USE_POLL}
 
 
 .PHONY: all clean install nomacro uninstall

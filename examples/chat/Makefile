@@ -2,16 +2,7 @@
 # Executable example code from the README.md file
 #
 
-
-UNAME ?= ${shell uname -s}
-ifeq (${UNAME}, Linux)
-CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_EPOLL
-NAME=chat_epoll
-else
-CFLAGS += -I../.. -pthread -Wall -pthread -ggdb -DUSE_POLL
-NAME=chat_poll
-endif
-
+NAME=chat
 # FIXME variable substitution is a thing
 INCLUDE=../../dstc.h
 
@@ -23,6 +14,8 @@ SOURCE=$(OBJ:%.o=%.c)
 
 NOMACRO_OBJ=$(OBJ:%.o=%_nomacro.o)
 NOMACRO_SOURCE=$(NOMACRO_OBJ:%.o=%.c)
+
+CFLAGS += -I../.. -pthread -Wall -O2 ${USE_POLL}
 
 .PHONY: all clean install uninstall nomacro
 

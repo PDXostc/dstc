@@ -20,11 +20,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#ifdef USE_EPOLL
-#include <sys/epoll.h>
-#endif
 
-#ifdef USE_POLL
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
+#include <sys/epoll.h>
+#else
 #include <poll.h>
 #endif
 
@@ -49,12 +48,10 @@ dstc_context_t _dstc_default_context = {
     .remote_node_ind = 0,
     .local_callback = { {0,0 } },
 
-#ifdef USE_POLL
-    .poll_hash = 0,
-#endif
-
-#ifdef USE_EPOLL
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
     .epoll_fd = -1,
+#else
+    .poll_hash = 0,
 #endif
 
     .client_func = { { { 0 }, 0 } },
@@ -724,9 +721,17 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                                int mcast_ttl,
                                char* control_listen_iface_addr,
                                int control_listen_port,
-                               int epoll_fd_arg) // Ignored for USE_POLL
+                               int epoll_fd_arg) // Ignored by non Linux/Android
 {
-#ifdef USE_POLL
+
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
+    if (!ctx || epoll_fd_arg == -1)
+        return EINVAL;
+
+    ctx->epoll_fd = epoll_fd_arg;
+
+#else
+    // Setup a poll vector to use.
     int ind = sizeof(ctx->poll_elem_array) / sizeof(ctx->poll_elem_array[0]);
     if (!ctx)
         return EINVAL;
@@ -741,13 +746,6 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                 .revents = 0x00},
             .user_data = 0
         };
-#endif
-
-#ifdef USE_EPOLL
-    if (!ctx || epoll_fd_arg == -1)
-        return EINVAL;
-
-    ctx->epoll_fd = epoll_fd_arg;
 #endif
 
     ctx->remote_node_ind = 0;
@@ -768,8 +766,9 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          control_listen_iface_addr, // Use any NIC address for listen control port.
                          control_listen_port, // Use ephereal tcp port for tcp control
                          user_data_ptr(ctx),
-                         // Different versions of poll_(add|modify|remote) used depending on USE_POLL/USE_EPOLL
-                         // See poll.c and epoll.c
+                         // Different versions of
+                         // poll_(add|modify|remote) used depending on
+                         // Linux/Android/other See poll.c and epoll.c
                          poll_add_pub, poll_modify_pub, poll_remove,
                          DSTC_MAX_CONNECTIONS,
                          free_published_packets);
@@ -794,8 +793,9 @@ static int dstc_setup_internal(dstc_context_t* ctx,
                          multicast_group_addr, multicast_port,
                          multicast_iface_addr,  // Use any NIC address for multicast transmit.
                          user_data_ptr(ctx),
-                         // Different versions of poll_(add|modify|remote) used depending on USE_POLL/USE_EPOLL
-                         // See poll.c and epoll.c
+                         // Different versions of
+                         // poll_(add|modify|remote) used depending on
+                         // Linux/Android/other See poll.c and epoll.c
                          poll_add_sub, poll_modify_sub, poll_remove,
                          DSTC_MAX_CONNECTIONS,
                          0,0);
@@ -1413,15 +1413,14 @@ int dstc_setup_epoll(int epoll_fd_arg)
 
 int dstc_setup(void)
 {
-#ifdef USE_POLL
-    return dstc_setup_epoll(-1);
-#endif
-#ifdef USE_EPOLL
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
     return dstc_setup_epoll(epoll_create(1));
+#else
+    return dstc_setup_epoll(-1);
 #endif
 }
 
-int dstc_setup2(int epoll_fd_arg, // Ignored for USE_POLL
+int dstc_setup2(int epoll_fd_arg, // Ignored by non Android/Linux use
                 rmc_node_id_t node_id,
                 int max_dstc_nodes,
                 char* multicast_group_addr,
@@ -1452,11 +1451,10 @@ int dstc_setup2(int epoll_fd_arg, // Ignored for USE_POLL
                               mcast_ttl,
                               control_listen_iface_addr,
                               control_listen_port,
-#ifdef USE_POLL
-                              -1
-#endif
-#ifdef USE_EPOLL
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
                               (epoll_fd_arg != -1)?epoll_fd_arg:epoll_create(1)
+#else
+                              -1
 #endif
         );
     _dstc_unlock_context(ctx);

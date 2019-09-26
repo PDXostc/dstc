@@ -7,14 +7,14 @@
 
 #include "dstc.h"
 #include "rmc_log.h"
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
+#include <sys/epoll.h>
+#else
 #include <poll.h>
+#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#ifndef USE_POLL
-#error Please compile with USE_POLL
-#endif
 
 char g_username[128];
 
@@ -87,8 +87,93 @@ int main(int argc, char* argv[])
     printf("> ");
     fflush(stdout);
 
-    dstc_setup();
+    //
+    // Depending on which environment we exeute in, we either do this using poll
+    // or epoll.
+    //
+#if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
+    int epoll_fd = 0;
+    struct epoll_event stdin_ev = {
+        // The stdin event will be the only one with 0 as user data
+        .data.u32 = 0,
+        .events = EPOLLIN
+    };
 
+
+    // We will do our own event management since we need to monitor stdin
+    // in parallel with all sockets managed by DSTC.
+    // We do this by creating an epoll file descriptor, add stdin to it,
+    // and then ask DSTC to add all its socket descriptors to it
+    //
+    // When epoll_wait() returns, all events that have the
+    // DSTC_EVENT_FLAG bit set should be sent to dstc for processing
+
+    epoll_fd = epoll_create1(0);
+
+    // Add stdin to epoll vector.
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, 0, &stdin_ev) == -1) {
+        RMC_LOG_FATAL("epoll_ctl(add, stdin): %s", strerror(errno));
+        exit(255);
+    }
+
+    // Setup dstc with the given epoll descriptor
+    dstc_setup_epoll(epoll_fd);
+
+    // Wait for input and process
+    while(1) {
+        int timeout = 0;
+        int nfds = 0;
+        struct epoll_event events[dstc_get_socket_count() + 1]; // Add 1 for our stdin.
+
+        // Find out when our next timeout is.
+        // If timeout is zero, then we need to process a timeout immediately.
+        while (!(timeout = dstc_get_timeout_msec_rel())) {
+            RMC_LOG_DEBUG("Got timeout in dstc_get_timeout_msec_rel()");
+            dstc_process_timeout();
+        }
+
+
+        // Wait for the given time.
+        RMC_LOG_DEBUG("Entering wait with %d msec", timeout);
+        nfds = epoll_wait(epoll_fd, events, sizeof(events)/sizeof(events[0]), timeout);
+
+        // Timeout?
+        if (nfds == 0) {
+            // Process dstc events and try again.
+            RMC_LOG_DEBUG("Got timeout in epoll_wait()");
+            dstc_process_timeout();
+            continue;
+        }
+
+        //
+        // We have one or more triggered events.
+        // Loop through them and process them as keyboard
+        // or DSTC events.
+        //
+        while(nfds--) {
+            // Is this keyboard input?
+            if (events[nfds].data.fd == 0) {
+                handle_keyboard();
+                continue;
+            }
+
+            // Is this a DSTC event?
+            if (events[nfds].data.u32 & DSTC_EVENT_FLAG) {
+                dstc_process_epoll_result(&events[nfds]);
+                continue;
+            }
+
+            // We have an event that we did not register for.
+            RMC_LOG_FATAL("Unknown event: %u", events[nfds].data.u32);
+            exit(255);
+        }
+    }
+
+
+
+#else
+
+    // We do this using regular poll vectors.
     // Wait for input and process
     while(1) {
         int timeout = 0;
@@ -150,4 +235,6 @@ int main(int argc, char* argv[])
             dstc_process_poll_result(&events[vec_sz]);
         }
     }
+#endif
+
 }

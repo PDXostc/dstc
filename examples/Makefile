@@ -14,8 +14,9 @@ SUBDIRS =                 \
 
 .PHONY: all clean install uninstall
 
+export USE_POLL
+
 all: $(SUBDIRS)
-	echo ${UNAME}
 	@for dir in $(SUBDIRS); \
 	do \
 		$(MAKE) -C $$dir; \

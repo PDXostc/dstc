@@ -28,14 +28,7 @@ SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)
 SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.c)
 
-
-UNAME ?= ${shell uname -s}
-ifeq (${UNAME}, Linux)
-CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_EPOLL
-else
-CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_POLL
-endif
-
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 ${USE_POLL}
 
 .PHONY: all clean install nomacro uninstall
 

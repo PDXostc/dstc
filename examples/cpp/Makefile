@@ -47,13 +47,7 @@ SERVER_NOMACRO_SOURCE=$(SERVER_NOMACRO_OBJ:%.o=%.cpp)
 NAME=dynamic_data
 
 
-UNAME ?= ${shell uname -s}
-ifeq (${UNAME}, Linux)
-CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_EPOLL
-else
-CFLAGS += -I../.. -pthread -Wall -pthread -O2 -DUSE_POLL
-endif
-
+CFLAGS += -I../.. -pthread -Wall -pthread -O2 ${USE_POLL}
 CXXFLAGS=${CFLAGS} -std=c++14
 
 .PHONY: all clean install nomacro uninstall
