@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
 
         // Add stdin at end of event vector
         events[vec_sz].fd = 0;
-        events[vec_sz].events = 0;
+        events[vec_sz].events = POLLIN;
         events[vec_sz].revents = 0;
         vec_sz++;
         // Wait for the given time.
@@ -141,6 +141,7 @@ int main(int argc, char* argv[])
 
             // Is this keyboard input?
             if (events[vec_sz].fd == 0) {
+
                 handle_keyboard();
                 continue;
             }
