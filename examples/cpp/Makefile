@@ -57,14 +57,14 @@ all: $(TARGET_C_CLIENT) $(TARGET_SERVER) $(TARGET_CLIENT)
 nomacro:  $(TARGET_NOMACRO_SERVER) $(TARGET_NOMACRO_CLIENT) $(TARGET_NOMACRO_C_CLIENT)
 
 $(TARGET_SERVER): $(SERVER_OBJ)
-	$(CXX) $(CXXFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $^ -L/usr/local/lib -ldstc -lrmc -o $@ $(LDFLAGS)
 
 
 $(TARGET_C_CLIENT): $(C_CLIENT_OBJ)
-	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -L/usr/local/lib -ldstc -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_CLIENT): $(CLIENT_OBJ)
-	$(CXX) $(CXXFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $^ -L/usr/local/lib -ldstc -lrmc -o $@ $(LDFLAGS)
 
 
 # Recompile everything if dstc.h changes
@@ -92,13 +92,13 @@ uninstall:
 # The client is built as a regular binary
 #
 $(TARGET_NOMACRO_CLIENT) : $(CLIENT_NOMACRO_OBJ) $(DSTCLIB)
-	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -L/usr/local/lib -ldstc -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_NOMACRO_C_CLIENT) : $(C_CLIENT_NOMACRO_OBJ) $(DSTCLIB)
-	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -L/usr/local/lib -ldstc -lrmc -o $@ $(LDFLAGS)
 
 $(TARGET_NOMACRO_SERVER): $(SERVER_NOMACRO_OBJ) $(DSTCLIB)
-	$(CC) $(CFLAGS) $^ ../../libdstc.so -lrmc -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) $^ -L/usr/local/lib -ldstc -lrmc -o $@ $(LDFLAGS)
 
 
 $(CLIENT_NOMACRO_SOURCE): ${CLIENT_SOURCE} ../../dstc.h
