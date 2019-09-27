@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include "dstc.h"
 #include "rmc_log.h"
-
+#include <errno.h>
 
 // Generate deserializer for multicast packets sent by dstc_message()
 // above.
@@ -44,8 +44,18 @@ void double_value(int value, dstc_callback_t callback_ref)
     }
 
     printf("double_value(%d) called with a callback\n", value);
-    dstc_callback_ref(callback_ref, value + value);
-    dstc_process_events(0);
+
+    // Callback will return ENOENT if the client was started before
+    // the server and calls double_value() before all connections
+    // are setup. In these cases process a few events until we get the
+    // connection
+    while(dstc_callback_ref(callback_ref, value + value) == ENOENT) {
+        puts("Waiting for the client connection to complete.");
+        dstc_process_events(50);
+    }
+
+    // Process events until we have emptied the queue.
+    while(dstc_process_events(0) != ETIME);
     exit(0);
 }
 
