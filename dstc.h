@@ -90,7 +90,7 @@ extern void dstc_unbuffer_client_calls(void);
 #define TO_POLL_EVENT_USER_DATA(_index, is_pub) (index | ((is_pub)?USER_DATA_PUB_FLAG:0) | DSTC_EVENT_FLAG)
 #define FROM_POLL_EVENT_USER_DATA(_user_data) (_user_data & USER_DATA_INDEX_MASK & ~DSTC_EVENT_FLAG)
 
-extern int dstc_process_events(int timeout);
+extern int dstc_process_events(int timeout_msec);
 extern int dstc_process_timeout(void);
 // Depracated, use dstc_process_events(0) instead.
 extern int dstc_process_pending_events(void) __attribute__((deprecated));

@@ -10,6 +10,9 @@
 
 #include "dstc.h"
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <errno.h>
 
 // Generate serializer functionality and the callable client function
 // dstc_print_name_and_age().
@@ -22,6 +25,7 @@ DSTC_CLIENT(print_name_and_age, char, [32], int,)
 int main(int argc, char* argv[])
 {
     char name[32] = {0};
+    int res = 0;
 
     // Wait for function to become available on one or more servers.
     while(!dstc_remote_function_available(dstc_print_name_and_age))
@@ -30,7 +34,10 @@ int main(int argc, char* argv[])
 
     strcpy(name, "Bob Smith");
     dstc_print_name_and_age(name, 25);
+
     // Process all pending events, ensuring that the call goes out.
-    dstc_process_events(0);
+    while((res = dstc_process_events(0)) != ETIME)
+        ;
+
     exit(0);
 }

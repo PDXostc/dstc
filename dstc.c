@@ -1235,6 +1235,7 @@ int dstc_process_events(int timeout_rel)
         while(1) {
             _dstc_lock_context(ctx);
             if (_dstc_process_single_event(ctx, 0) == ETIME) {
+                _dstc_process_timeout(ctx);
                 _dstc_unlock_context(ctx);
                 return ETIME;
             }
