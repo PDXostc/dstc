@@ -1055,6 +1055,27 @@ int dstc_queue_callback(dstc_context_t* ctx, dstc_callback_t addr, uint8_t* arg,
         ctx = &_dstc_default_context;
 
     _dstc_lock_and_init_context(ctx);
+    // If we are queueing a callback, make sure that
+    // we actually have a subscription setup with that node.
+    // This may fail if we get a client call, with a callback,
+    // immediately after the server comes up and has had time
+    // to establish all links.
+    //
+    // This can also happen if the client disconnects immediately after
+    // issuing the client call to the server, before the
+    // server has had time to invoke the callback.
+    // Find remote node
+    int ind = ctx->remote_node_ind;
+    rmc_node_id_t node_id = dstc_get_node_id();
+    while(ind--)
+        if (node_id == ctx->remote_node[ind].node_id)
+            break;
+
+    if (ind == -1) {
+        RMC_LOG_INFO("Tried to invoke callback to node 0x%X, but it was not connected.", node_id);
+        return ENOENT;
+    }
+
     // Call with zero namelen to treat name as a 64bit integer.
     // This integer will be mapped by the received through the
     // ctx->local_callback
