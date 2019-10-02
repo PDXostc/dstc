@@ -5,13 +5,13 @@
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 
+
 #if (defined(__linux__) || defined(__ANDROID__)) && !defined(USE_POLL)
-#include "dstc.h"
-#include "dstc_internal.h"
 #include <sys/epoll.h>
 #include <stdlib.h>
-#include <rmc_log.h>  // From reliable multicast packet
 #include <errno.h>
+#include "dstc_internal.h"
+#include <rmc_log.h>
 
 static void poll_add(user_data_t user_data,
                      int descriptor,

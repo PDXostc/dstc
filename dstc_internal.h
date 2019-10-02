@@ -5,7 +5,6 @@
 //
 // Author: Magnus Feuer (mfeuer1@jaguarlandrover.com)
 
-
 #ifndef __DSTC_INTERNAL_H__
 #define __DSTC_INTERNAL_H__
 
