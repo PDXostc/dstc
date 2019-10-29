@@ -1,14 +1,15 @@
 #
 # Executable example code from the README.md file
 #
-NAME=dynamic_data
+NAME=string_data
+
 # FIXME variable substitution is a thing
 INCLUDE=../../dstc.h
 
 TARGET_CLIENT=${NAME}_client
 TARGET_NOMACRO_CLIENT=${TARGET_CLIENT}_nomacro
 
-CLIENT_OBJ=dynamic_data_client.o
+CLIENT_OBJ=${NAME}_client.o
 CLIENT_SOURCE=$(CLIENT_OBJ:%.o=%.c)
 
 CLIENT_NOMACRO_OBJ=$(CLIENT_OBJ:%.o=%_nomacro.o)
@@ -20,7 +21,7 @@ CLIENT_NOMACRO_SOURCE=$(CLIENT_NOMACRO_OBJ:%.o=%.c)
 TARGET_SERVER=${NAME}_server
 TARGET_NOMACRO_SERVER=${TARGET_SERVER}_nomacro
 
-SERVER_OBJ=dynamic_data_server.o
+SERVER_OBJ=${NAME}_server.o
 SERVER_SOURCE=$(SERVER_OBJ:%.o=%.c)
 
 SERVER_NOMACRO_OBJ=$(SERVER_OBJ:%.o=%_nomacro.o)

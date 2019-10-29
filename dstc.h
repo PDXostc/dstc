@@ -212,6 +212,9 @@ typedef struct {
 // when we use DECL_DYNAMIC_ARG in DSTC_CLIENT and DSTC_SERVER lines.
 #define DSTC_DECL_DYNAMIC_ARG DSTC,
 
+// Alias the same thing for string arguments
+#define DSTC_DECL_STRING_ARG DSTC,
+
 // Tag for dynamic data magic cookie: "DSTC" = 0x44535443
 // Used by DESERIALIZE_ARGUMENT and SERIALIZE_ARGUMENT
 // to detect dynamic data arguments
@@ -221,10 +224,16 @@ typedef struct {
 // Define an alias type that matches the magic cookie.
 typedef dstc_dynamic_data_t DSTC;
 
+// Define an alias type for null-terminated strings.
+typedef dstc_dynamic_data_t dstc_string_t;
+
 // Use dynamic arguments as:
-// dstc_send_variable_len(DYNARG("Hello world", 11))
+// dstc_send_variable_len(DSTC_DYNAMIC_ARG("Hello world", 11))
 #define DSTC_DYNAMIC_ARG(_data, _length) ({ DSTC d = { .length = (uint16_t) _length, .data = _data }; d; })
 
+// Use null-terminated string argument as
+// dstc_send_variable_len(DSTC_STRING_ARG("Hello world"))
+#define DSTC_STRING_ARG(_data) ({ DSTC d = { .length = (uint16_t) strlen(_data)+1, .data = _data }; d; })
 
 //
 // Callback functions.
