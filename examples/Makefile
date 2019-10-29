@@ -2,6 +2,7 @@
 SUBDIRS =                 \
 	print_name_and_age    \
 	dynamic_data          \
+	string_data          \
 	print_struct          \
 	callback              \
 	callback_dyndata      \

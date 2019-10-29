@@ -279,7 +279,7 @@ server-side `dstc_print_name_and_age()`.
 ## Building
 Compile and link `dstc.c` with your code.
 
-# DYNAMIC DATA
+# DYNAMIC DATA ARGUMENTS
 Both `DSTC_CLIENT` and `DSTC_SERVER` can accept basic C data
 type arguments (except pointers) like structs and fix-size arrays.
 
@@ -287,14 +287,14 @@ The `DSTC_DECL_DYNAMIC_ARG` macro can be used in `DSTC_CLIENT`
 and `DSTC_SERVER` to specify that the given argument has dynamic length.
 
 
-## Client-side dynamic data
+## Client-side dynamic data arguments
 Below is an example from `examples/dynamic_data/dynamic_data_client.c` where
-the `dynamic_message()` function accepts a dynamic length argument and an
+the `test_dynamic_function()` function accepts a dynamic length argument and an
 array of four integers.
 
-    DSTC_CLIENT(dynamic_message, DSTC_DECL_DYNAMIC_ARG, int, [4])
+    DSTC_CLIENT(test_dynamic_function, DSTC_DECL_DYNAMIC_ARG, int, [4])
 
-The client-side call to `dynamic_message` is as follows:
+The client-side call to `test_dynamic_function` is as follows:
 
     char *first_arg = "This string can be variable length";
     int second_arg[4] = { 1,2,3,4 };
@@ -302,21 +302,21 @@ The client-side call to `dynamic_message` is as follows:
     // Use the DSTC_DYNAMIC_ARG() macro to specify that we want to provide a dynamic
     // length string (that includes the terminating null char):
 
-    dstc_dynamic_message(DSTC_DYNAMIC_ARG(first_arg, strlen(first_arg) + 1), second_arg);
+    dstc_test_dynamic_function(DSTC_DYNAMIC_ARG(first_arg, strlen(first_arg) + 1), second_arg);
 
 The first argument to `DSTC_DYNAMIC_ARG` is expected to be `void*`. The second
 argument is expected to be `uint32_t`.
 
-## Server-side dynamic data
+## Server-side dynamic data arguments
 
-The server-side declaration of dynamic arguments is identical to the client side.
-From `examples/dynamic_data/dynamic_data_client.c`:
+The server-side declaration of dynamic arguments are identical to the client side.
+From `examples/dynamic_data/dynamic_data_server.c`:
 
-    DSTC_SERVER(dynamic_message, DSTC_DECL_DYNAMIC_ARG, int, [4])
+    DSTC_SERVER(test_dynamic_function, DSTC_DECL_DYNAMIC_ARG, int, [4])
 
 An example of the actual function to be called is given below:
 
-    void dynamic_message(dstc_dynamic_data_t dynarg, int second_arg[4])
+    void test_dynamic_function(dstc_dynamic_data_t dynarg, int second_arg[4])
     {
         printf("Data:          %s\n", (char*) dynarg.data);
         printf("Length:        %d\n", dynarg.length);
@@ -333,11 +333,70 @@ The `dstc_dynamic_data_t` struct is defined in `dstc.h` as:
       void* data;
     } dstc_dynamic_data_t;
 
-When `dynamic_message()` is called, it can
+When `test_dynamic_function()` is called, it can
 check `dynarg.length` for the number of bytes available in the
 memory pointed to by `dynarg.data`.
 
 The memory referred to by the `dstc_dynamic_data_t` struct is owned by the
+DSTC system and should not be modified or freed. Once the called function
+returns, the memory pointed to by the `data` element will be deleted.
+
+
+# STRING ARGUMENTS
+The `DSTC_DECL_STRING_ARG` macro can be used in `DSTC_CLIENT` and
+`DSTC_SERVER` to specify that the given argument is a null-terminated
+string.
+
+
+## Client-side string arguments
+Below is an example from `examples/string_data/string_data_client.c`
+where the `test_string_function()` function accepts a null-terminated
+C string and an array of four integers.
+
+    DSTC_CLIENT(test_string_function, DSTC_DECL_STRING_ARG, int, [4])
+
+The client-side call to `test_string_function()` is as follows:
+
+    char *first_arg = "This is a regular C string";
+    int second_arg[4] = { 1,2,3,4 };
+
+    // Use the DSTC_STRING_ARG() macro to specify that we want to provide a
+    // C string (that includes the terminating null char):
+
+    dstc_test_string_function(DSTC_STRING_ARG(first_arg), second_arg);
+
+The singlew argument to `DSTC_STRING_ARG` is expected to be `char*`.
+
+## Server-side string arguments
+The server-side declaration of string arguments are identical to the client side.
+From `examples/string_data/string_data_server.c`:
+
+    DSTC_SERVER(test_string_function, DSTC_DECL_STRING_ARG, int, [4])
+
+An example of the actual function to be called is given below:
+
+    void test_string_function(dstc_string_t strarg, int second_arg[4])
+    {
+        printf("Data:          %s\n", (char*) strarg.data);
+        printf("Length:        %d\n", strarg.length);
+        printf("Second Arg[0]: %d\n", second_arg[0]);
+        printf("Second Arg[1]: %d\n", second_arg[1]);
+        printf("Second Arg[2]: %d\n", second_arg[2]);
+        printf("Second Arg[3]: %d\n", second_arg[3]);
+    }
+
+The `dstc_string_data_t` as an alias to `dstc_dynamic_data_t`:
+
+    typedef struct {
+      uint32_t length;
+      void* data;
+    } dstc_dynamic_data_t;
+
+When `test_string_function()` is called, it can
+check `strarg.length` for the number of bytes available in the
+memory pointed to by `strarg.data`.
+
+The memory referred to by the `dstc_string_t` struct is owned by the
 DSTC system and should not be modified or freed. Once the called function
 returns, the memory pointed to by the `data` element will be deleted.
 
