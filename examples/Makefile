@@ -6,6 +6,7 @@ SUBDIRS =                 \
 	print_struct          \
 	callback              \
 	callback_dyndata      \
+	no_argument	      \
 	stress                \
 	loopback              \
 	chat                  \

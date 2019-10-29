@@ -3,7 +3,7 @@
 # Run tests.
 #
 
-TESTS="print_name_and_age many_arguments callback print_struct dynamic_data string_data stress thread_stress"
+TESTS="print_name_and_age many_arguments callback print_struct dynamic_data string_data stress thread_stress no_argument"
 TIMEOUT=30 # seconds
 export DSTC_MCAST_IFACE_ADDR=127.0.0.1
 
