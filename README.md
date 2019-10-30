@@ -2,9 +2,8 @@
 
 **Remotely executed functions in C with a single extra source and header file.**
 
-The purpose of this experiment is to minimize the libraries and
-dependencies needed to execute remote procedure calls (RPC) from one C
-program to another.
+**Why another RPC package?** Because there is a lack of lightweight, fast, and self-contained RPC mechanisms targeting semi-trusted, internal networks, such as those in a vehicle, that can easily be integrated into multiple languages and architectures.
+
 
 To setup a client call or a server function, a program only needs to
 compile and link `dstc.c`, include `dstc.h`, and add a single
@@ -24,8 +23,11 @@ code (according to cloc). The sample multi-user chat server is 36 lines of code.
 The test code in `examples/stress` runs at 10M calls / second between two Dell R720
 servers connected via 10Gb Ethernet. Single threaded.
 
+Running two processes on a Dell Precision 7530 with a Xeon E0216M @2.9GHz yields 
+~ 20M calls per second.
+
 ## Light dependencies
-You just need gcc and reliable multicast to build and deploy your services.
+You just need GCC or CLANG and reliable multicast to build and deploy your services.
 Any Posix-compliant OS is a suitable target environment.
 
 ## Can transmit arbitrary data types
@@ -35,9 +37,7 @@ they do not contain pointers.
 ## Call once - Execute many
 If a server function is registered in multiple processes / nodes
 across a network, all of them will be invoked in parallel with a
-(single) client call to the given function.<br>
-The provided chat system is implemented in ~50
-lines of C code.
+(single) client call to the given function.
 
 ## Supports callbacks
 A client call to a server can include a pointer to a client-side
