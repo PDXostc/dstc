@@ -414,6 +414,13 @@ dstc_callback_t dstc_activate_callback(dstc_context_t* ctx,
 {
     int ind = 0;
 
+    // If a null pointer was provided as a callback, just pass a 0
+    // around. The callback server will simply not do a callback if
+    // (dstc_callback_t) 0 is presented to it.
+    //
+    if (!callback)
+        return (dstc_callback_t) 0;
+
     if (!ctx)
         ctx = &_dstc_default_context;
 

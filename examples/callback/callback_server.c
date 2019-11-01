@@ -17,9 +17,10 @@
 // Generate deserializer for multicast packets sent by dstc_message()
 // above.
 // The deserializer decodes the incoming data and calls the
-// print_name_and_age() function in this file.
+//  doule_value() function in this file.
 //
 DSTC_SERVER(double_value, int,, DSTC_DECL_CALLBACK_ARG)
+
 
 //
 // Print out name and age.
@@ -36,19 +37,40 @@ DSTC_SERVER(double_value, int,, DSTC_DECL_CALLBACK_ARG)
 DSTC_SERVER_CALLBACK(callback_ref, int,);
 void double_value(int value, dstc_callback_t callback_ref)
 {
+    static int nil_callback_invoked = 0;
 
     if (value == -1) {
         puts("double_value(-1): Got exit signal.");
-        dstc_process_events(0);
+        while(dstc_process_events(0) != ETIME)
+            ;
+
+        if (!nil_callback_invoked) {
+            puts("double_value() with a nil callback reference was never invoked by the client");
+            exit(255);
+        }
+
         exit(0);
     }
 
-    printf("double_value(%d) called with a callback\n", value);
+
+    // Check if this is a nil callback ref.
+    // In this case we will just note that it was received and continue
+    // to process the callback as per usual.
+    // dstc_callback_ref() below will trigger on that callback_ref is
+    // 0 and return success immediately without sending any data to
+    // the client.
+
+    if (!callback_ref) {
+        printf("double_value(%d) called with a null callback. Good\n", value);
+        nil_callback_invoked = 1;
+    } else
+        printf("double_value(%d) called with a callback. Good\n", value);
 
     // Callback will return ENOENT if the client was started before
     // the server and calls double_value() before all connections
     // are setup. In these cases process a few events until we get the
     // connection
+
     while(dstc_callback_ref(callback_ref, value + value) == ENOENT) {
         puts("Waiting for the client connection to complete.");
         dstc_process_events(50);

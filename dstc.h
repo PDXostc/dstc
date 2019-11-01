@@ -277,6 +277,10 @@ typedef dstc_callback_t CBCK;
         return;                                                         \
     }                                                                   \
 
+// Null callback that will generate a no-op on when invoked on the
+// server.
+#define DSTC_CLIENT_CALLBACK_ARG_NULL ((dstc_callback_t) 0)
+
 #define DSTC_CLIENT_CALLBACK_ARG(_func)         \
     dstc_activate_callback(                     \
         0,                                      \
@@ -459,12 +463,18 @@ static inline uint16_t dstc_dyndata_length(dstc_dynamic_data_t* dyndata)
 // Create callback function that serializes and writes to descriptor.
 // If the reliable multicast system has not been started when the
 // client call is made, it is will be done through dstc_setup()
+// If cb_ref is zero, then a null callback function pointer was
+// passed on the client side as a callback argument. In that case.
+// Do not do any callbacks.
 #define DSTC_SERVER_CALLBACK(name, ...)                                 \
     int dstc_##name(dstc_callback_t cb_ref, DECLARE_ARGUMENTS(__VA_ARGS__)) { \
         uint32_t arg_sz = SIZE_ARGUMENTS(__VA_ARGS__);                  \
         uint8_t arg_buf[arg_sz];                                        \
         uint8_t *payload = arg_buf;                                     \
         (void) payload;                                                 \
+                                                                        \
+        if (!cb_ref)                                                    \
+            return 0;                                                   \
                                                                         \
         SERIALIZE_ARGUMENTS(__VA_ARGS__);                               \
         return dstc_queue_callback(0, cb_ref, arg_buf, arg_sz);         \
