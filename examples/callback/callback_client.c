@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include "dstc.h"
 #include "rmc_log.h"
+#include <errno.h>
 
 void get_value_callback(int value);
 
@@ -41,7 +42,6 @@ void double_value_callback(int value)
         puts("Error: doubled value received is not 446688");
         exit(255);
     }
-    exit(0);
 }
 
 DSTC_CLIENT_CALLBACK(double_value_callback, int,);
@@ -61,9 +61,15 @@ int main(int argc, char* argv[])
     puts("Asking servr to double 223344");
     dstc_double_value(223344, DSTC_CLIENT_CALLBACK_ARG(double_value_callback));
 
+    // Do the same thing, but with a nil callback argument
+    dstc_double_value(223344, DSTC_CLIENT_CALLBACK_ARG_NULL);
+
+    // Send -1 to trigger server exit.
+    dstc_double_value(-1, DSTC_CLIENT_CALLBACK_ARG_NULL);
+
     // Process events until callback, which will exit process, is made.
-    while(1)
-        dstc_process_events(-1);
+    while( dstc_process_events(0) != ETIME)
+        ;
 
     exit(0);
 }
