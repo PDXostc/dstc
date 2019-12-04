@@ -48,7 +48,7 @@ ${LIB_TARGET}: ${OBJ}
 #	Rebuild the shared object target library.b
 #
 ${LIB_SO_TARGET}:  ${OBJ}
-	${CC} -shared ${CFLAGS} ${OBJ} -o ${LIB_SO_TARGET}
+	${LD} -shared ${LDFLAGS} ${OBJ} -o ${LIB_SO_TARGET}
 
 
 ${OBJ}: ${SRC} ${HDR}
